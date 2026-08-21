@@ -1,0 +1,90 @@
+# OTG Analytics public-repository safety rules
+
+# Secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+**/.streamlit/secrets.toml
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python-generated files and test caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Runtime state and logs
+logs/
+**/logs/
+*.log
+*.pid
+*.lock
+
+# Production/generated data
+source_data/
+streamlit_opensea_sales/data_opensea_sales/
+*.parquet
+*.feather
+*.pkl
+*.sqlite
+*.sqlite3
+*.db
+*.jsonl
+
+# Backups and temporary staging
+**/.backups/
+**/.publish_backups/
+**/.staging/
+*.bak
+*.old
+*.backup
+
+# IDE and operating-system files
+.vscode/
+.idea/
+.vs/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Browser and temporary diagnostics
+chrome_tmp*/
+chrome_diag*/
+browser_profiles/
+tmp/
+temp/
+
+# Local/server-only launcher
+/streamlit_opensea_sales/start.bat
+
+# Unused/review-required artwork for the first public snapshot
+/roadmap/footer_img.png
+
+# Private production ingestion/enrichment layer
+/build_enriched_market_overview.py
+/build_gun_price_history.py
+/dry_run_enrich_sales_usd.py
+/export_enriched_sales_usd.py
+/extend_price_history.py
+/import_gun_usd_price_history_from_postgres.py
+/import_opensea_sales.py
+/import_opensea_sales_gun_usd_price_history.py
+/import_opensea_sales_market_overview.py
+/market_item_rankings.py
+/run_enriched_pipeline.py
+/run_indexer.py
+/test_enriched_pipeline_rebuild.py
+/test_implementation_blockers.py
+/test_period_rankings_fixes.py
+/test_utf8_encoding.py
+/test_validator_hardening.py

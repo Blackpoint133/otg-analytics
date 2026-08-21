@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OTG Analytics — Privacy Notice</title>
+  <link rel="icon" type="image/png" href="/site-assets/favicon.png">
+  <style>
+:root{
+  --bg:#050505;
+  --panel:#070707;
+  --line:#242424;
+  --text:#f3efe8;
+  --muted:#9b968f;
+  --red:#ff1748;
+  --ivory:#f1ece3;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--text);
+  background:
+    radial-gradient(circle at 86% 5%, rgba(255,23,72,.06), transparent 28rem),
+    linear-gradient(180deg,#060606 0%,#030303 100%);
+  font-family:Inter,Arial,Helvetica,sans-serif;
+  line-height:1.58;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(to right,rgba(255,255,255,.025) 1px,transparent 1px) 0 0/120px 120px,
+    linear-gradient(to bottom,rgba(255,255,255,.018) 1px,transparent 1px) 0 0/120px 120px;
+  opacity:.12;
+}
+.page{
+  width:min(calc(100% - 72px),1320px);
+  margin:0 auto;
+  padding:38px 0 80px;
+  position:relative;
+  z-index:1;
+}
+.top{
+  display:flex;
+  justify-content:space-between;
+  gap:24px;
+  align-items:center;
+  padding-bottom:22px;
+  border-bottom:1px solid var(--line);
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:.28em;
+  text-transform:uppercase;
+}
+.top a{
+  color:inherit;
+  text-decoration:none;
+  transition:color .18s ease;
+}
+.top a:hover{color:var(--ivory)}
+.brand{color:var(--ivory)!important;font-weight:800}
+.hero{
+  padding:68px 0 58px;
+  border-bottom:1px solid var(--line);
+  position:relative;
+}
+.hero::after{
+  content:"";
+  position:absolute;
+  right:0;
+  top:50%;
+  width:38%;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--red));
+  transform:rotate(-8deg);
+  opacity:.7;
+}
+.kicker{
+  color:var(--red);
+  text-transform:uppercase;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.24em;
+  margin-bottom:18px;
+}
+h1{
+  margin:0;
+  max-width:950px;
+  font-size:clamp(58px,8vw,126px);
+  line-height:.86;
+  letter-spacing:-.055em;
+  text-transform:uppercase;
+  color:var(--ivory);
+}
+.updated{
+  margin-top:26px;
+  color:#8f8a84;
+  font-size:12px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.legal{
+  width:min(100%,980px);
+  margin:0 auto;
+  padding:58px 0 24px;
+}
+.intro{
+  color:#c6c0b8;
+  font-size:17px;
+  border-left:2px solid var(--red);
+  padding-left:20px;
+  margin-bottom:42px;
+}
+.section{
+  padding:30px 0 34px;
+  border-top:1px solid #1e1e1e;
+}
+.section h2{
+  margin:0 0 18px;
+  color:var(--ivory);
+  font-size:24px;
+  line-height:1.12;
+  text-transform:uppercase;
+  letter-spacing:-.02em;
+}
+.section p{
+  margin:0 0 13px;
+  color:#aaa59d;
+  font-size:14px;
+}
+.section ul{
+  list-style:none;
+  margin:14px 0 18px;
+  padding:0;
+  display:grid;
+  gap:9px;
+}
+.section li{
+  position:relative;
+  padding-left:18px;
+  color:#b5b0a8;
+  font-size:14px;
+}
+.section li::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:.72em;
+  width:8px;
+  height:2px;
+  background:var(--red);
+}
+.section a{color:var(--ivory);text-decoration:none;border-bottom:1px solid #49443f}
+.section a:hover{border-color:var(--red)}
+footer{
+  border-top:1px solid var(--line);
+  margin-top:46px;
+  padding:26px 0 8px;
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  color:#736f68;
+  font-size:10px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  flex-wrap:wrap;
+}
+.footer-links{display:flex;gap:14px;flex-wrap:wrap}
+footer a{color:inherit;text-decoration:none}
+footer a:hover{color:var(--ivory)}
+@media(max-width:760px){
+  .page{width:min(calc(100% - 24px),1320px)}
+  .top{align-items:flex-start;flex-direction:column}
+  .hero{padding-top:48px}
+  .hero::after{width:52%;opacity:.42}
+  h1{font-size:58px}
+  .legal{padding-top:38px}
+}
+</style>
+</head>
+<body>
+  <main class="page">
+    
+      <div class="top">
+        <a class="brand" href="/">OTG Analytics</a>
+        <div>
+          <a href="/legal/terms">Terms</a> &nbsp;//&nbsp;
+          <a href="/legal/privacy">Privacy</a> &nbsp;//&nbsp;
+          <a href="/legal/disclaimer">Disclaimer</a>
+        </div>
+      </div>
+    <header class="hero">
+      <div class="kicker">OTG Analytics / Legal</div>
+      <h1>PRIVACY NOTICE</h1>
+      <div class="updated">Last updated: August 17, 2026</div>
+    </header>
+
+    <div class="legal">
+      <div class="intro"><p>This Privacy Notice explains how OTG Analytics collects and processes limited technical and usage information when you use the platform.</p></div>
+      <section class="section">
+              <h2>1. Who Operates OTG Analytics</h2>
+              <p>OTG Analytics is an independent community analytics project operated by an individual developer.</p>
+<p>Data Controller:</p>
+<p>Vadim Filippov</p>
+<p>Contact:</p>
+<p><a href="mailto:f.v.v.mywork@gmail.com">f.v.v.mywork@gmail.com</a></p>
+<p>Project X account:</p>
+<p><a href="https://x.com/blackpoint_team" target="_blank" rel="noopener">https://x.com/blackpoint_team</a></p>
+<p>For the purposes of applicable data-protection law, the individual identified above determines why and how the personal data described in this Privacy Notice is processed.</p>
+            </section><section class="section">
+              <h2>2. Information We Collect</h2>
+              <p>OTG Analytics is designed to collect only the information reasonably necessary to operate, secure, understand, and improve the platform.</p>
+<p>Depending on how you access the site, we may process:</p>
+<ul>
+<li>a randomly generated analytics session identifier;</li>
+<li>a pseudonymous visitor identifier;</li>
+<li>browser and device category;</li>
+<li>browser family;</li>
+<li>language or locale;</li>
+<li>timezone;</li>
+<li>page or application mode entered;</li>
+<li>selected item identifier where relevant;</li>
+<li>referring website domain;</li>
+<li>UTM campaign parameters;</li>
+<li>timestamps;</li>
+<li>bot or automated-traffic indicators; and</li>
+<li>indicators used to separate internal or testing traffic from ordinary visitor activity.</li>
+</ul>
+            </section><section class="section">
+              <h2>3. IP Address and Pseudonymous Visitor Identifier</h2>
+              <p>Our server may receive your IP address as part of the normal technical process required to establish an internet connection.</p>
+<p>OTG Analytics does not intentionally store the raw client IP address in its visitor analytics database.</p>
+<p>Instead, where visitor estimation is performed, the platform generates a pseudonymous identifier using a keyed cryptographic HMAC based on limited connection and browser characteristics.</p>
+<p>The resulting identifier is designed to help estimate repeat usage without storing the raw IP address.</p>
+<p>This identifier is pseudonymous and should not be considered fully anonymous. Network changes, VPNs, shared connections, browser changes, and multiple devices can also affect its accuracy.</p>
+            </section><section class="section">
+              <h2>4. Cookies</h2>
+              <p>The current first-party visitor analytics implementation does not set a persistent analytics cookie for the purpose of identifying visitors across sessions.</p>
+<p>Some technical cookies or browser storage may nevertheless be used by underlying application technology where necessary for operation of the service.</p>
+<p>If OTG Analytics later introduces persistent analytics, authentication, account, preference, or marketing cookies, this Privacy Notice and any required consent mechanism will be updated before those technologies are used.</p>
+            </section><section class="section">
+              <h2>5. Why We Process This Information</h2>
+              <p>We may process the information described above to:</p>
+<ul>
+<li>operate and maintain OTG Analytics;</li>
+<li>understand how the platform is used;</li>
+<li>measure aggregate website traffic;</li>
+<li>estimate unique and returning visitors;</li>
+<li>measure daily, weekly, and monthly platform activity;</li>
+<li>understand which analytics sections are used;</li>
+<li>evaluate marketing campaigns through UTM parameters;</li>
+<li>understand general traffic sources;</li>
+<li>distinguish ordinary visitors from bots and internal testing;</li>
+<li>detect technical problems and abuse;</li>
+<li>improve performance and usability;</li>
+<li>plan future features; and</li>
+<li>produce aggregated platform-growth statistics for internal analysis, partners, or potential investors.</li>
+</ul>
+<p>We do not use visitor analytics to make decisions that produce legal or similarly significant effects concerning individual users.</p>
+            </section><section class="section">
+              <h2>6. Legal Basis</h2>
+              <p>Where the General Data Protection Regulation or similar legislation applies, OTG Analytics processes limited server-side technical and usage information on the basis of legitimate interests in:</p>
+<ul>
+<li>operating the service;</li>
+<li>maintaining security;</li>
+<li>preventing abuse;</li>
+<li>understanding aggregate usage;</li>
+<li>measuring platform performance; and</li>
+<li>improving the product.</li>
+</ul>
+<p>These interests are pursued using data-minimisation measures, including avoiding storage of raw IP addresses in the analytics database and limiting the information collected.</p>
+<p>Where another legal basis is required by applicable law for a particular future processing activity, that processing will not be introduced without the appropriate legal basis and disclosures.</p>
+            </section><section class="section">
+              <h2>7. Traffic Sources and Campaign Information</h2>
+              <p>If you visit OTG Analytics through a tagged marketing link, we may record standard campaign parameters such as:</p>
+<ul>
+<li>utm_source;</li>
+<li>utm_medium;</li>
+<li>utm_campaign;</li>
+<li>utm_content; and</li>
+<li>utm_term.</li>
+</ul>
+<p>We may also record the hostname of the referring website.</p>
+<p>We do not intentionally store the complete referring URL where the hostname alone is sufficient for analytics.</p>
+            </section><section class="section">
+              <h2>8. What We Do Not Intentionally Collect for Visitor Analytics</h2>
+              <p>The current analytics system is not designed to store:</p>
+<ul>
+<li>raw client IP addresses;</li>
+<li>passwords;</li>
+<li>wallet private keys;</li>
+<li>seed phrases;</li>
+<li>complete browser cookies;</li>
+<li>complete request headers;</li>
+<li>complete referring URLs;</li>
+<li>payment-card information; or</li>
+<li>sensitive personal information.</li>
+</ul>
+<p>Never send a private key, seed phrase, password, or other authentication secret to OTG Analytics.</p>
+            </section><section class="section">
+              <h2>9. Sharing of Information</h2>
+              <p>We do not sell personal data to advertisers.</p>
+<p>Information may be processed by infrastructure or hosting providers where necessary to operate the website and its database.</p>
+<p>We may also disclose information where reasonably necessary to:</p>
+<ul>
+<li>comply with applicable law;</li>
+<li>respond to lawful requests;</li>
+<li>protect the security or integrity of the service; or</li>
+<li>investigate fraud, abuse, or attacks.</li>
+</ul>
+<p>Statistics shared publicly or with potential partners or investors should, where reasonably possible, be presented in aggregated form rather than as individual visitor records.</p>
+            </section><section class="section">
+              <h2>10. International Data Transfers</h2>
+              <p>Depending on the infrastructure and service providers used to operate OTG Analytics, personal data may be processed in countries outside your country of residence.</p>
+<p>Where applicable law requires safeguards for international transfers, appropriate transfer mechanisms will be used.</p>
+            </section><section class="section">
+              <h2>11. Data Retention</h2>
+<p>Raw visitor analytics session records are retained only for as long as reasonably necessary for platform analytics, security, troubleshooting, and product-development purposes.</p>
+<p>Retention periods may vary depending on operational requirements. OTG Analytics intends to introduce formal automated retention controls as the analytics infrastructure develops.</p>
+<p>Aggregated statistics that no longer need to identify individual pseudonymous sessions may be retained for longer for historical platform analysis.</p>
+<p>Technical logs may be retained separately for a reasonable period required for troubleshooting, security, and service operation.</p>
+<p>Information may be deleted earlier when it is no longer necessary.</p>
+            </section><section class="section">
+              <h2>12. Your Data-Protection Rights</h2>
+              <p>Depending on your location and applicable law, you may have rights including:</p>
+<ul>
+<li>access to personal data relating to you;</li>
+<li>correction of inaccurate data;</li>
+<li>deletion of personal data;</li>
+<li>restriction of processing;</li>
+<li>objection to certain processing;</li>
+<li>data portability where applicable; and</li>
+<li>the right to lodge a complaint with a competent data-protection authority.</li>
+</ul>
+<p>Because OTG Analytics intentionally avoids storing obvious direct identifiers in its visitor analytics, we may need reasonable information from you to determine whether a particular pseudonymous record can be associated with your request.</p>
+<p>We will not require disproportionate additional personal information solely for the purpose of identifying an analytics record.</p>
+            </section><section class="section">
+              <h2>13. Security</h2>
+              <p>Reasonable technical and organisational measures are used to reduce the risk of unauthorised access, alteration, loss, or disclosure of information.</p>
+<p>However, no internet service or storage system can guarantee absolute security.</p>
+            </section><section class="section">
+              <h2>14. Third-Party Links</h2>
+              <p>OTG Analytics may link to marketplaces, social platforms, blockchain services, or other third-party websites.</p>
+<p>Their privacy practices are governed by their own policies.</p>
+<p>OTG Analytics is not responsible for the privacy practices of third-party services.</p>
+            </section><section class="section">
+              <h2>15. Standalone Pages</h2>
+              <p>Certain standalone pages may be served independently from the main Streamlit analytics application.</p>
+<p>Such pages may not invoke the same first-party visitor analytics collector used by the main application.</p>
+            </section><section class="section">
+              <h2>16. Changes to This Privacy Notice</h2>
+              <p>This Privacy Notice may be updated when the platform, analytics system, infrastructure, or applicable requirements change.</p>
+<p>The latest version will be identified by the date shown at the top of this page.</p>
+            </section><section class="section">
+              <h2>17. Contact</h2>
+              <p>For privacy questions or requests, contact:</p>
+<p><a href="mailto:f.v.v.mywork@gmail.com">f.v.v.mywork@gmail.com</a></p>
+<p>You may also find project contact information through:</p>
+<p><a href="https://x.com/blackpoint_team" target="_blank" rel="noopener">https://x.com/blackpoint_team</a></p>
+            </section>
+    </div>
+
+    <footer>
+      <span>© 2026 OTG Analytics · Independent community project</span>
+      <span class="footer-links">
+        <a href="/?mode=roadmap">Roadmap</a>
+        <a href="/legal/terms">Terms</a>
+        <a href="/legal/privacy">Privacy</a>
+        <a href="/legal/disclaimer">Disclaimer</a>
+        <a href="https://x.com/blackpoint_team" target="_blank" rel="noopener">𝕏 / @BLACKPOINT_TEAM</a>
+      </span>
+    </footer>
+  </main>
+</body>
+</html>

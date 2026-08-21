@@ -1,0 +1,22 @@
+[theme]
+# OTG Brand Theme Configuration
+# Force dark theme with brand colors
+base = "dark"
+primaryColor = "#FF003A"
+backgroundColor = "#000000"
+secondaryBackgroundColor = "#000000"
+textColor = "#FFFFFF"
+
+[client]
+# Minimize Streamlit UI chrome
+toolbarMode = "minimal"
+# Show sidebar over content area instead of pushing it
+showSidebarNavigation = true
+
+[logger]
+level = "info"
+
+[server]
+# Run without caching artifacts
+headless = true
+port = 8501
