@@ -47,11 +47,21 @@ def get_data_dir() -> Path:
 
 def get_assets_loading_image() -> Path:
     """technical documentation technical documentation technical documentation technical documentation technical documentation."""
-    return get_app_root_dir().parent / "img" / "logo.png"
+    return get_otg_logo_path()
 
 
 def get_assets_logo_image() -> Path:
     """technical documentation technical documentation technical documentation technical documentation technical documentation."""
+    return get_otg_logo_path()
+
+
+def get_otg_logo_path() -> Path:
+    """Return the portable path to the Off The Grid logo."""
+    return get_app_root_dir().parent / "img" / "Off_The_Grid_Logo.png"
+
+
+def get_analytics_logo_path() -> Path:
+    """Return the portable path to the OTG Analytics logo."""
     return get_app_root_dir().parent / "img" / "logo.png"
 
 
@@ -87,4 +97,3 @@ OPENSEA_COLLECTION_URL = "https://opensea.io/collection/off-the-grid"
 EPIC_GAMES_URL = "https://store.epicgames.com/en-US/p/off-the-grid-7e3cc5"
 TWITTER_URL = "https://x.com/blackpoint_team"
 OPENSEA_ICON_URL = "https://static.seadn.io/logos/Logomark-White.svg"
-BLACKPOINT_LOGO_URL = "https://i.postimg.cc/L5wFLwgw/NEW-LOGO.png"

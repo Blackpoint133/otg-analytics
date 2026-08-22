@@ -4,13 +4,14 @@ technical diagnostic text technical diagnostic text technical diagnostic text te
 technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text.
 """
 
+import base64
 import streamlit as st
 
 from config import (
+    get_analytics_logo_path,
     OPENSEA_COLLECTION_URL,
     OPENSEA_ICON_URL,
     TWITTER_URL,
-    BLACKPOINT_LOGO_URL
 )
 
 LEGAL_LINKS = (
@@ -22,6 +23,15 @@ LEGAL_LINKS = (
 
 def render_sidebar_footer():
     """technical documentation technical documentation technical documentation technical documentation technical documentation technical documentation technical documentation technical documentation."""
+    try:
+        with open(get_analytics_logo_path(), "rb") as f:
+            developed_by_logo = (
+                "data:image/png;base64,"
+                + base64.b64encode(f.read()).decode()
+            )
+    except OSError:
+        developed_by_logo = ""
+
     legal_links_html = " / ".join(
         f'<a href="{href}">{label}</a>' for label, href in LEGAL_LINKS
     )
@@ -39,7 +49,7 @@ def render_sidebar_footer():
                     <div class="footer-section">
                         <span>Developed by</span>
                         <a href="{}" target="_blank">
-                            <img class="footer-icon" src="{}" alt="Twitter">
+                            <img class="footer-icon" src="{}" alt="OTG Analytics">
                         </a>
                     </div>
                 </div>
@@ -51,7 +61,7 @@ def render_sidebar_footer():
         OPENSEA_COLLECTION_URL,
         OPENSEA_ICON_URL,
         TWITTER_URL,
-        BLACKPOINT_LOGO_URL,
+        developed_by_logo,
         legal_links_html,
     ), 
     unsafe_allow_html=True)
