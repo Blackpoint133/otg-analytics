@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"></head>
+<body>
+<script>
+  const STORAGE_KEY = "otg_analytics_visitor_id_v2";
+  const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  function send(type, data) {
+    window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data || {}), "*");
+  }
+
+  function sendValue(value) {
+    send("streamlit:setComponentValue", { value: value, dataType: "json" });
+  }
+
+  function isValid(value) {
+    return typeof value === "string" && value.length === 36 && UUID_V4_RE.test(value);
+  }
+
+  function fallbackUuid() {
+    const bytes = new Uint8Array(16);
+    if (window.crypto && typeof window.crypto.getRandomValues === "function") {
+      window.crypto.getRandomValues(bytes);
+    } else {
+      for (let index = 0; index < bytes.length; index += 1) {
+        bytes[index] = Math.floor(Math.random() * 256);
+      }
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
+  function newUuid() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      const value = window.crypto.randomUUID().toLowerCase();
+      if (isValid(value)) return value;
+    }
+    return fallbackUuid();
+  }
+
+  function resolveIdentity() {
+    try {
+      let value = window.localStorage.getItem(STORAGE_KEY);
+      if (!isValid(value)) {
+        value = newUuid();
+        window.localStorage.setItem(STORAGE_KEY, value);
+      }
+      if (!isValid(value)) throw new Error("invalid_generated_id");
+      sendValue({ status: "ok", id: value });
+    } catch (error) {
+      sendValue({ status: "unavailable" });
+    }
+  }
+
+  send("streamlit:componentReady", { apiVersion: 1 });
+  send("streamlit:setFrameHeight", { height: 0 });
+  resolveIdentity();
+</script>
+</body>
+</html>

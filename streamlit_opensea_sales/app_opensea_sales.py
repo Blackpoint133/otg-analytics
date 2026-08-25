@@ -74,6 +74,7 @@ from ui.market_overview import render_market_overview
 from ui.top_items_overview import render_top_items_overview
 from ui.item_overview import render_item_overview
 from site_analytics import record_current_session_once
+from visitor_identity import get_browser_identity
 
 
 def _get_page_icon_base64() -> str:
@@ -112,9 +113,11 @@ def main():
     # technical implementation note technical implementation note: ITEM vs MARKET vs TOP ITEMS ANALYTICS
     # ════════════════════════════════════════════════════════════════
     current_mode = mode_switch.render_mode_switch()
+    browser_identity = get_browser_identity()
     record_current_session_once(
         mode=current_mode,
         item_key=st.query_params.get("item"),
+        browser_identity=browser_identity,
     )
     
     # Load current gun price early for all modes

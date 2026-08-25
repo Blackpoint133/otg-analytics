@@ -2,6 +2,8 @@ create table public.site_visit_sessions (
     id bigserial primary key,
     session_id uuid not null,
     visitor_hash char(64) not null,
+    browser_visitor_hash char(64) null,
+    identity_version smallint not null default 1,
     started_at_utc timestamptz not null default now(),
     last_seen_at_utc timestamptz not null default now(),
     mode text not null,
@@ -29,6 +31,15 @@ create table public.site_visit_sessions (
 
     constraint site_visit_sessions_visitor_hash_hex_chk
         check (visitor_hash ~ '^[0-9a-f]{64}$'),
+
+    constraint site_visit_sessions_identity_version_chk
+        check (identity_version in (1, 2)),
+
+    constraint site_visit_sessions_browser_visitor_hash_hex_chk
+        check (browser_visitor_hash is null or browser_visitor_hash ~ '^[0-9a-f]{64}$'),
+
+    constraint site_visit_sessions_identity_v2_hash_chk
+        check (identity_version <> 2 or browser_visitor_hash is not null),
 
     constraint site_visit_sessions_mode_chk
         check (mode in ('item', 'market', 'top_items')),
@@ -93,6 +104,10 @@ create index site_visit_sessions_visitor_started_idx
         started_at_utc
     );
 
+create index site_visit_sessions_browser_visitor_started_idx
+    on public.site_visit_sessions (browser_visitor_hash, started_at_utc)
+    where browser_visitor_hash is not null;
+
 create index site_visit_sessions_mode_started_idx
     on public.site_visit_sessions (
         mode,
@@ -118,3 +133,6 @@ comment on table public.site_visit_sessions is
 
 comment on column public.site_visit_sessions.visitor_hash is
     'HMAC-SHA256 of normalized trusted client IP and normalized User-Agent.';
+
+comment on column public.site_visit_sessions.browser_visitor_hash is
+    'Domain-separated HMAC-SHA256 of the random first-party browser V2 identifier.';

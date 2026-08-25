@@ -43,9 +43,11 @@ class FakeCursor:
     def __init__(self, row=(1,), fail_on_execute=None):
         self.row = row
         self.fail_on_execute = fail_on_execute
+        self.params = None
         self.closed = False
 
     def execute(self, sql, params=None):
+        self.params = params
         if self.fail_on_execute and "insert into" in sql.lower():
             raise self.fail_on_execute
 
@@ -194,6 +196,38 @@ class SiteAnalyticsTests(unittest.TestCase):
         expected = analytics.calculate_visitor_hash("ip:unknown", "Mozilla/5.0", os.environ["OTG_SITE_ANALYTICS_HMAC_SECRET"])
         self.assertEqual(record["visitor_hash"], expected)
 
+    def test_v2_browser_identity_is_domain_separated_and_stable(self):
+        browser_id = "22222222-2222-4222-8222-222222222222"
+        first = analytics.browser_visitor_hash(browser_id, "test-secret-value-that-is-long-enough")
+        second = analytics.browser_visitor_hash(browser_id, "test-secret-value-that-is-long-enough")
+        legacy = analytics.calculate_visitor_hash(browser_id, "Mozilla/5.0", "test-secret-value-that-is-long-enough")
+        self.assertEqual(first, second)
+        self.assertNotEqual(first, legacy)
+        self.assertRegex(first, r"^[0-9a-f]{64}$")
+
+    def test_different_browser_ids_produce_different_v2_digests(self):
+        secret = "test-secret-value-that-is-long-enough"
+        first = analytics.browser_visitor_hash("11111111-1111-4111-8111-111111111111", secret)
+        second = analytics.browser_visitor_hash("22222222-2222-4222-8222-222222222222", secret)
+        self.assertNotEqual(first, second)
+
+    def test_malformed_and_oversized_browser_ids_are_rejected(self):
+        secret = "test-secret-value-that-is-long-enough"
+        self.assertIsNone(analytics.browser_visitor_hash("not-a-uuid", secret))
+        self.assertIsNone(analytics.browser_visitor_hash("x" * 10000, secret))
+
+    def test_missing_browser_identity_is_legacy_only(self):
+        record = self.build_record(browser_identity={"status": "unavailable"})
+        self.assertEqual(record["identity_version"], 1)
+        self.assertIsNone(record["browser_visitor_hash"])
+
+    def test_valid_browser_identity_is_v2_and_raw_id_is_not_persisted(self):
+        browser_id = "33333333-3333-4333-8333-333333333333"
+        record = self.build_record(browser_identity={"status": "ok", "id": browser_id})
+        self.assertEqual(record["identity_version"], 2)
+        self.assertRegex(record["browser_visitor_hash"], r"^[0-9a-f]{64}$")
+        self.assertNotIn(browser_id, " ".join(str(value) for value in record.values()))
+
     def test_missing_user_agent_uses_unknown(self):
         self.assertEqual(analytics.normalize_user_agent(None), "ua:unknown")
         is_bot, reason = analytics.classify_bot("ua:unknown")
@@ -307,6 +341,15 @@ class SiteAnalyticsTests(unittest.TestCase):
         fake_duplicate_conn = FakeConnection(FakeCursor(row=None))
         with patch.object(analytics.psycopg2, "connect", return_value=fake_duplicate_conn):
             self.assertEqual(analytics.insert_session(self.build_record()), "duplicate")
+
+    def test_raw_browser_id_is_not_passed_to_sql_parameters(self):
+        browser_id = "33333333-3333-4333-8333-333333333333"
+        record = self.build_record(browser_identity={"status": "ok", "id": browser_id})
+        cursor = FakeCursor(row=(7,))
+        connection = FakeConnection(cursor)
+        with patch.object(analytics.psycopg2, "connect", return_value=connection):
+            analytics.insert_session(record)
+        self.assertNotIn(browser_id, " ".join(str(value) for value in cursor.params.values()))
 
     def test_insert_session_rolls_back_and_closes_on_error(self):
         fake_conn = FakeConnection(FakeCursor(fail_on_execute=RuntimeError("timeout")))

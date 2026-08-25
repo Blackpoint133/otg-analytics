@@ -24,6 +24,7 @@ import psycopg2
 from psycopg2 import Error as PsycopgError
 import streamlit as st
 from logging_compat import get_module_logger
+from visitor_identity import browser_visitor_hash
 
 
 SESSION_ID_KEY = "site_analytics_session_id"
@@ -67,6 +68,8 @@ BOT_PATTERNS: tuple[tuple[str, str], ...] = (
 DB_COLUMNS = (
     "session_id",
     "visitor_hash",
+    "browser_visitor_hash",
+    "identity_version",
     "started_at_utc",
     "last_seen_at_utc",
     "mode",
@@ -93,6 +96,8 @@ INSERT_SQL = """
 insert into public.site_visit_sessions (
     session_id,
     visitor_hash,
+    browser_visitor_hash,
+    identity_version,
     started_at_utc,
     last_seen_at_utc,
     mode,
@@ -117,6 +122,8 @@ insert into public.site_visit_sessions (
 values (
     %(session_id)s,
     %(visitor_hash)s,
+    %(browser_visitor_hash)s,
+    %(identity_version)s,
     %(started_at_utc)s,
     %(last_seen_at_utc)s,
     %(mode)s,
@@ -172,9 +179,14 @@ def _get_logger() -> logging.Logger:
 
 
 LOGGER = _get_logger()
+_IDENTITY_UNSET = object()
 
 
-def record_current_session_once(mode: str, item_key: str | None = None) -> None:
+def record_current_session_once(
+    mode: str,
+    item_key: str | None = None,
+    browser_identity: Mapping[str, Any] | None | object = _IDENTITY_UNSET,
+) -> None:
     """Record one analytics row for the current Streamlit session."""
     if not _analytics_enabled():
         _log_status("disabled", session_id=None, duration_ms=0, mode=mode)
@@ -192,6 +204,13 @@ def record_current_session_once(mode: str, item_key: str | None = None) -> None:
             analytics_session_id = str(uuid.uuid4())
             session_state[SESSION_ID_KEY] = analytics_session_id
 
+        if browser_identity is _IDENTITY_UNSET:
+            browser_identity = {"status": "unavailable"}
+        identity_status = browser_identity.get("status") if isinstance(browser_identity, Mapping) else None
+        if browser_identity is None:
+            return
+        if identity_status not in {"ok", "unavailable"}:
+            return
         session_state[ATTEMPTED_KEY] = True
         started = time.monotonic()
         secret = os.getenv("OTG_SITE_ANALYTICS_HMAC_SECRET", "")
@@ -213,6 +232,7 @@ def record_current_session_once(mode: str, item_key: str | None = None) -> None:
             context=getattr(st, "context", None),
             query_params=getattr(st, "query_params", {}),
             secret=secret,
+            browser_identity=browser_identity,
         )
         result = insert_session(record)
         session_state[RECORDED_KEY] = True
@@ -249,6 +269,7 @@ def build_session_record(
     context: Any,
     query_params: Mapping[str, Any],
     secret: str,
+    browser_identity: Mapping[str, Any] | None = None,
     now_utc: datetime | None = None,
 ) -> dict[str, Any]:
     """Build a privacy-safe session record from Streamlit context."""
@@ -260,6 +281,12 @@ def build_session_record(
     client_ip = extract_client_ip(headers)
     normalized_ip = client_ip if client_ip else "ip:unknown"
     visitor_hash = calculate_visitor_hash(normalized_ip, user_agent, secret)
+    v2_hash = None
+    identity_version = 1
+    if isinstance(browser_identity, Mapping) and browser_identity.get("status") == "ok":
+        v2_hash = browser_visitor_hash(browser_identity.get("id"), secret)
+        if v2_hash is not None:
+            identity_version = 2
     is_bot, bot_reason = classify_bot(user_agent)
     is_internal, internal_reason = classify_internal(
         visitor_hash=visitor_hash,
@@ -275,6 +302,8 @@ def build_session_record(
     return {
         "session_id": session_id,
         "visitor_hash": visitor_hash,
+        "browser_visitor_hash": v2_hash,
+        "identity_version": identity_version,
         "started_at_utc": now,
         "last_seen_at_utc": now,
         "mode": normalized_mode,
