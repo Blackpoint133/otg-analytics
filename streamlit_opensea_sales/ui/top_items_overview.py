@@ -30,6 +30,12 @@ from gunzscope_supply import dense_supply_ranks, read_current_snapshot, valid_su
 # Image URL normalization
 IMAGE_CDN_BASE = "https://cdne-g01-livepc-wu-itemsthumbnails.azureedge.net"
 
+_MARKET_METRIC_COLUMNS = (
+    'market_strength_score', 'liquidity_score', 'volume_gun', 'volume_usd',
+    'weighted_volume_gun', 'period_events', 'active_trading_days',
+    'avg_price_gun', 'avg_price_usd', 'transactions',
+)
+
 
 def _normalize_top_item_image_url(image_url):
     """
@@ -92,20 +98,104 @@ def _load_global_total_supply_candidates() -> Optional[pd.DataFrame]:
     return pd.DataFrame(rows)
 
 
-def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None, limit: Optional[int] = None) -> pd.DataFrame:
-    """Attach local Supply values and apply deterministic scarcity ordering."""
-    display_data = top_items.copy()
+def _load_all_time_market_metrics() -> Optional[pd.DataFrame]:
+    """Load the complete all-time market metrics table used for enrichment."""
+    path = mda.get_market_overview_dir() / "top_items_by_liquidity.csv"
+    if not path.exists():
+        return None
+    try:
+        return pd.read_csv(path)
+    except (OSError, ValueError, pd.errors.ParserError):
+        return None
+
+
+def _catalog_identity_map(catalog: pd.DataFrame) -> dict:
+    """Build an exact, collision-checked (name, rarity) -> catalog key map."""
+    required = {'item_key', 'item_name', 'rarity'}
+    if not required.issubset(catalog.columns):
+        raise ValueError("catalog identity columns are missing")
+    work = catalog[['item_key', 'item_name', 'rarity']].copy()
+    work['_identity'] = list(zip(work['item_name'], work['rarity']))
+    if work['_identity'].duplicated().any():
+        raise ValueError("duplicate catalog (item_name, rarity) identity")
+    return dict(zip(work['_identity'], work['item_key']))
+
+
+def _enrich_with_all_time_market_metrics(catalog_rows: pd.DataFrame, market_rows: Optional[pd.DataFrame]) -> pd.DataFrame:
+    """Join all-time market metrics by exact name+rarity, never raw item_key."""
+    result = catalog_rows.copy()
+    if market_rows is None:
+        for column in _MARKET_METRIC_COLUMNS:
+            if column not in result.columns:
+                result[column] = pd.NA
+        return result
+    required = {'item_name', 'rarity'}
+    if not required.issubset(market_rows.columns):
+        raise ValueError("market identity columns are missing")
+    market = market_rows.copy()
+    market['_identity'] = list(zip(market['item_name'], market['rarity']))
+    if market['_identity'].duplicated().any():
+        raise ValueError("duplicate market (item_name, rarity) identity")
+    catalog = result.copy()
+    catalog['_identity'] = list(zip(catalog['item_name'], catalog['rarity']))
+    if catalog['_identity'].duplicated().any():
+        raise ValueError("duplicate catalog (item_name, rarity) identity")
+    available = [column for column in _MARKET_METRIC_COLUMNS if column in market.columns]
+    joined = catalog.merge(
+        market[['_identity', *available]], on='_identity', how='left',
+        validate='one_to_one', suffixes=('', '_market'),
+    )
+    for column in _MARKET_METRIC_COLUMNS:
+        market_column = f'{column}_market'
+        if market_column in joined.columns:
+            joined[column] = joined[market_column]
+            joined = joined.drop(columns=[market_column])
+        elif column not in joined.columns:
+            joined[column] = pd.NA
+    return joined.drop(columns=['_identity'])
+
+
+def _attach_canonical_item_keys(top_items: pd.DataFrame) -> pd.DataFrame:
+    """Attach canonical catalog keys to period market rows for Supply lookup."""
+    catalog_data, diagnostics = load_items_index()
+    if not diagnostics.success or not catalog_data:
+        result = top_items.copy()
+        result['_canonical_item_key'] = pd.NA
+        return result
+    catalog_rows = pd.DataFrame([
+        {'item_key': key, 'item_name': record.get('display_name', ''), 'rarity': record.get('rarity', '')}
+        for key, record in catalog_data.items() if isinstance(record, dict)
+    ])
+    identity_map = _catalog_identity_map(catalog_rows)
+    result = top_items.copy()
+    result['_canonical_item_key'] = [
+        identity_map.get((name, rarity), pd.NA)
+        for name, rarity in zip(result['item_name'], result['rarity'])
+    ]
+    return result
+
+
+def _attach_supply_metadata(top_items: pd.DataFrame, snapshot=None) -> pd.DataFrame:
+    """Attach local Supply and global dense rank without changing row order."""
+    result = top_items.copy()
     data = snapshot if snapshot is not None else read_current_snapshot()
     ranks = dense_supply_ranks(data)
     records = data.get('items', {}) if isinstance(data, dict) else {}
+    keys = result.get('_canonical_item_key', result.get('item_key', pd.Series(pd.NA, index=result.index)))
 
     def supply_for(key):
-        record = records.get(key) if isinstance(records, dict) else None
+        record = records.get(key) if isinstance(records, dict) and pd.notna(key) else None
         value = record.get('supply') if isinstance(record, dict) else None
         return value if record and record.get('status') in {'ok', 'stale'} and valid_supply(value) else pd.NA
 
-    display_data['_supply'] = display_data['item_key'].map(supply_for)
-    display_data['_supply_rank'] = display_data['item_key'].map(ranks).astype('Int64')
+    result['_supply'] = [supply_for(key) for key in keys]
+    result['_supply_rank'] = [ranks.get(key, pd.NA) if pd.notna(key) else pd.NA for key in keys]
+    return result
+
+
+def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None, limit: Optional[int] = None) -> pd.DataFrame:
+    """Attach local Supply values and apply deterministic scarcity ordering."""
+    display_data = _attach_supply_metadata(top_items, snapshot)
     display_data['_supply_missing'] = display_data['_supply'].isna()
     display_data = display_data.sort_values(
         ['_supply_missing', '_supply', 'item_key'],
@@ -258,6 +348,8 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     # mode is global and must not use a period-specific Volume candidate list.
     if ranking_mode == 'total_supply':
         top_items = _load_global_total_supply_candidates()
+        if top_items is not None:
+            top_items = _enrich_with_all_time_market_metrics(top_items, _load_all_time_market_metrics())
     else:
         top_items = mda.load_top_items_ranking(
             ranking_mode=ranking_mode,
@@ -278,15 +370,15 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     # For Volume mode with USD toggle enabled, re-rank by volume_usd for display
     if ranking_mode == 'total_supply':
         display_data = _prepare_total_supply_data(top_items, limit=20)
-    elif ranking_mode == 'volume' and show_usd and 'volume_usd' in top_items.columns:
+    else:
+        display_data = _attach_supply_metadata(_attach_canonical_item_keys(top_items))
+    if ranking_mode == 'volume' and show_usd and 'volume_usd' in display_data.columns:
         # Create a copy and sort by volume_usd descending, then re-assign display ranks
-        display_data = top_items.copy()
         display_data = display_data.sort_values('volume_usd', ascending=False).reset_index(drop=True)
         # Create a new rank column for display (1-20)
         display_data['display_rank'] = range(1, len(display_data) + 1)
-    else:
+    elif ranking_mode != 'volume' or not show_usd:
         # For other modes or when USD is off, use original ranking
-        display_data = top_items.copy()
         display_data['display_rank'] = display_data['rank']
     
     # Render appropriate view (cards, chart, or table)
@@ -595,21 +687,21 @@ def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False,
             )
 
         elif ranking_mode == 'total_supply':
-            supply_value = row.get('_supply')
-            supply_text = f"{int(supply_value):,}" if pd.notna(supply_value) and valid_supply(supply_value) else 'N/A'
-            supply_rank = _format_rank(row.get('_supply_rank'))
-            metrics_html += (
-                '<div class="top-items-card-metric-row">'
-                '<span class="top-items-card-metric-label">SUPPLY RANK</span>'
-                f'<span class="top-items-card-metric-value">{supply_rank}</span>'
-                '</div>'
-            )
-            volume_section_html = (
-                '<div class="top-items-card-volume">'
-                '<div class="top-items-card-volume-label">TOTAL SUPPLY</div>'
-                f'<div class="top-items-card-volume-value">{supply_text}</div>'
-                '</div>'
-            )
+            # Supply metadata is rendered below for every ranking mode.
+            pass
+
+        supply_value = row.get('_supply')
+        supply_text = f"{int(supply_value):,}" if pd.notna(supply_value) and valid_supply(supply_value) else 'N/A'
+        metrics_html += (
+            '<div class="top-items-card-metric-row">'
+            '<span class="top-items-card-metric-label">TOTAL SUPPLY</span>'
+            f'<span class="top-items-card-metric-value">{supply_text}</span>'
+            '</div>'
+            '<div class="top-items-card-metric-row">'
+            '<span class="top-items-card-metric-label">SUPPLY RANK</span>'
+            f'<span class="top-items-card-metric-value">{_format_rank(row.get("_supply_rank"))}</span>'
+            '</div>'
+        )
         
         metrics_html += '</div>'
         
@@ -939,22 +1031,23 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         total_supply = row.get('_supply')
         supply_rank = _format_rank(row.get('_supply_rank'))
         
-        # Format all values
-        market_strength_str = f"{market_strength_score:.3f}" if pd.notna(market_strength_score) and market_strength_score else ""
-        liquidity_str = f"{liquidity_score:.2f}" if pd.notna(liquidity_score) and liquidity_score else ""
-        volume_gun_str = f"{volume_gun:,.0f}" if pd.notna(volume_gun) and volume_gun > 0 else ""
-        volume_usd_str = f"{volume_usd:,.0f}" if pd.notna(volume_usd) and volume_usd > 0 else ""
-        weighted_vol_str = f"{weighted_volume_gun:,.0f}" if pd.notna(weighted_volume_gun) and weighted_volume_gun > 0 else ""
-        period_events_str = f"{int(period_events):,}" if pd.notna(period_events) and period_events else ""
-        active_days_str = f"{int(active_days)}" if pd.notna(active_days) and active_days else ""
-        avg_price_gun_str = f"{avg_price_gun:,.2f}" if pd.notna(avg_price_gun) and avg_price_gun > 0 else ""
-        avg_price_usd_str = f"{avg_price_usd:,.2f}" if pd.notna(avg_price_usd) and avg_price_usd > 0 else ""
+        # Format missing metrics explicitly; valid zeroes remain visible.
+        def optional_number(value, spec):
+            return "N/A" if pd.isna(value) else format(value, spec)
+
+        market_strength_str = optional_number(market_strength_score, '.3f')
+        liquidity_str = optional_number(liquidity_score, '.2f')
+        volume_gun_str = optional_number(volume_gun, ',.0f')
+        volume_usd_str = optional_number(volume_usd, ',.0f')
+        weighted_vol_str = optional_number(weighted_volume_gun, ',.0f')
+        period_events_str = optional_number(period_events, ',.0f')
+        active_days_str = optional_number(active_days, '.0f')
+        avg_price_gun_str = optional_number(avg_price_gun, ',.2f')
+        avg_price_usd_str = optional_number(avg_price_usd, ',.2f')
         
         # Build row with all 13 columns, all left-aligned (no inline text-align)
-        supply_cells = ''
-        if ranking_mode == 'total_supply':
-            supply_text = f"{int(total_supply):,}" if pd.notna(total_supply) and valid_supply(total_supply) else "N/A"
-            supply_cells = f'<td>{supply_text}</td><td>{supply_rank}</td>'
+        supply_text = f"{int(total_supply):,}" if pd.notna(total_supply) and valid_supply(total_supply) else "N/A"
+        supply_cells = f'<td>{supply_text}</td><td>{supply_rank}</td>'
 
         row_html = f'''<tr>
 <td>{display_rank}</td>
@@ -1035,7 +1128,8 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 <th>Active Days</th>
 <th>Avg Price (GUN)</th>
 <th>Avg Price (USD)</th>
-{('<th>Total Supply</th><th>Supply Rank</th>' if ranking_mode == 'total_supply' else '')}
+<th>Total Supply</th>
+<th>Supply Rank</th>
 </tr></thead>
 <tbody>
 {''.join(table_rows)}

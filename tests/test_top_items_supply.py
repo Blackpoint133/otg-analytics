@@ -3,13 +3,20 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 APP = Path(__file__).parents[1] / "streamlit_opensea_sales"
 sys.path.insert(0, str(APP))
 
 from gunzscope_supply import ATTRIBUTION
 import ui.top_items_overview as top_items_overview
-from ui.top_items_overview import _format_rank, _prepare_total_supply_data
+from ui.top_items_overview import (
+    _attach_canonical_item_keys,
+    _attach_supply_metadata,
+    _enrich_with_all_time_market_metrics,
+    _format_rank,
+    _prepare_total_supply_data,
+)
 
 
 def snapshot(records):
@@ -121,7 +128,8 @@ def test_total_supply_path_is_global_and_has_no_live_client_import():
 def test_total_supply_header_is_period_independent_and_table_columns_are_reachable():
     source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
     assert "GLOBAL CURRENT SUPPLY" in source
-    assert "<th>Total Supply</th><th>Supply Rank</th>" in source
+    assert "<th>Total Supply</th>" in source
+    assert "<th>Supply Rank</th>" in source
     assert "_render_top_items_table_view(display_data" in source
 
 
@@ -130,3 +138,49 @@ def test_market_period_loader_and_usd_resort_remain_in_source():
     assert "ranking_mode=ranking_mode" in source
     assert "ranking_mode == 'volume' and show_usd" in source
     assert "display_data = display_data.sort_values('volume_usd', ascending=False)" in source
+
+
+def market_row(name, rarity="Common", **values):
+    base = {"item_name": name, "rarity": rarity, "item_key": "provider|key"}
+    base.update(values)
+    return base
+
+
+def test_exact_name_rarity_bridge_enriches_without_raw_item_key_join():
+    catalog = pd.DataFrame([{"item_key": "catalog-key", "item_name": "A", "rarity": "Common"}])
+    market = pd.DataFrame([market_row("A", volume_gun=12, market_strength_score=3.5)])
+    result = _enrich_with_all_time_market_metrics(catalog, market)
+    assert result.iloc[0]["item_key"] == "catalog-key"
+    assert result.iloc[0]["volume_gun"] == 12
+    assert result.iloc[0]["market_strength_score"] == 3.5
+
+
+def test_bridge_rejects_duplicate_catalog_identity():
+    catalog = pd.DataFrame([
+        {"item_key": "a", "item_name": "A", "rarity": "Common"},
+        {"item_key": "b", "item_name": "A", "rarity": "Common"},
+    ])
+    with pytest.raises(ValueError, match="duplicate catalog"):
+        _enrich_with_all_time_market_metrics(catalog, pd.DataFrame([market_row("A")] ))
+
+
+def test_bridge_rejects_duplicate_market_identity():
+    catalog = pd.DataFrame([{"item_key": "a", "item_name": "A", "rarity": "Common"}])
+    market = pd.DataFrame([market_row("A"), market_row("A")])
+    with pytest.raises(ValueError, match="duplicate market"):
+        _enrich_with_all_time_market_metrics(catalog, market)
+
+
+def test_missing_market_row_is_preserved_for_supply_display():
+    catalog = pd.DataFrame([{"item_key": "a", "item_name": "A", "rarity": "Common"}])
+    result = _enrich_with_all_time_market_metrics(catalog, pd.DataFrame([market_row("B")]))
+    assert len(result) == 1 and pd.isna(result.iloc[0]["volume_gun"])
+
+
+def test_market_rows_keep_order_while_supply_joins_by_canonical_key(monkeypatch):
+    catalog = {"catalog-a": {"display_name": "A", "rarity": "Common"}, "catalog-b": {"display_name": "B", "rarity": "Common"}}
+    monkeypatch.setattr(top_items_overview, "load_items_index", lambda: (catalog, SimpleNamespace(success=True)))
+    rows = pd.DataFrame([market_row("B"), market_row("A")])
+    joined = _attach_supply_metadata(_attach_canonical_item_keys(rows), snapshot({"catalog-a": item(2), "catalog-b": item(9)}))
+    assert joined["item_name"].tolist() == ["B", "A"]
+    assert joined["_supply"].tolist() == [9, 2]
