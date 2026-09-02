@@ -23,6 +23,7 @@ import textwrap
 
 import market_data_access as mda
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
+from gunzscope_supply import dense_supply_ranks, read_current_snapshot, valid_supply
 
 
 # Image URL normalization
@@ -69,6 +70,31 @@ def _format_rank(value) -> str:
     if rank <= 0:
         return "-"
     return f"#{rank}"
+
+
+def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None) -> pd.DataFrame:
+    """Attach local Supply values and apply deterministic scarcity ordering."""
+    display_data = top_items.copy()
+    data = snapshot if snapshot is not None else read_current_snapshot()
+    ranks = dense_supply_ranks(data)
+    records = data.get('items', {}) if isinstance(data, dict) else {}
+
+    def supply_for(key):
+        record = records.get(key) if isinstance(records, dict) else None
+        value = record.get('supply') if isinstance(record, dict) else None
+        return value if record and record.get('status') in {'ok', 'stale'} and valid_supply(value) else pd.NA
+
+    display_data['_supply'] = display_data['item_key'].map(supply_for)
+    display_data['_supply_rank'] = display_data['item_key'].map(ranks).astype('Int64')
+    display_data['_supply_missing'] = display_data['_supply'].isna()
+    display_data = display_data.sort_values(
+        ['_supply_missing', '_supply', 'item_key'],
+        ascending=[True, True, True],
+        kind='stable',
+        na_position='last',
+    ).reset_index(drop=True)
+    display_data['display_rank'] = display_data['_supply_rank']
+    return display_data
 
 
 def render_top_items_overview(show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', top_items_view: str = 'cards'):
@@ -149,6 +175,8 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         ranking_subtitle = "Sorted by Total Trading Liquidity"
     elif ranking_mode == 'market_strength':
         ranking_subtitle = "Sorted by Market Strength Score"
+    elif ranking_mode == 'total_supply':
+        ranking_subtitle = "Sorted by Lowest Current Supply"
     else:
         # Fallback
         ranking_mode = 'volume'
@@ -205,8 +233,9 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     """, unsafe_allow_html=True)
     
     # Load appropriate ranking CSV based on selected mode and period
+    source_ranking_mode = 'volume' if ranking_mode == 'total_supply' else ranking_mode
     top_items = mda.load_top_items_ranking(
-        ranking_mode=ranking_mode,
+        ranking_mode=source_ranking_mode,
         period=period,
         cache_buster=cache_buster,
         limit=20
@@ -222,7 +251,9 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         return
     
     # For Volume mode with USD toggle enabled, re-rank by volume_usd for display
-    if ranking_mode == 'volume' and show_usd and 'volume_usd' in top_items.columns:
+    if ranking_mode == 'total_supply':
+        display_data = _prepare_total_supply_data(top_items)
+    elif ranking_mode == 'volume' and show_usd and 'volume_usd' in top_items.columns:
         # Create a copy and sort by volume_usd descending, then re-assign display ranks
         display_data = top_items.copy()
         display_data = display_data.sort_values('volume_usd', ascending=False).reset_index(drop=True)
@@ -403,7 +434,7 @@ def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False,
     has_usd_data = 'volume_usd' in top_items.columns and 'avg_price_usd' in top_items.columns
     
     for idx, row in top_items.iterrows():
-        display_rank = row.get('display_rank', row['rank'])
+        display_rank = _format_rank(row.get('display_rank')) if ranking_mode == 'total_supply' else f"#{row.get('display_rank', row['rank'])}"
         item_name = str(row['item_name']).strip()
         rarity = str(row['rarity']).strip()
         
@@ -537,6 +568,23 @@ def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False,
                 f'<div class="top-items-card-volume-value">{market_strength_score:.3f}</div>'
                 '</div>'
             )
+
+        elif ranking_mode == 'total_supply':
+            supply_value = row.get('_supply')
+            supply_text = f"{int(supply_value):,}" if pd.notna(supply_value) and valid_supply(supply_value) else 'N/A'
+            supply_rank = _format_rank(row.get('_supply_rank'))
+            metrics_html += (
+                '<div class="top-items-card-metric-row">'
+                '<span class="top-items-card-metric-label">SUPPLY RANK</span>'
+                f'<span class="top-items-card-metric-value">{supply_rank}</span>'
+                '</div>'
+            )
+            volume_section_html = (
+                '<div class="top-items-card-volume">'
+                '<div class="top-items-card-volume-label">TOTAL SUPPLY</div>'
+                f'<div class="top-items-card-volume-value">{supply_text}</div>'
+                '</div>'
+            )
         
         metrics_html += '</div>'
         
@@ -544,7 +592,7 @@ def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False,
         card_html = (
             f'<a href="{item_url}" class="top-items-card-link">'
             '<div class="top-items-card">'
-            f'<div class="top-items-card-rank">#{display_rank}</div>'
+            f'<div class="top-items-card-rank">{display_rank}</div>'
             f'<div class="top-items-card-image-container">{image_html}</div>'
             f'<div class="top-items-card-name">{item_name_safe}</div>'
             f'<div class="top-items-card-rarity" style="color: {rarity_color};">{rarity_safe}</div>'
@@ -591,13 +639,17 @@ def _render_top_items_chart_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         metric_col = 'market_strength_score'
         metric_label = 'Market Strength'
         metric_format = '.3f'
+    elif ranking_mode == 'total_supply':
+        metric_col = '_supply'
+        metric_label = 'Total Supply'
+        metric_format = ',.0f'
     else:
         metric_col = 'volume_gun'
         metric_label = 'Volume (GUN)'
         metric_format = ',.0f'
     
     # Get metric values and normalize for bar width
-    metric_values = top_items[metric_col].values
+    metric_values = pd.to_numeric(top_items[metric_col], errors='coerce').fillna(0).values
     max_value = metric_values.max() if len(metric_values) > 0 else 1
     
     # Normalize to percentage (0-100) for bar width
@@ -605,14 +657,14 @@ def _render_top_items_chart_view(top_items: pd.DataFrame, ranking_mode: str = 'v
     
     # Format values for display
     if metric_format == ',.0f':
-        formatted_values = [f"{v:,.0f}" for v in metric_values]
+        formatted_values = ["N/A" if pd.isna(row.get(metric_col)) else f"{v:,.0f}" for v, (_, row) in zip(metric_values, top_items.iterrows())]
     else:
         formatted_values = [f"{v:{metric_format}}" for v in metric_values]
     
     # Build rows HTML
     rows_html = []
     for idx, (_, row) in enumerate(top_items.iterrows()):
-        display_rank = row.get('display_rank', row['rank'])
+        display_rank = _format_rank(row.get('display_rank')) if ranking_mode == 'total_supply' else f"#{row.get('display_rank', row['rank'])}"
         item_name = str(row['item_name']).strip()
         rarity = str(row['rarity']).strip()
         image_url = row.get('image_url', '')
@@ -635,7 +687,7 @@ def _render_top_items_chart_view(top_items: pd.DataFrame, ranking_mode: str = 'v
             thumbnail_html = f'<a href="{item_url_safe}" class="leaderboard-image-link">-</a>'
         
         # Build row
-        row_html = f'<div class="leaderboard-row"><div class="leaderboard-thumbnail">{thumbnail_html}</div><div class="leaderboard-info"><div class="leaderboard-rank">#{display_rank}</div><a href="{item_url_safe}" class="leaderboard-item-link"><div class="leaderboard-item-name">{item_name_safe}</div></a><div class="leaderboard-rarity" style="color: {rarity_color};">{rarity_safe}</div></div><div class="leaderboard-bar-container"><div class="leaderboard-bar"><div class="leaderboard-bar-fill" style="width: {bar_width:.1f}%;"></div></div><div class="leaderboard-value">{value_str}</div></div></div>'
+        row_html = f'<div class="leaderboard-row"><div class="leaderboard-thumbnail">{thumbnail_html}</div><div class="leaderboard-info"><div class="leaderboard-rank">{display_rank}</div><a href="{item_url_safe}" class="leaderboard-item-link"><div class="leaderboard-item-name">{item_name_safe}</div></a><div class="leaderboard-rarity" style="color: {rarity_color};">{rarity_safe}</div></div><div class="leaderboard-bar-container"><div class="leaderboard-bar"><div class="leaderboard-bar-fill" style="width: {bar_width:.1f}%;"></div></div><div class="leaderboard-value">{value_str}</div></div></div>'
         rows_html.append(row_html)
     
     # Build complete HTML with CSS
@@ -828,7 +880,7 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
     table_rows = []
     
     for idx, (_, row) in enumerate(top_items.iterrows()):
-        display_rank = row.get('display_rank', row['rank'])
+        display_rank = _format_rank(row.get('display_rank')) if ranking_mode == 'total_supply' else f"#{row.get('display_rank', row['rank'])}"
         item_name = str(row['item_name']).strip()
         rarity = str(row['rarity']).strip()
         item_url = _build_item_mode_url(item_name, rarity)
@@ -859,6 +911,8 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         active_days = row.get('active_trading_days', 0)
         avg_price_gun = row.get('avg_price_gun', 0)
         avg_price_usd = row.get('avg_price_usd', 0)
+        total_supply = row.get('_supply')
+        supply_rank = _format_rank(row.get('_supply_rank'))
         
         # Format all values
         market_strength_str = f"{market_strength_score:.3f}" if pd.notna(market_strength_score) and market_strength_score else ""
@@ -872,8 +926,13 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         avg_price_usd_str = f"{avg_price_usd:,.2f}" if pd.notna(avg_price_usd) and avg_price_usd > 0 else ""
         
         # Build row with all 13 columns, all left-aligned (no inline text-align)
+        supply_cells = ''
+        if ranking_mode == 'total_supply':
+            supply_text = f"{int(total_supply):,}" if pd.notna(total_supply) and valid_supply(total_supply) else "N/A"
+            supply_cells = f'<td>{supply_text}</td><td>{supply_rank}</td>'
+
         row_html = f'''<tr>
-<td>#{display_rank}</td>
+<td>{display_rank}</td>
 <td style="text-align: center; padding: 4px;">{image_cell}</td>
 <td style="text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; max-width: 140px; word-break: break-word;"><a href="{item_url_safe}" class="top-items-table-link">{item_name_safe}</a></td>
 <td style="text-transform: uppercase; letter-spacing: 0.3px; font-size: 10px; font-weight: 700; color: {rarity_color};">{escape(rarity, quote=True)}</td>
@@ -886,10 +945,11 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 <td>{active_days_str}</td>
 <td>{avg_price_gun_str}</td>
 <td>{avg_price_usd_str}</td>
+{supply_cells}
 </tr>'''
         table_rows.append(row_html)
     
-    # Build complete table HTML with all 13 column headers
+    # Build complete table HTML with the standard columns plus Supply columns in Supply mode
     table_html = textwrap.dedent(f"""
 <style>
 .top-items-table {{
@@ -950,6 +1010,7 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 <th>Active Days</th>
 <th>Avg Price (GUN)</th>
 <th>Avg Price (USD)</th>
+{('<th>Total Supply</th><th>Supply Rank</th>' if ranking_mode == 'total_supply' else '')}
 </tr></thead>
 <tbody>
 {''.join(table_rows)}

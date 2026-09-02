@@ -591,6 +591,15 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         ):
             st.session_state.top_items_ranking_mode = 'liquidity'
             st.rerun()
+
+        if st.button(
+            "TOTAL SUPPLY",
+            key="top_items_rank_total_supply",
+            use_container_width=True,
+            type="primary" if current_mode == 'total_supply' else "secondary"
+        ):
+            st.session_state.top_items_ranking_mode = 'total_supply'
+            st.rerun()
         
         st.markdown(
             '<div class="otg-sidebar-section-gap"></div>',
