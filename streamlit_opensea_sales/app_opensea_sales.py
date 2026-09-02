@@ -75,6 +75,7 @@ from ui.top_items_overview import render_top_items_overview
 from ui.item_overview import render_item_overview
 from site_analytics import record_current_session_once
 from visitor_identity import get_browser_identity
+from visitor_dashboard import render_visitor_dashboard
 
 
 def _get_page_icon_base64() -> str:
@@ -108,6 +109,13 @@ def main():
 
     # technical implementation note technical implementation note technical implementation note technical implementation note technical implementation note
     render_sidebar_logo()
+
+    requested_mode = st.query_params.get("mode", "item")
+    if isinstance(requested_mode, list):
+        requested_mode = requested_mode[0] if requested_mode else "item"
+    if requested_mode == "internal_analytics":
+        render_visitor_dashboard()
+        return
     
     # ════════════════════════════════════════════════════════════════
     # technical implementation note technical implementation note: ITEM vs MARKET vs TOP ITEMS ANALYTICS
@@ -185,7 +193,7 @@ def main():
     # ════════════════════════════════════════════════════════════════
     # technical implementation note 3: technical implementation note technical implementation note technical implementation note (technical implementation note technical implementation note, technical implementation note technical implementation note CSV)
     # ════════════════════════════════════════════════════════════════
-    sidebar_options = render_sidebar(items_index)
+    sidebar_options = render_sidebar(items_index, browser_identity=browser_identity)
     if sidebar_options is None:
         return
     

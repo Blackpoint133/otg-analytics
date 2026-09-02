@@ -41,6 +41,9 @@ def initialize_selected_item(items_index: Dict[str, Any]):
             info(f"[INIT AUTO SELECT] technical diagnostic text technical diagnostic text technical diagnostic text: '{selected_item}'")
         
         st.session_state.selected_item = selected_item
+        st.session_state.item_initial_event_type = (
+            "initial_explicit" if selected_item and item_raw and selected_item == potential_item else "initial_default"
+        )
 
 
 def prepare_filter_state(filter_dict: Optional[Dict]) -> Dict:

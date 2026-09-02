@@ -4,12 +4,57 @@ technical diagnostic text technical diagnostic text technical diagnostic text.
 technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text.
 """
 
+from pathlib import Path
 from typing import Dict, Optional, Any
 import streamlit as st
 
-from logging_compat import info
+from logging_compat import get_module_logger, info
 
 from ui.viewport import get_viewport_info
+from site_item_events import record_explicit_item_selection, record_initial_item_context
+from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
+
+
+SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytics.log"
+SIDEBAR_LOGGER = get_module_logger("sidebar", log_file=SIDEBAR_LOG_PATH, module_tag="sidebar")
+
+
+def _log_item_ui(marker: str, **fields: Any) -> None:
+    """Emit redacted item-widget diagnostics without affecting the public UI."""
+    try:
+        payload = " ".join(f"{key}={value}" for key, value in fields.items())
+        SIDEBAR_LOGGER.info(f"{marker}{(' ' + payload) if payload else ''}")
+    except Exception:
+        pass
+
+
+def _safe_event_sequence() -> int:
+    value = st.session_state.get(SEQUENCE_KEY, 0)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _on_item_selection_changed(browser_identity: Optional[Dict[str, Any]]) -> None:
+    selected_item = st.session_state.get("selected_item")
+    selected_present = selected_item is not None
+    identity_present = isinstance(browser_identity, dict) and browser_identity.get("status") == "ok"
+    _log_item_ui(
+        "ITEM_UI_CALLBACK_ENTER",
+        selected_present=selected_present,
+        browser_identity_present=identity_present,
+    )
+    last_item = st.session_state.get(LAST_ITEM_KEY)
+    _log_item_ui(
+        "ITEM_UI_CALLBACK_STATE",
+        selected_present=selected_present,
+        same_as_last=selected_present and last_item is not None and selected_item == last_item,
+        sequence=_safe_event_sequence(),
+    )
+    _log_item_ui("ITEM_UI_EVENT_CALL", browser_identity_present=identity_present)
+    result = record_explicit_item_selection(selected_item, browser_identity)
+    _log_item_ui("ITEM_UI_EVENT_RESULT", success=bool(result))
 
 
 def _is_mobile_viewport(viewport_info: Optional[Dict]) -> bool:
@@ -53,7 +98,7 @@ SHARED_DISPLAY_OPTIONS_CSS = """
 """
 
 
-def render_sidebar(items_index: Dict[str, Any]) -> Optional[Dict]:
+def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
     """
     technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text.
     
@@ -66,6 +111,13 @@ def render_sidebar(items_index: Dict[str, Any]) -> Optional[Dict]:
         dict: technical diagnostic text technical diagnostic text selected_item, show_volume, show_usd, show_trend_line
         technical diagnostic text None technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text
     """
+    _log_item_ui(
+        "ITEM_UI_RENDER",
+        selected_present=st.session_state.get("selected_item") is not None,
+        event_initialized=st.session_state.get(EVENT_INITIALIZED_KEY) is True,
+        event_sequence=_safe_event_sequence(),
+    )
+
     def format_option(item_key: str) -> str:
         """technical documentation technical documentation technical documentation technical documentation technical documentation technical documentation."""
         if item_key in items_index:
@@ -146,12 +198,29 @@ def render_sidebar(items_index: Dict[str, Any]) -> Optional[Dict]:
     
     # Selectbox with key automatically syncs with st.session_state
     st.sidebar.markdown('<div class="otg-sidebar-label">SELECT ITEM</div>', unsafe_allow_html=True)
+    _log_item_ui(
+        "ITEM_UI_SELECTBOX_READY",
+        callback_registered=True,
+        selected_present=st.session_state.get("selected_item") is not None,
+    )
     st.sidebar.selectbox(
         "Select Item",
         options=sorted(items_index.keys()),
         format_func=format_option,
         key="selected_item",
+        on_change=_on_item_selection_changed,
+        args=(browser_identity,),
         label_visibility="collapsed"
+    )
+    _log_item_ui(
+        "ITEM_UI_POST_WIDGET",
+        selected_present=st.session_state.get("selected_item") is not None,
+    )
+
+    record_initial_item_context(
+        st.session_state.selected_item,
+        st.session_state.get("item_initial_event_type", "initial_default"),
+        browser_identity,
     )
     
     # technical implementation note technical implementation note technical implementation note technical implementation note session_state
@@ -159,6 +228,7 @@ def render_sidebar(items_index: Dict[str, Any]) -> Optional[Dict]:
     info(f"[SELECT] technical diagnostic text technical diagnostic text technical diagnostic text: '{current_selected_item}'")
     
     # technical implementation note URL technical implementation note technical implementation note technical implementation note technical implementation note
+    _log_item_ui("ITEM_UI_QUERY_SYNC", selected_present=current_selected_item is not None)
     st.query_params['item'] = current_selected_item
     
     # technical implementation note technical implementation note technical implementation note technical implementation note technical implementation note
