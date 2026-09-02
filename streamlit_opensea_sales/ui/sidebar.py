@@ -531,6 +531,11 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             color: #FFFFFF !important;
             font-weight: 800 !important;
         }
+
+        .st-key-top_items_filter_controls button:disabled {
+            opacity: 0.42 !important;
+            cursor: not-allowed !important;
+        }
         
         .st-key-top_items_filter_controls button[data-testid="stBaseButton-primary"]:hover {
             background-color: #E60033 !important;
@@ -612,7 +617,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             "ALL",
             key="top_items_period_all",
             use_container_width=True,
-            type="primary" if current_period == 'all' else "secondary"
+            type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == 'all' else "secondary"),
+            disabled=current_mode == 'total_supply'
         ):
             st.session_state.top_items_period = 'all'
             st.rerun()
@@ -621,7 +627,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             "30 DAY",
             key="top_items_period_30d",
             use_container_width=True,
-            type="primary" if current_period == '30d' else "secondary"
+            type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == '30d' else "secondary"),
+            disabled=current_mode == 'total_supply'
         ):
             st.session_state.top_items_period = '30d'
             st.rerun()
@@ -630,7 +637,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             "7 DAY",
             key="top_items_period_7d",
             use_container_width=True,
-            type="primary" if current_period == '7d' else "secondary"
+            type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == '7d' else "secondary"),
+            disabled=current_mode == 'total_supply'
         ):
             st.session_state.top_items_period = '7d'
             st.rerun()
@@ -639,7 +647,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             "1 DAY",
             key="top_items_period_1d",
             use_container_width=True,
-            type="primary" if current_period == '1d' else "secondary"
+            type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == '1d' else "secondary"),
+            disabled=current_mode == 'total_supply'
         ):
             st.session_state.top_items_period = '1d'
             st.rerun()

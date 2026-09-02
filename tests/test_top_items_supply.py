@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 
@@ -7,6 +8,7 @@ APP = Path(__file__).parents[1] / "streamlit_opensea_sales"
 sys.path.insert(0, str(APP))
 
 from gunzscope_supply import ATTRIBUTION
+import ui.top_items_overview as top_items_overview
 from ui.top_items_overview import _format_rank, _prepare_total_supply_data
 
 
@@ -75,3 +77,56 @@ def test_old_market_rank_does_not_drive_supply_order():
     data = pd.DataFrame([dict(row("a"), rank=1), dict(row("b"), rank=2)])
     result = _prepare_total_supply_data(data, snapshot({"a": item(20), "b": item(5)}))
     assert result["item_key"].tolist() == ["b", "a"]
+
+
+def test_global_candidate_loader_uses_complete_catalog(monkeypatch):
+    catalog = {
+        "a": {"item_key": "a", "display_name": "A", "rarity": "Common"},
+        "b": {"item_key": "b", "display_name": "B", "rarity": "Rare"},
+        "c": {"item_key": "c", "display_name": "C", "rarity": "Epic"},
+    }
+    monkeypatch.setattr(
+        top_items_overview,
+        "load_items_index",
+        lambda: (catalog, SimpleNamespace(success=True)),
+    )
+    result = top_items_overview._load_global_total_supply_candidates()
+    assert result["item_key"].tolist() == ["a", "b", "c"]
+    assert len(result) == len(catalog)
+
+
+def test_supply_limit_is_applied_after_global_sort():
+    data = pd.DataFrame([row("a"), row("b"), row("c")])
+    snap = snapshot({"a": item(30), "b": item(10), "c": item(20)})
+    result = _prepare_total_supply_data(data, snap, limit=2)
+    assert result["item_key"].tolist() == ["b", "c"]
+
+
+def test_sidebar_has_fourth_button_and_disabled_period_policy():
+    source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
+    assert '"TOTAL SUPPLY"' in source
+    assert "key=\"top_items_rank_total_supply\"" in source
+    assert "st.session_state.top_items_ranking_mode = 'total_supply'" in source
+    assert "disabled=current_mode == 'total_supply'" in source
+    assert "opacity: 0.42" in source
+
+
+def test_total_supply_path_is_global_and_has_no_live_client_import():
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert "_load_global_total_supply_candidates()" in source
+    assert "source_ranking_mode" not in source
+    assert "gunzscope_client" not in source
+
+
+def test_total_supply_header_is_period_independent_and_table_columns_are_reachable():
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert "GLOBAL CURRENT SUPPLY" in source
+    assert "<th>Total Supply</th><th>Supply Rank</th>" in source
+    assert "_render_top_items_table_view(display_data" in source
+
+
+def test_market_period_loader_and_usd_resort_remain_in_source():
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert "ranking_mode=ranking_mode" in source
+    assert "ranking_mode == 'volume' and show_usd" in source
+    assert "display_data = display_data.sort_values('volume_usd', ascending=False)" in source

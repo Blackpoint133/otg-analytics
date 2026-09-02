@@ -22,6 +22,7 @@ from urllib.parse import quote_plus
 import textwrap
 
 import market_data_access as mda
+from data_access import load_items_index
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
 from gunzscope_supply import dense_supply_ranks, read_current_snapshot, valid_supply
 
@@ -72,7 +73,26 @@ def _format_rank(value) -> str:
     return f"#{rank}"
 
 
-def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None) -> pd.DataFrame:
+def _load_global_total_supply_candidates() -> Optional[pd.DataFrame]:
+    """Load the complete tracked OTG catalog for global Supply ranking."""
+    items_index, diagnostics = load_items_index()
+    if not diagnostics.success or not items_index:
+        return None
+
+    rows = []
+    for item_key, record in items_index.items():
+        if not isinstance(record, dict):
+            continue
+        rows.append({
+            'item_key': item_key,
+            'item_name': record.get('display_name', ''),
+            'rarity': record.get('rarity', ''),
+            'image_url': record.get('image_url', ''),
+        })
+    return pd.DataFrame(rows)
+
+
+def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None, limit: Optional[int] = None) -> pd.DataFrame:
     """Attach local Supply values and apply deterministic scarcity ordering."""
     display_data = top_items.copy()
     data = snapshot if snapshot is not None else read_current_snapshot()
@@ -94,6 +114,8 @@ def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None) -> pd.Dat
         na_position='last',
     ).reset_index(drop=True)
     display_data['display_rank'] = display_data['_supply_rank']
+    if limit is not None:
+        display_data = display_data.head(limit).reset_index(drop=True)
     return display_data
 
 
@@ -189,7 +211,7 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         '7d': 'ROLLING 7-DAY RANKING',
         '1d': 'ROLLING 24-HOUR RANKING'
     }
-    period_label = period_labels.get(period, 'ALL-TIME RANKING')
+    period_label = 'GLOBAL CURRENT SUPPLY' if ranking_mode == 'total_supply' else period_labels.get(period, 'ALL-TIME RANKING')
     
     # Section heading with title and subtitle
     st.markdown(f"""
@@ -232,14 +254,17 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         </div>
     """, unsafe_allow_html=True)
     
-    # Load appropriate ranking CSV based on selected mode and period
-    source_ranking_mode = 'volume' if ranking_mode == 'total_supply' else ranking_mode
-    top_items = mda.load_top_items_ranking(
-        ranking_mode=source_ranking_mode,
-        period=period,
-        cache_buster=cache_buster,
-        limit=20
-    )
+    # Market modes use their existing period-specific prepared rankings. Supply
+    # mode is global and must not use a period-specific Volume candidate list.
+    if ranking_mode == 'total_supply':
+        top_items = _load_global_total_supply_candidates()
+    else:
+        top_items = mda.load_top_items_ranking(
+            ranking_mode=ranking_mode,
+            period=period,
+            cache_buster=cache_buster,
+            limit=20
+        )
     
     # Handle missing or empty period data
     if top_items is None:
@@ -252,7 +277,7 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     
     # For Volume mode with USD toggle enabled, re-rank by volume_usd for display
     if ranking_mode == 'total_supply':
-        display_data = _prepare_total_supply_data(top_items)
+        display_data = _prepare_total_supply_data(top_items, limit=20)
     elif ranking_mode == 'volume' and show_usd and 'volume_usd' in top_items.columns:
         # Create a copy and sort by volume_usd descending, then re-assign display ranks
         display_data = top_items.copy()
