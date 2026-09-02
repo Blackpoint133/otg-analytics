@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import streamlit as st
 
 from logging_compat import get_module_logger
+from analytics_config import analytics_writes_enabled
 from site_analytics import sanitize_item_key
 from visitor_identity import browser_visitor_hash
 
@@ -94,6 +95,9 @@ def record_item_event(
         return False
     if event_type not in VALID_EVENT_TYPES:
         _log_event("ITEM_EVENT_REJECTED", reason="invalid_event_type")
+        return False
+    if not analytics_writes_enabled():
+        _log_event("ITEM_EVENT_WRITE_DISABLED")
         return False
     if st.session_state.get(EVENT_INITIALIZED_KEY) is not True:
         st.session_state[EVENT_INITIALIZED_KEY] = True

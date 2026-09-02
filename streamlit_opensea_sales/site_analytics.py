@@ -24,6 +24,7 @@ import psycopg2
 from psycopg2 import Error as PsycopgError
 import streamlit as st
 from logging_compat import get_module_logger
+from analytics_config import analytics_writes_enabled
 from visitor_identity import browser_visitor_hash
 
 
@@ -499,7 +500,7 @@ def insert_session(record: Mapping[str, Any]) -> str:
 
 
 def _analytics_enabled() -> bool:
-    return os.getenv("OTG_SITE_ANALYTICS_ENABLED", "").strip().lower() in ENABLED_VALUES
+    return analytics_writes_enabled() and os.getenv("OTG_SITE_ANALYTICS_ENABLED", "").strip().lower() in ENABLED_VALUES
 
 
 def _db_params() -> dict[str, Any]:

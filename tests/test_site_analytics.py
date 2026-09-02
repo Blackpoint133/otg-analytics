@@ -8,8 +8,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-APP_DIR = PROJECT_ROOT / "data_streamlit" / "opensea_sales" / "streamlit_opensea_sales"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+APP_DIR = PROJECT_ROOT / "streamlit_opensea_sales"
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
@@ -84,6 +84,7 @@ class SiteAnalyticsTests(unittest.TestCase):
             os.environ,
             {
                 "OTG_SITE_ANALYTICS_ENABLED": "true",
+                "OTG_ANALYTICS_WRITES_ENABLED": "true",
                 "OTG_SITE_ANALYTICS_HMAC_SECRET": "test-secret-value-that-is-long-enough",
                 "OTG_SITE_ANALYTICS_EXCLUDED_VISITOR_HASHES": "",
                 "OTG_SITE_ANALYTICS_INTERNAL_USER_AGENT_PATTERNS": "codex,copilot,playwright,selenium,headlesschrome",
@@ -190,6 +191,20 @@ class SiteAnalyticsTests(unittest.TestCase):
 
         insert.assert_not_called()
         self.assertTrue(analytics.st.session_state[analytics.FAILED_KEY])
+
+    def test_global_write_guard_blocks_session_connection(self):
+        os.environ["OTG_ANALYTICS_WRITES_ENABLED"] = "false"
+        with patch.object(analytics, "insert_session") as insert:
+            analytics.record_current_session_once("item", None)
+
+        insert.assert_not_called()
+
+    def test_global_write_guard_allows_existing_enabled_session_writer(self):
+        os.environ["OTG_ANALYTICS_WRITES_ENABLED"] = "true"
+        with patch.object(analytics, "insert_session", return_value="inserted") as insert:
+            analytics.record_current_session_once("item", "Ampu-Tee Epic")
+
+        insert.assert_called_once()
 
     def test_missing_ip_uses_unknown_identity(self):
         record = self.build_record(context=FakeContext(headers=FakeHeaders({"User-Agent": "Mozilla/5.0"})))

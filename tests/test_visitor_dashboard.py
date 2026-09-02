@@ -12,6 +12,11 @@ APP_DIR = Path(__file__).resolve().parents[1] / "streamlit_opensea_sales"
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
+
+@pytest.fixture(autouse=True)
+def analytics_writes_enabled_for_unit_tests(monkeypatch):
+    monkeypatch.setenv("OTG_ANALYTICS_WRITES_ENABLED", "true")
+
 from visitor_dashboard_queries import (
     classify_all_profiles,
     count_all_post_returning_profiles,
@@ -149,6 +154,16 @@ def test_item_event_writer_rejects_invalid_or_empty_item_without_db_access(monke
     monkeypatch.setattr(site_item_events, "_connect", lambda: (_ for _ in ()).throw(AssertionError("DB must not be opened")))
     assert site_item_events.record_item_event("", "item_select", None) is False
     assert site_item_events.record_item_event("valid", "unknown", None) is False
+
+
+def test_global_write_guard_blocks_item_event_connection(monkeypatch):
+    import site_item_events
+
+    monkeypatch.setenv("OTG_ANALYTICS_WRITES_ENABLED", "false")
+    monkeypatch.setattr(site_item_events, "_connect", lambda: (_ for _ in ()).throw(AssertionError("DB must not be opened")))
+    site_item_events.st.session_state.clear()
+
+    assert site_item_events.record_item_event("Synthetic Item", "item_select", None) is False
 
 
 def test_item_event_selection_deduplicates_same_state_and_allows_return_to_item(monkeypatch):
