@@ -13,6 +13,20 @@ ATTRIBUTION = {"text": "Data by GUNZscope", "url": "https://gunzscope.xyz", "log
 VALID_STATUSES = {"ok", "stale", "unavailable", "unmapped"}
 
 
+def normalize_provider_lookup_name(value: Any) -> str:
+    """Remove only outer whitespace at the GUNZscope lookup boundary."""
+    return str(value).strip()
+
+
+def normalize_provider_lookup_rarity(value: Any) -> str:
+    """Remove only outer whitespace at the GUNZscope lookup boundary."""
+    return str(value).strip()
+
+
+def provider_lookup_pair(display_name: Any, rarity: Any) -> tuple[str, str]:
+    return normalize_provider_lookup_name(display_name), normalize_provider_lookup_rarity(rarity)
+
+
 def valid_supply(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
