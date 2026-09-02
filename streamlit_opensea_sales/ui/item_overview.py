@@ -18,6 +18,7 @@ from pathlib import Path
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
 from charts import build_sales_chart
 from ui.tables import render_sales_table, paginate_dataframe, get_current_page
+from gunzscope_supply import ATTRIBUTION, get_item_supply_with_rank
 
 
 # Image URL normalization
@@ -271,7 +272,9 @@ def _render_item_card(
     metrics: Dict,
     ranking_metrics: Optional[Dict],
     show_usd: bool,
-    current_gun_price: float
+    current_gun_price: float,
+    supply_record: Optional[Dict] = None,
+    supply_rank: Optional[int] = None,
 ):
     """
     Ð ÐµÐ½Ð´ÐµÑ€Ð¸Ñ‚ left column item card.
@@ -466,6 +469,25 @@ def _render_item_card(
         card_html += f'<div class="item-card-rank">RANK #{rank_value}</div>'
     
     card_html += '</div>'  # end header
+
+    # ====== GUNZSCOPE SUPPLY ======
+    card_html += '<div class="item-card-section">'
+    card_html += '<div class="item-card-section-title">SUPPLY</div>'
+    supply_value = supply_record.get('supply') if supply_record else None
+    supply_text = f"{supply_value:,}" if isinstance(supply_value, int) and supply_value >= 0 else 'N/A'
+    rank_text = f"#{supply_rank}" if isinstance(supply_rank, int) else 'N/A'
+    if supply_record and supply_record.get('status') == 'stale':
+        supply_text += ' (STALE)'
+    card_html += f'<div class="item-card-metric-row"><span class="item-card-metric-label">SUPPLY</span><span class="item-card-metric-value item-card-accent-value">{supply_text}</span></div>'
+    card_html += f'<div class="item-card-metric-row"><span class="item-card-metric-label">SUPPLY RANK</span><span class="item-card-metric-value item-card-accent-value">{rank_text}</span></div>'
+    card_html += (
+        f'<div style="font-size:10px;margin-top:4px;text-align:right;">'
+        f'<a href="{ATTRIBUTION["url"]}" target="_blank" rel="noopener noreferrer" '
+        f'style="color:var(--otg-text-secondary);text-decoration:none;">'
+        f'<img src="{ATTRIBUTION["logoUrl"]}" alt="GUNZscope" width="18" height="18" '
+        f'style="vertical-align:middle;margin-right:4px;">{ATTRIBUTION["text"]}</a></div>'
+    )
+    card_html += '</div>'
     
     # ====== MARKET POSITION (Ranks) ======
     if ranking_metrics and any(k in ranking_metrics for k in ['rank_volume', 'rank_liquidity']):
@@ -730,6 +752,7 @@ def render_item_overview(
     
     # Load ranking metrics (optional)
     ranking_metrics = _load_item_market_ranking_metrics(item_name, rarity, period="all")
+    supply_record, supply_rank = get_item_supply_with_rank(item_record.get('item_key', current_selected_item))
     trend_df = _load_item_trend_data(item_record) if show_trend_line else pd.DataFrame()
 
     st.markdown("""
@@ -776,7 +799,7 @@ def render_item_overview(
     effective_item_view_mode = "chart" if is_mobile_chart else item_view_mode
 
     if is_mobile_chart:
-        _render_item_card(df, filtered_df, item_name, rarity, metrics, ranking_metrics, show_usd, current_gun_price)
+        _render_item_card(df, filtered_df, item_name, rarity, metrics, ranking_metrics, show_usd, current_gun_price, supply_record, supply_rank)
         _render_item_chart(
             filtered_df,
             show_volume,
@@ -792,7 +815,7 @@ def render_item_overview(
     col_left, col_right = st.columns([0.17, 0.83])
     
     with col_left:
-        _render_item_card(df, filtered_df, item_name, rarity, metrics, ranking_metrics, show_usd, current_gun_price)
+        _render_item_card(df, filtered_df, item_name, rarity, metrics, ranking_metrics, show_usd, current_gun_price, supply_record, supply_rank)
     
     with col_right:
         if effective_item_view_mode == "chart":
