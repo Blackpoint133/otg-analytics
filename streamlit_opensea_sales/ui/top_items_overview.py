@@ -372,12 +372,15 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         display_data = _prepare_total_supply_data(top_items, limit=20)
     else:
         display_data = _attach_supply_metadata(_attach_canonical_item_keys(top_items))
-    if ranking_mode == 'volume' and show_usd and 'volume_usd' in display_data.columns:
+    if ranking_mode == 'total_supply':
+        # Global Supply rows intentionally have no market rank column.
+        display_data['display_rank'] = display_data['_supply_rank']
+    elif ranking_mode == 'volume' and show_usd and 'volume_usd' in display_data.columns:
         # Create a copy and sort by volume_usd descending, then re-assign display ranks
         display_data = display_data.sort_values('volume_usd', ascending=False).reset_index(drop=True)
         # Create a new rank column for display (1-20)
         display_data['display_rank'] = range(1, len(display_data) + 1)
-    elif ranking_mode != 'volume' or not show_usd:
+    else:
         # For other modes or when USD is off, use original ranking
         display_data['display_rank'] = display_data['rank']
     

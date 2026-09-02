@@ -74,7 +74,10 @@ def test_rank_formatter_is_na_safe():
 
 
 def test_period_does_not_change_supply_values():
-    data = pd.DataFrame([row("a"), row("b")])
+    data = pd.DataFrame([
+        {"item_key": "a", "item_name": "a", "rarity": "Epic", "volume_gun": 1},
+        {"item_key": "b", "item_name": "b", "rarity": "Epic", "volume_gun": 1},
+    ])
     snap = snapshot({"a": item(2), "b": item(8)})
     for _period in ("all", "30d", "7d", "1d"):
         assert _prepare_total_supply_data(data, snap)["_supply"].tolist() == [2, 8]
@@ -138,6 +141,36 @@ def test_market_period_loader_and_usd_resort_remain_in_source():
     assert "ranking_mode=ranking_mode" in source
     assert "ranking_mode == 'volume' and show_usd" in source
     assert "display_data = display_data.sort_values('volume_usd', ascending=False)" in source
+
+
+def test_total_supply_render_does_not_require_market_rank(monkeypatch):
+    captured = {}
+    data = pd.DataFrame([
+        {"item_key": "a", "item_name": "a", "rarity": "Epic", "volume_gun": 1},
+        {"item_key": "b", "item_name": "b", "rarity": "Epic", "volume_gun": 1},
+    ])
+    snap = snapshot({"a": item(2), "b": item(5)})
+    monkeypatch.setattr(top_items_overview.mda, "get_market_data_status", lambda: {"status": "OK"})
+    monkeypatch.setattr(top_items_overview.mda, "_get_cache_buster", lambda: "test")
+    monkeypatch.setattr(top_items_overview, "_load_global_total_supply_candidates", lambda: data)
+    monkeypatch.setattr(top_items_overview, "_load_all_time_market_metrics", lambda: None)
+    monkeypatch.setattr(top_items_overview, "read_current_snapshot", lambda: snap)
+    monkeypatch.setattr(top_items_overview.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        top_items_overview,
+        "_render_top_items_card_view",
+        lambda frame, **kwargs: captured.setdefault("frame", frame.copy()),
+    )
+    top_items_overview._render_top_items_section("test", ranking_mode="total_supply", top_items_view="cards")
+    result = captured["frame"]
+    assert result["display_rank"].tolist() == [1, 2]
+
+
+def test_market_modes_keep_market_rank_as_display_rank(monkeypatch):
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert "display_data['display_rank'] = display_data['_supply_rank']" in source
+    assert "display_data['display_rank'] = display_data['rank']" in source
+    assert "ranking_mode == 'volume' and show_usd" in source
 
 
 def market_row(name, rarity="Common", **values):
