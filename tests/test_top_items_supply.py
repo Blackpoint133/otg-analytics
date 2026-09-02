@@ -188,6 +188,28 @@ def test_exact_name_rarity_bridge_enriches_without_raw_item_key_join():
     assert result.iloc[0]["market_strength_score"] == 3.5
 
 
+def test_exact_bridge_transfers_market_image_url_not_raw_market_key():
+    catalog = pd.DataFrame([{"item_key": "catalog-key", "item_name": "A", "rarity": "Common"}])
+    market = pd.DataFrame([market_row("A", image_url="https://cdn.example/a.png")])
+    result = _enrich_with_all_time_market_metrics(catalog, market)
+    assert result.iloc[0]["item_key"] == "catalog-key"
+    assert result.iloc[0]["image_url"] == "https://cdn.example/a.png"
+
+
+def test_missing_market_image_preserves_empty_image_fallback():
+    catalog = pd.DataFrame([{"item_key": "catalog-key", "item_name": "A", "rarity": "Common"}])
+    market = pd.DataFrame([market_row("A", image_url=pd.NA)])
+    result = _enrich_with_all_time_market_metrics(catalog, market)
+    assert pd.isna(result.iloc[0]["image_url"])
+    assert top_items_overview._normalize_top_item_image_url(result.iloc[0]["image_url"]) == ""
+
+
+def test_image_renderer_paths_use_shared_image_url_helper():
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert source.count("_normalize_top_item_image_url") >= 3
+    assert "'image_url'," in source
+
+
 def test_bridge_rejects_duplicate_catalog_identity():
     catalog = pd.DataFrame([
         {"item_key": "a", "item_name": "A", "rarity": "Common"},

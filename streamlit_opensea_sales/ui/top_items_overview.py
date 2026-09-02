@@ -33,7 +33,7 @@ IMAGE_CDN_BASE = "https://cdne-g01-livepc-wu-itemsthumbnails.azureedge.net"
 _MARKET_METRIC_COLUMNS = (
     'market_strength_score', 'liquidity_score', 'volume_gun', 'volume_usd',
     'weighted_volume_gun', 'period_events', 'active_trading_days',
-    'avg_price_gun', 'avg_price_usd', 'transactions',
+    'avg_price_gun', 'avg_price_usd', 'transactions', 'image_url',
 )
 
 
