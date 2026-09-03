@@ -390,7 +390,7 @@ def build_sales_chart(
         gridwidth=1,
         linecolor=OTG_THEME.border,
         linewidth=2,
-        tickfont=dict(family=FONT_FAMILY, size=xaxis_tick_size),
+        tickfont=dict(family=FONT_FAMILY, size=xaxis_tick_size, color="#FFFFFF"),
         zeroline=False,
         showline=True
     )
@@ -400,7 +400,7 @@ def build_sales_chart(
     
     yaxis_config = dict(
         title=dict(
-            text=primary_currency_title,
+            text=None,
             font=dict(family=FONT_FAMILY, size=12)
         ),
         showgrid=True,
@@ -408,11 +408,11 @@ def build_sales_chart(
         gridwidth=1,
         linecolor=OTG_THEME.border,
         linewidth=2,
-        tickfont=dict(family=FONT_FAMILY, size=primary_y_tick_size),
+        tickfont=dict(family=FONT_FAMILY, size=primary_y_tick_size, color="#FFFFFF"),
         tickprefix="$" if show_usd else None,
         tickformat="~s",
         zeroline=False,
-        showline=True
+        showline=False
     )
 
     if mobile_layout:
