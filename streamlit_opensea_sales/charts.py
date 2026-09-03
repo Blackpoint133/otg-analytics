@@ -51,7 +51,7 @@ def wallet_point_colors(df: pd.DataFrame, token_type: str, highlight_wallet: str
 
 def wallet_point_outline_colors(df: pd.DataFrame, token_type: str, highlight_wallet: str = None) -> list:
     if not highlight_wallet:
-        return '#8B0000' if token_type == 'GUN' else '#FF6B00'
+        return '#8B0000' if token_type == 'GUN' else '#B8860B'
     other = OTHER_GUN_OUTLINE_COLOR if token_type == 'GUN' else OTHER_WGUN_OUTLINE_COLOR
     return [
         {'BUY': BUY_OUTLINE_COLOR, 'SELL': SELL_OUTLINE_COLOR,

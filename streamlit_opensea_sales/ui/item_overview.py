@@ -674,16 +674,23 @@ def _render_item_sales_table(
     filtered_df: pd.DataFrame,
     show_usd: bool,
     current_gun_price: float,
-    items_per_page: int
+    items_per_page: int,
+    highlight_wallet: Optional[str] = None
 ):
     if not filtered_df.empty:
-        table_df = filtered_df.sort_values(
+        table_df = _filter_item_table_by_wallet(filtered_df, highlight_wallet).sort_values(
             by='sale_date',
             ascending=False,
             kind='stable',
         )
+        if table_df.empty:
+            st.info("No transactions found for the selected wallet.")
+            return
         current_page = get_current_page()
         pagination_result = paginate_dataframe(table_df, current_page, items_per_page)
+        if current_page < 1 or current_page > pagination_result['total_pages']:
+            current_page = 1
+            pagination_result = paginate_dataframe(table_df, current_page, items_per_page)
         page_data = pagination_result['page_data']
         total_pages = pagination_result['total_pages']
         
@@ -702,7 +709,7 @@ def _render_item_sales_table(
                         st.rerun()
             
             with col2:
-                st.markdown(f"<div style='text-align: center; padding: 8px;'><strong>Page {current_page} of {total_pages}</strong></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='item-table-pagination-label'>Page {current_page} of {total_pages}</div>", unsafe_allow_html=True)
             
             with col3:
                 if current_page < total_pages:
@@ -711,6 +718,22 @@ def _render_item_sales_table(
                         st.rerun()
     else:
         st.info("No sales data for the selected date range")
+
+
+def _filter_item_table_by_wallet(filtered_df: pd.DataFrame, highlight_wallet: Optional[str] = None) -> pd.DataFrame:
+    """Filter only the item table using exact, trimmed wallet matching."""
+    if not highlight_wallet:
+        return filtered_df
+    target = str(highlight_wallet).strip()
+    if not target:
+        return filtered_df
+    buyer = filtered_df.get('buyer', pd.Series('', index=filtered_df.index)).map(
+        lambda value: '' if pd.isna(value) else str(value).strip()
+    )
+    seller = filtered_df.get('seller', pd.Series('', index=filtered_df.index)).map(
+        lambda value: '' if pd.isna(value) else str(value).strip()
+    )
+    return filtered_df[(buyer == target) | (seller == target)]
 
 
 def render_item_overview(
@@ -791,6 +814,24 @@ def render_item_overview(
             }
         }
 
+        .st-key-item_sales_table_wrapper .sales-table tbody td {
+            color: #FFFFFF !important;
+        }
+        .st-key-item_sales_table_wrapper .item-table-pagination-label {
+            color: #FFFFFF !important;
+            text-align: center;
+            padding: 8px;
+            font-weight: 700;
+        }
+        .st-key-item_sales_table_wrapper button {
+            background-color: #11141C !important;
+            color: #FFFFFF !important;
+            border: 1px solid #303540 !important;
+        }
+        .st-key-item_sales_table_wrapper button:hover {
+            background-color: #181D27 !important;
+        }
+
         </style>
         <div class="item-overview-header">
             <h3>ITEM ANALYTICS</h3>
@@ -835,4 +876,4 @@ def render_item_overview(
             )
         elif effective_item_view_mode == "table":
             with st.container(key="item_sales_table_wrapper"):
-                _render_item_sales_table(filtered_df, show_usd, current_gun_price, items_per_page)
+                _render_item_sales_table(filtered_df, show_usd, current_gun_price, items_per_page, highlight_wallet)

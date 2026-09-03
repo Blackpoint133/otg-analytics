@@ -8,6 +8,7 @@ sys.path.insert(0, str(APP))
 
 import charts
 import ui.sidebar as sidebar
+import ui.item_overview as item_overview
 
 
 def sales_fixture():
@@ -44,6 +45,18 @@ def test_selected_role_outlines_are_darker_and_follow_role_family():
         "#5D397A", "#356B44", "#3F3F46", "#3F3F46"
     ]
     assert charts.wallet_point_outline_colors(df.iloc[[1]], "WGUN", "0xBUY") == ["#356B44"]
+    assert charts.wallet_point_outline_colors(df.iloc[[1]], "WGUN") == "#B8860B"
+
+
+def test_item_table_wallet_filter_is_exact_and_deduplicates_self_trade():
+    df = pd.DataFrame([
+        {"sale_date": "2026-01-03", "buyer": "0xA", "seller": "0xB"},
+        {"sale_date": "2026-01-02", "buyer": " 0xA ", "seller": "0xA"},
+        {"sale_date": "2026-01-01", "buyer": "0xa", "seller": "0xC"},
+    ])
+    result = item_overview._filter_item_table_by_wallet(df, "0xA")
+    assert len(result) == 2
+    assert len(item_overview._filter_item_table_by_wallet(df)) == 3
 
 
 def test_role_precedence_and_self_trade():
