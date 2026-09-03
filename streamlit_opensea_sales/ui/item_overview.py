@@ -651,7 +651,8 @@ def _render_item_chart(
     current_gun_price: float,
     show_trend_line: bool,
     trend_df: pd.DataFrame,
-    mobile_layout: bool
+    mobile_layout: bool,
+    highlight_wallet: Optional[str] = None
 ):
     fig = build_sales_chart(
         filtered_df,
@@ -662,6 +663,7 @@ def _render_item_chart(
         trend_df=trend_df,
         mobile_layout=mobile_layout,
         compact_vertical_margins=not mobile_layout
+        , highlight_wallet=highlight_wallet
     )
     if mobile_layout:
         fig.update_layout(showlegend=False)
@@ -721,7 +723,8 @@ def render_item_overview(
     current_gun_price: float,
     show_trend_line: bool,
     item_view_mode: str = "chart",
-    items_per_page: int = 50
+    items_per_page: int = 50,
+    highlight_wallet: Optional[str] = None
 ):
     """
     Ð“Ð»Ð°Ð²Ð½Ð°Ñ Ñ„ÑƒÐ½ÐºÑ†Ð¸Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° Item Analytics Ñ Ð½Ð¾Ð²Ð¾Ð¹ layout.
@@ -798,6 +801,14 @@ def render_item_overview(
     is_mobile_chart = bool(st.session_state.get('item_is_mobile_viewport', False))
     effective_item_view_mode = "chart" if is_mobile_chart else item_view_mode
 
+    if highlight_wallet:
+        st.markdown(
+            '<div class="wallet-highlight-legend"><span style="color:#8B6FAE">● BUY</span> '
+            '<span style="color:#6E9B78">● SELL</span> '
+            '<span style="color:#85858E">● OTHER</span></div>',
+            unsafe_allow_html=True,
+        )
+
     if is_mobile_chart:
         _render_item_card(df, filtered_df, item_name, rarity, metrics, ranking_metrics, show_usd, current_gun_price, supply_record, supply_rank)
         _render_item_chart(
@@ -808,6 +819,7 @@ def render_item_overview(
             show_trend_line,
             trend_df,
             mobile_layout=True
+            , highlight_wallet=highlight_wallet
         )
         return
 
@@ -827,6 +839,7 @@ def render_item_overview(
                 show_trend_line,
                 trend_df,
                 mobile_layout=False
+                , highlight_wallet=highlight_wallet
             )
         elif effective_item_view_mode == "table":
             with st.container(key="item_sales_table_wrapper"):

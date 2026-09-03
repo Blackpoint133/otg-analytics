@@ -6,6 +6,8 @@ technical diagnostic text technical diagnostic text technical diagnostic text te
 
 from pathlib import Path
 from typing import Dict, Optional, Any
+from collections import Counter
+import pandas as pd
 import streamlit as st
 
 from logging_compat import get_module_logger, info
@@ -13,6 +15,7 @@ from logging_compat import get_module_logger, info
 from ui.viewport import get_viewport_info
 from site_item_events import record_explicit_item_selection, record_initial_item_context
 from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
+from data_access import load_item_data
 
 
 SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytics.log"
@@ -67,6 +70,37 @@ def _is_mobile_viewport(viewport_info: Optional[Dict]) -> bool:
         return viewport_width <= 768
 
     return bool(viewport_info.get("isMobile", False))
+
+
+def _wallet_options_for_item(item_record: Optional[Dict]) -> list:
+    """Return full wallet values ordered by participation, without address folding."""
+    if not isinstance(item_record, dict) or not item_record.get('file_path'):
+        return []
+    try:
+        path = Path(item_record['file_path'])
+        if not path.exists():
+            return []
+        df = load_item_data(str(path), path.stat().st_mtime)
+    except Exception:
+        return []
+    counts = Counter()
+    for _, row in df.iterrows():
+        wallets = set()
+        for field in ('buyer', 'seller'):
+            value = row.get(field)
+            if pd.isna(value):
+                continue
+            value = str(value).strip()
+            if value:
+                wallets.add(value)
+        for wallet in wallets:
+            counts[wallet] += 1
+    return sorted(counts, key=lambda wallet: (-counts[wallet], wallet))
+
+
+def _short_wallet_label(wallet: str) -> str:
+    value = str(wallet)
+    return value if len(value) <= 12 else f"{value[:6]}…{value[-4:]}"
 
 
 SHARED_DISPLAY_OPTIONS_CSS = """
@@ -236,6 +270,21 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     if not item_record:
         st.error(f"Item '{current_selected_item}' not found in index.")
         return None
+
+    wallet_options = _wallet_options_for_item(item_record)
+    wallet_key = f"item_highlight_wallet_{abs(hash(current_selected_item))}"
+    current_wallet = st.session_state.get(wallet_key, "ALL WALLETS")
+    if current_wallet != "ALL WALLETS" and current_wallet not in wallet_options:
+        current_wallet = "ALL WALLETS"
+        st.session_state[wallet_key] = current_wallet
+    st.sidebar.markdown('<div class="otg-sidebar-label">HIGHLIGHT WALLET</div>', unsafe_allow_html=True)
+    highlight_wallet = st.sidebar.selectbox(
+        "Highlight Wallet",
+        options=["ALL WALLETS", *wallet_options],
+        format_func=lambda value: value if value == "ALL WALLETS" else _short_wallet_label(value),
+        key=wallet_key,
+        label_visibility="collapsed",
+    )
     
     show_volume = False
     if 'item_show_usd' not in st.session_state:
@@ -288,6 +337,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         'show_trend_line': show_trend_line,
         'item_view_mode': current_item_view,
         'is_mobile_viewport': is_mobile_viewport
+        , 'highlight_wallet': None if highlight_wallet == "ALL WALLETS" else highlight_wallet
     }
 
 

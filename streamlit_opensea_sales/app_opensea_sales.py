@@ -212,6 +212,7 @@ def main():
     show_usd = filter_state['show_usd']
     show_trend_line = filter_state.get('show_trend_line', True)
     item_view_mode = filter_state.get('item_view_mode', 'chart')
+    highlight_wallet = filter_state.get('highlight_wallet')
     
     # ════════════════════════════════════════════════════════════════
     # technical implementation note 4: technical implementation note technical implementation note CSV technical implementation note technical implementation note (lazy!)
@@ -253,6 +254,7 @@ def main():
         current_gun_price=current_gun_price,
         show_trend_line=show_trend_line,
         item_view_mode=item_view_mode,
+        highlight_wallet=highlight_wallet,
         items_per_page=ITEMS_PER_PAGE
     )
 

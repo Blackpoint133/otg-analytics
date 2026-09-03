@@ -12,6 +12,37 @@ from config import FONT_FAMILY
 from theme import OTG_THEME
 from formatters import format_number
 
+BUY_COLOR = '#8B6FAE'
+SELL_COLOR = '#6E9B78'
+OTHER_GUN_COLOR = '#6B6B73'
+OTHER_WGUN_COLOR = '#85858E'
+SELF_TRADE_COLOR = '#7E7487'
+
+
+def classify_wallet_role(row: pd.Series, highlight_wallet: str = None) -> str:
+    if not highlight_wallet:
+        return 'OTHER'
+    buyer = '' if pd.isna(row.get('buyer')) else str(row.get('buyer')).strip()
+    seller = '' if pd.isna(row.get('seller')) else str(row.get('seller')).strip()
+    if buyer == highlight_wallet and seller == highlight_wallet:
+        return 'SELF_TRADE'
+    if buyer == highlight_wallet:
+        return 'BUY'
+    if seller == highlight_wallet:
+        return 'SELL'
+    return 'OTHER'
+
+
+def wallet_point_colors(df: pd.DataFrame, token_type: str, highlight_wallet: str = None) -> list:
+    if not highlight_wallet:
+        return OTG_THEME.accent if token_type == 'GUN' else '#FFD700'
+    other = OTHER_GUN_COLOR if token_type == 'GUN' else OTHER_WGUN_COLOR
+    return [
+        {'BUY': BUY_COLOR, 'SELL': SELL_COLOR, 'SELF_TRADE': SELF_TRADE_COLOR}.get(
+            classify_wallet_role(row, highlight_wallet), other
+        ) for _, row in df.iterrows()
+    ]
+
 
 def build_sales_chart(
     filtered_df: pd.DataFrame,
@@ -22,6 +53,7 @@ def build_sales_chart(
     trend_df: pd.DataFrame = None,
     mobile_layout: bool = False,
     compact_vertical_margins: bool = False
+    , highlight_wallet: str = None
 ) -> go.Figure:
     """
     technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text.
@@ -130,6 +162,7 @@ def build_sales_chart(
             date_str = row.get('formatted_date', '')
             price_gun = row.get('price_gun', 0)
             token_type = row.get('type', 'GUN')
+            role = classify_wallet_role(row, highlight_wallet)
 
             if show_usd_mode:
                 if use_historical_usd and pd.notna(row.get('price_usd_at_sale')):
@@ -160,6 +193,9 @@ def build_sales_chart(
                     price_gun_numeric = pd.to_numeric(pd.Series([price_gun]), errors='coerce').iloc[0]
                     calc_usd = price_gun_numeric * current_gun_price if pd.notna(price_gun_numeric) else None
                     hover_lines.append(f"USD (current estimate): {format_usd_amount(calc_usd)}")
+
+            if highlight_wallet and role != 'OTHER':
+                hover_lines.append(f"ROLE: {role.replace('_', '-')}")
 
             customdata_list.append("<br>".join(hover_lines))
 
@@ -196,7 +232,7 @@ def build_sales_chart(
             y=y_sales,
             mode='markers',
             name='GUN',
-            marker=dict(size=12, color=OTG_THEME.accent, opacity=0.9, line=dict(color='#8B0000', width=1.5)),
+            marker=dict(size=12, color=wallet_point_colors(sales_df, 'GUN', highlight_wallet), opacity=0.9, line=dict(color='#8B0000', width=1.5)),
             hovertemplate=hover_template_sales,
             customdata=customdata_sales,
             showlegend=False
@@ -209,7 +245,7 @@ def build_sales_chart(
             y=y_offers,
             mode='markers',
             name='WGUN',
-            marker=dict(size=12, color='#FFD700', opacity=0.85, line=dict(color='#FF6B00', width=1.5)),
+            marker=dict(size=12, color=wallet_point_colors(offers_df, 'WGUN', highlight_wallet), opacity=0.85, line=dict(color='#FF6B00', width=1.5)),
             hovertemplate=hover_template_offers,
             customdata=customdata_offers,
             showlegend=False
