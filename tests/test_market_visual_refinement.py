@@ -41,7 +41,10 @@ def test_market_titles_are_white_and_token_price_axis_line_is_hidden():
     for fig in figures:
         assert fig.layout.xaxis.tickfont.color == "#FFFFFF"
         assert fig.layout.yaxis.tickfont.color == "#FFFFFF"
-        assert fig.layout.xaxis.showline is False
+        assert fig.layout.xaxis.showline is True
+        assert fig.layout.xaxis.linecolor == "#FF003A"
+        assert fig.layout.xaxis.linewidth == 2
+        assert fig.layout.xaxis.zeroline is False
         assert fig.layout.yaxis.showline is False
         assert fig.layout.yaxis.zeroline is False
     for fig in (figures[1], figures[3]):

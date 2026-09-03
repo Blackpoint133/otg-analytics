@@ -76,7 +76,10 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             gridwidth=1,
             gridcolor=COLOR_GRID,
             tickfont=dict(color='#FFFFFF'),
-            showline=False,
+            showline=True,
+            linecolor='#FF003A',
+            linewidth=2,
+            zeroline=False,
         )
         if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty:
             date_values = pd.to_datetime(df['date'], errors='coerce').dropna()
@@ -87,8 +90,8 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             gridwidth=1,
             gridcolor=COLOR_GRID,
             tickfont=dict(color='#FFFFFF'),
-            showline=False,
             zeroline=False,
+            showline=False,
         )
         yaxis2_config = None
         if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty:
@@ -121,7 +124,7 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             showlegend=False,
             yaxis2=yaxis2_config
         )
-        fig.update_xaxes(title=None, showline=False)
+        fig.update_xaxes(title=None, showline=True, linecolor='#FF003A', linewidth=2, zeroline=False)
         fig.update_yaxes(title=None, showline=False)
         
         return fig
@@ -274,15 +277,18 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
             gridwidth=1,
             gridcolor=COLOR_GRID,
             tickfont=dict(color='#FFFFFF'),
-            showline=False,
+            showline=True,
+            linecolor='#FF003A',
+            linewidth=2,
+            zeroline=False,
         )
         yaxis_config = dict(
             showgrid=True,
             gridwidth=1,
             gridcolor=COLOR_GRID,
             tickfont=dict(color='#FFFFFF'),
-            showline=False,
             zeroline=False,
+            showline=False,
         )
         if mobile_layout:
             xaxis_config['domain'] = [0.0, 1.0]
@@ -318,7 +324,7 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
                 font=dict(family='monospace', size=10, color='white')
             )
         )
-        fig.update_xaxes(title=None, showline=False)
+        fig.update_xaxes(title=None, showline=True, linecolor='#FF003A', linewidth=2, zeroline=False)
         fig.update_yaxes(title=None)
         fig.layout.yaxis.showline = False
         
@@ -377,7 +383,10 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
         xaxis_config = dict(
             showgrid=False,
             tickfont=dict(color='#FFFFFF'),
-            showline=False,
+            showline=True,
+            linecolor='#FF003A',
+            linewidth=2,
+            zeroline=False,
         )
         yaxis_config = dict(
             showgrid=True,
@@ -421,7 +430,7 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
             showlegend=False,
             yaxis2=yaxis2_config
         )
-        fig.update_xaxes(title=None, showline=False)
+        fig.update_xaxes(title=None, showline=True, linecolor='#FF003A', linewidth=2, zeroline=False)
         fig.update_yaxes(title=None, showline=False)
         
         return fig
@@ -571,7 +580,10 @@ def build_monthly_volume_chart(monthly_df: pd.DataFrame, show_usd: bool = False,
         xaxis_config = dict(
             showgrid=False,
             tickfont=dict(color='#FFFFFF'),
-            showline=False,
+            showline=True,
+            linecolor='#FF003A',
+            linewidth=2,
+            zeroline=False,
         )
         yaxis_config = dict(
             showgrid=True,
@@ -618,7 +630,7 @@ def build_monthly_volume_chart(monthly_df: pd.DataFrame, show_usd: bool = False,
                 font=dict(family='monospace', size=10, color='white')
             )
         )
-        fig.update_xaxes(title=None, showline=False)
+        fig.update_xaxes(title=None, showline=True, linecolor='#FF003A', linewidth=2, zeroline=False)
         fig.update_yaxes(title=None)
         fig.layout.yaxis.showline = False
         
