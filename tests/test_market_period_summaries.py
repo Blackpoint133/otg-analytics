@@ -12,6 +12,7 @@ from ui.market_overview import (  # noqa: E402
     _build_period_market_summary,
     _filter_market_sales_data,
     _get_market_period_bounds,
+    _resolve_period_kpi_summary,
 )
 from scripts.build_market_period_summaries import build_payload  # noqa: E402
 
@@ -47,17 +48,34 @@ def test_unique_wallet_union_and_non_null_usd_sum():
 
 
 def test_summary_loader_validates_schema_and_required_periods(tmp_path, monkeypatch):
-    valid = {"schema_version": 1, "periods": {p: {"totals": {"transactions": 1, "volume_gun": 1, "unique_wallets": 1, "items_traded": 1}, "usd_pricing": {"total_volume_usd": 1}} for p in ("all", "12m", "6m", "3m")}}
+    valid = {"schema_version": 1, "source_market_build_id": "build-1", "source_latest_date": "2026-01-15", "periods": {p: {"totals": {"transactions": 1, "volume_gun": 1, "unique_wallets": 1, "items_traded": 1}, "usd_pricing": {"total_volume_usd": 1}} for p in ("all", "12m", "6m", "3m")}}
     path = tmp_path / "market_period_summaries.json"
     path.write_text(json.dumps(valid), encoding="utf-8")
     monkeypatch.setattr(mda, "_get_market_period_summaries_path", lambda: path)
-    assert mda.load_market_period_summaries.__wrapped__(cache_buster="test") == valid
+    assert mda.load_market_period_summaries.__wrapped__(cache_buster="build-1", expected_source_latest_date="2026-01-15") == valid
     path.write_text("{bad", encoding="utf-8")
-    assert mda.load_market_period_summaries.__wrapped__(cache_buster="test") is None
+    assert mda.load_market_period_summaries.__wrapped__(cache_buster="build-1", expected_source_latest_date="2026-01-15") is None
 
 
 def test_fast_path_does_not_call_transaction_loader(monkeypatch):
-    valid = {"periods": {"12m": {"totals": {}, "usd_pricing": {}}}}
-    monkeypatch.setattr(mda, "load_market_period_summaries", lambda **_: valid)
-    monkeypatch.setattr(mda, "load_enriched_market_sales", lambda **_: (_ for _ in ()).throw(AssertionError("slow loader called")))
-    assert mda.load_market_period_summaries(cache_buster="test")["periods"]["12m"] is not None
+    valid = {"periods": {"12m": {"totals": {"transactions": 7}, "usd_pricing": {}}}}
+    def fail_loader():
+        raise AssertionError("slow loader called")
+    assert _resolve_period_kpi_summary(valid, "12m", fail_loader, {})["totals"]["transactions"] == 7
+
+
+def test_stale_summary_uses_fallback():
+    fallback = {"totals": {"transactions": 9}, "usd_pricing": {}}
+    assert _resolve_period_kpi_summary({"periods": {}}, "12m", lambda: pd.DataFrame(), fallback) == {
+        "totals": {"transactions": 0, "volume_gun": 0.0, "unique_wallets": 0, "items_traded": 0},
+        "usd_pricing": {"total_volume_usd": 0.0},
+    }
+
+
+def test_summary_file_version_changes_after_replacement(tmp_path, monkeypatch):
+    path = tmp_path / "market_period_summaries.json"
+    path.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(mda, "_get_market_period_summaries_path", lambda: path)
+    first = mda.get_market_period_summaries_file_version()
+    path.write_text('{"changed": true, "padding": "x"}', encoding="utf-8")
+    assert mda.get_market_period_summaries_file_version() != first

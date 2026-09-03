@@ -89,6 +89,23 @@ def _get_market_period_summaries_path() -> Path:
     return get_market_overview_dir() / "market_period_summaries.json"
 
 
+def get_market_period_summaries_file_version() -> str:
+    path = _get_market_period_summaries_path()
+    try:
+        stat = path.stat()
+        return f"{stat.st_mtime_ns}:{stat.st_size}"
+    except OSError:
+        return "missing"
+
+
+def get_market_build_id_from_manifest(manifest: Optional[Dict]) -> str:
+    if not isinstance(manifest, dict):
+        return ""
+    if _is_enriched_manifest(manifest):
+        return str(manifest.get('created_at_utc', '') or '')
+    return str(manifest.get('built_at', '') or '')
+
+
 def _get_enriched_sales_dir() -> Path:
     """Return the read-only transaction-level enriched sales directory."""
     return get_data_dir() / "sales_enriched"
@@ -232,7 +249,7 @@ def load_market_summary(cache_buster: str = None) -> Optional[Dict]:
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def load_market_period_summaries(cache_buster: str = None) -> Optional[Dict]:
+def load_market_period_summaries(cache_buster: str = None, file_version: str = "", expected_source_latest_date: str = "") -> Optional[Dict]:
     """Load and validate the small prepared period KPI summary."""
     path = _get_market_period_summaries_path()
     if not path.exists():
@@ -241,6 +258,10 @@ def load_market_period_summaries(cache_buster: str = None) -> Optional[Dict]:
         with open(path, 'r', encoding='utf-8') as f:
             payload = json.load(f)
         if payload.get('schema_version') != 1 or not isinstance(payload.get('periods'), dict):
+            return None
+        if not payload.get('source_market_build_id') or payload.get('source_market_build_id') != cache_buster:
+            return None
+        if expected_source_latest_date and payload.get('source_latest_date') != expected_source_latest_date:
             return None
         required_periods = {'all', '12m', '6m', '3m'}
         if not required_periods.issubset(payload['periods']):

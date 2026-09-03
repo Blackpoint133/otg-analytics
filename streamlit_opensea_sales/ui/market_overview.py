@@ -157,6 +157,15 @@ def _build_period_market_summary(filtered_sales_df: Optional[pd.DataFrame], fall
     }
 
 
+def _resolve_period_kpi_summary(prepared_periods: Optional[dict], period: str, fallback_loader, fallback_summary: dict):
+    """Choose a validated prepared period or execute the legacy fallback loader."""
+    selected = prepared_periods.get('periods', {}).get(period) if isinstance(prepared_periods, dict) else None
+    if selected is not None:
+        return selected
+    sales_df = fallback_loader()
+    return _build_period_market_summary(sales_df, fallback_summary)
+
+
 def _resolve_market_mobile_state() -> bool:
     """Use the last valid Market viewport result so reruns do not reset mobile charts."""
     if 'market_is_mobile_viewport' not in st.session_state:
@@ -231,7 +240,12 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
     daily_df = mda.load_daily_market_metrics(cache_buster=cache_buster)
     monthly_df = mda.load_monthly_market_metrics(cache_buster=cache_buster)
     summary = mda.load_market_summary(cache_buster=cache_buster)
-    prepared_periods = mda.load_market_period_summaries(cache_buster=cache_buster)
+    prepared_periods = mda.load_market_period_summaries(
+        cache_buster=cache_buster,
+        file_version=mda.get_market_period_summaries_file_version(),
+        expected_source_latest_date=(daily_df['date'].max().normalize().strftime('%Y-%m-%d')
+                                     if daily_df is not None and not daily_df.empty else ''),
+    )
     sales_df = None
     selected_prepared_summary = None
     if prepared_periods is not None:
@@ -255,11 +269,12 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
         end_date,
         is_all_time
     )
-    if selected_prepared_summary is not None:
-        kpi_summary = selected_prepared_summary
-    else:
-        kpi_sales_df = _filter_market_sales_data(sales_df, start_date, end_date, is_all_time)
-        kpi_summary = _build_period_market_summary(kpi_sales_df, summary)
+    kpi_summary = _resolve_period_kpi_summary(
+        prepared_periods,
+        market_time_range,
+        lambda: _filter_market_sales_data(sales_df, start_date, end_date, is_all_time),
+        summary,
+    )
     
     # Render KPI metrics
     _render_kpi_metrics(kpi_summary, show_usd=show_usd, current_gun_price=current_gun_price)
@@ -609,4 +624,3 @@ def _render_market_footer(status: dict, summary: dict):
     # Footer metadata display has been removed.
     # Data range and built timestamp are no longer shown in the UI.
     pass
-

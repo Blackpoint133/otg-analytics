@@ -9,6 +9,10 @@ from pathlib import Path
 
 import pandas as pd
 
+import sys
+sys.path.insert(0, str(Path(__file__).parents[1] / 'streamlit_opensea_sales'))
+from market_data_access import get_market_build_id_from_manifest  # noqa: E402
+
 
 PERIOD_MONTHS = {'3m': 3, '6m': 6, '12m': 12}
 
@@ -32,7 +36,7 @@ def build_period_summary(sales_df: pd.DataFrame) -> dict:
     }
 
 
-def build_payload(sales_df: pd.DataFrame, daily_df: pd.DataFrame) -> dict:
+def build_payload(sales_df: pd.DataFrame, daily_df: pd.DataFrame, source_market_build_id: str = '') -> dict:
     daily_dates = pd.to_datetime(daily_df['date'])
     latest_date = daily_dates.max().normalize()
     periods = {'all': build_period_summary(sales_df)}
@@ -46,6 +50,7 @@ def build_payload(sales_df: pd.DataFrame, daily_df: pd.DataFrame) -> dict:
         'schema_version': 1,
         'built_at_utc': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
         'source_latest_date': latest_date.strftime('%Y-%m-%d'),
+        'source_market_build_id': source_market_build_id,
         'periods': periods,
     }
 
@@ -56,7 +61,11 @@ def build_from_directory(data_dir: Path) -> dict:
     frames = [pd.read_csv(path) for path in sorted(sales_dir.glob('*.csv'))]
     sales_df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     daily_df = pd.read_csv(overview_dir / 'daily_market_metrics.csv')
-    return build_payload(sales_df, daily_df)
+    manifest = json.loads((overview_dir / 'market_overview_enriched_manifest.json').read_text(encoding='utf-8'))
+    build_id = get_market_build_id_from_manifest(manifest)
+    if not build_id:
+        raise RuntimeError('Market manifest has no build identity')
+    return build_payload(sales_df, daily_df, build_id)
 
 
 def publish_atomic(payload: dict, output_path: Path) -> None:
