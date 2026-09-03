@@ -678,6 +678,13 @@ def _render_item_sales_table(
     highlight_wallet: Optional[str] = None
 ):
     if not filtered_df.empty:
+        wallet_filter = _wallet_filter_identity(highlight_wallet)
+        previous_wallet_filter = st.session_state.get('item_table_previous_wallet_filter')
+        wallet_changed = _wallet_filter_changed(previous_wallet_filter, wallet_filter)
+        st.session_state['item_table_previous_wallet_filter'] = wallet_filter
+        if wallet_changed and get_current_page() != 1:
+            st.query_params['page'] = '1'
+            st.rerun()
         table_df = _filter_item_table_by_wallet(filtered_df, highlight_wallet).sort_values(
             by='sale_date',
             ascending=False,
@@ -734,6 +741,18 @@ def _filter_item_table_by_wallet(filtered_df: pd.DataFrame, highlight_wallet: Op
         lambda value: '' if pd.isna(value) else str(value).strip()
     )
     return filtered_df[(buyer == target) | (seller == target)]
+
+
+def _wallet_filter_identity(highlight_wallet: Optional[str] = None) -> str:
+    """Stable session identity for the table's active wallet filter."""
+    if highlight_wallet is None:
+        return '__ALL_WALLETS__'
+    return str(highlight_wallet).strip()
+
+
+def _wallet_filter_changed(previous: Optional[str], current: str) -> bool:
+    """Return whether an already-established table wallet filter changed."""
+    return previous is not None and previous != current
 
 
 def render_item_overview(

@@ -59,6 +59,16 @@ def test_item_table_wallet_filter_is_exact_and_deduplicates_self_trade():
     assert len(item_overview._filter_item_table_by_wallet(df)) == 3
 
 
+def test_wallet_filter_change_requires_page_reset():
+    changed = item_overview._wallet_filter_changed
+    assert changed('__ALL_WALLETS__', '0xA')
+    assert changed('0xA', '0xB')
+    assert changed('0xA', '__ALL_WALLETS__')
+    assert not changed('0xA', '0xA')
+    assert item_overview._wallet_filter_identity(None) == '__ALL_WALLETS__'
+    assert item_overview._wallet_filter_identity(' 0xA ') == '0xA'
+
+
 def test_role_precedence_and_self_trade():
     df = sales_fixture()
     assert charts.classify_wallet_role(df.iloc[0], "0xBUY") == "BUY"
