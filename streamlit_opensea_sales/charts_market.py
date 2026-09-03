@@ -76,6 +76,10 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             gridwidth=1,
             gridcolor=COLOR_GRID,
         )
+        if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty:
+            date_values = pd.to_datetime(df['date'], errors='coerce').dropna()
+            if len(date_values) > 1:
+                xaxis_config['range'] = [date_values.min(), date_values.max()]
         yaxis_config = dict(
             showgrid=True,
             gridwidth=1,
@@ -109,7 +113,7 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             yaxis=yaxis_config,
             margin=dict(l=4, r=4, t=36, b=40) if mobile_layout else dict(l=50, r=50, t=80, b=50),
             height=280 if mobile_layout else 400,
-            showlegend=False if mobile_layout else bool(show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty),
+            showlegend=False,
             yaxis2=yaxis2_config
         )
         fig.update_xaxes(title=None, showline=False)
@@ -399,11 +403,9 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
             bargroupgap=0.05,
             margin=dict(l=4, r=4, t=36, b=40) if mobile_layout else dict(l=50, r=70 if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty else 50, t=80, b=50),
             height=240 if mobile_layout else 400,
-            showlegend=False if mobile_layout else bool(show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty),
+            showlegend=False,
             yaxis2=yaxis2_config
         )
-        if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty and not mobile_layout:
-            fig.update_layout(legend=dict(orientation='h', x=0, xanchor='left', y=1.02, yanchor='bottom', font=dict(family='monospace', size=10, color='white')))
         fig.update_xaxes(title=None, showline=False)
         fig.update_yaxes(title=None, showline=False)
         

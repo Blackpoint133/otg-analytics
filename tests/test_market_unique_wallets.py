@@ -29,12 +29,14 @@ def test_daily_monthly_union_and_self_trade_count_once():
 
 
 def test_liquidity_overlays_use_yellow_right_axis_and_integer_tooltip():
-    daily = pd.DataFrame({"date": pd.to_datetime(["2026-01-01"]), "transactions_count": [2]})
-    wallet_daily = pd.DataFrame({"date": pd.to_datetime(["2026-01-01"]), "unique_wallets": [2]})
+    daily = pd.DataFrame({"date": pd.to_datetime(["2026-01-01", "2026-01-02"]), "transactions_count": [2, 3]})
+    wallet_daily = pd.DataFrame({"date": pd.to_datetime(["2025-12-01", "2026-01-01", "2026-01-02", "2026-03-01"]), "unique_wallets": [1, 2, 3, 4]})
     fig = build_daily_liquidity_chart(daily, unique_wallets_df=wallet_daily, show_unique_wallets=True)
     assert len(fig.data) == 2 and fig.data[1].name == "Unique Wallets"
+    assert fig.layout.showlegend is False
     assert fig.data[1].line.color == "#FFD400"
     assert fig.layout.yaxis2.showline is False and fig.layout.yaxis2.tickfont.color == "#FFD400"
+    assert list(fig.layout.xaxis.range) == [pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-02")]
     assert ":,.0f" in fig.data[1].hovertemplate
 
 
@@ -51,8 +53,7 @@ def test_monthly_wallet_overlay_is_optional_and_secondary():
     assert on.data[0].yaxis == "y"
     assert on.layout.yaxis2.showline is False and on.layout.yaxis2.ticks == ""
     assert on.layout.yaxis2.tickfont.color == "#FFD400"
-    assert on.layout.legend.orientation == "h"
-    assert on.layout.legend.x == 0
+    assert on.layout.showlegend is False
 
 
 def test_expansion_loader_rejects_stale_identity(tmp_path, monkeypatch):
