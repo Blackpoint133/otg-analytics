@@ -38,6 +38,12 @@ def test_market_titles_are_white_and_token_price_axis_line_is_hidden():
         build_monthly_volume_chart(_monthly(), show_token_price=True),
     ]
     assert all(fig is not None and fig.layout.title.font.color == "#FFFFFF" for fig in figures)
+    for fig in figures:
+        assert fig.layout.xaxis.tickfont.color == "#FFFFFF"
+        assert fig.layout.yaxis.tickfont.color == "#FFFFFF"
+        assert fig.layout.xaxis.showline is False
+        assert fig.layout.yaxis.showline is False
+        assert fig.layout.yaxis.zeroline is False
     for fig in (figures[1], figures[3]):
         assert fig.layout.yaxis2.showline is False
         assert fig.layout.yaxis2.ticks == ""
@@ -52,3 +58,10 @@ def test_market_spacing_uses_compact_divider_and_sell_palette_is_updated():
     assert source.count('st.markdown("---")') == 2
     assert "SELL_COLOR = '#67C77A'" in charts
     assert "SELL_OUTLINE_COLOR = '#356B44'" in charts
+
+
+def test_selectbox_outer_border_removed_inner_outline_preserved():
+    source = (APP / "ui" / "styles.py").read_text(encoding="utf-8")
+    assert '[data-testid="stSelectbox"] {{\n            border-bottom: none !important;' in source
+    assert '[data-testid="stSelectbox"] [data-baseweb="select"] > div' in source
+    assert 'border-color: var(--otg-border) !important' in source

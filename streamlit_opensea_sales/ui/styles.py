@@ -222,7 +222,7 @@ def apply_global_styles():
         <style>
         /* Selectbox */
         [data-testid="stSelectbox"] {{
-            border-bottom: 2px solid var(--otg-border) !important;
+            border-bottom: none !important;
         }}
         
         [data-testid="stSelectbox"] input {{
