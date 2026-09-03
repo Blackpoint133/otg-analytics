@@ -84,6 +84,11 @@ def _get_market_summary_path() -> Path:
     return get_market_overview_dir() / "market_summary.json"
 
 
+def _get_market_period_summaries_path() -> Path:
+    """Return the optional prepared period KPI summary path."""
+    return get_market_overview_dir() / "market_period_summaries.json"
+
+
 def _get_enriched_sales_dir() -> Path:
     """Return the read-only transaction-level enriched sales directory."""
     return get_data_dir() / "sales_enriched"
@@ -217,7 +222,7 @@ def load_market_summary(cache_buster: str = None) -> Optional[Dict]:
     
     if not summary_path.exists():
         return None
-    
+
     try:
         with open(summary_path, 'r') as f:
             return json.load(f)
@@ -225,6 +230,36 @@ def load_market_summary(cache_buster: str = None) -> Optional[Dict]:
         st.error(f"Failed to load market summary: {e}")
         return None
 
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_market_period_summaries(cache_buster: str = None) -> Optional[Dict]:
+    """Load and validate the small prepared period KPI summary."""
+    path = _get_market_period_summaries_path()
+    if not path.exists():
+        return None
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+        if payload.get('schema_version') != 1 or not isinstance(payload.get('periods'), dict):
+            return None
+        required_periods = {'all', '12m', '6m', '3m'}
+        if not required_periods.issubset(payload['periods']):
+            return None
+        for period in required_periods:
+            value = payload['periods'][period]
+            if not isinstance(value, dict):
+                return None
+            totals = value.get('totals')
+            usd = value.get('usd_pricing')
+            if not isinstance(totals, dict) or not isinstance(usd, dict):
+                return None
+            if not {'transactions', 'volume_gun', 'unique_wallets', 'items_traded'}.issubset(totals):
+                return None
+            if 'total_volume_usd' not in usd:
+                return None
+        return payload
+    except (OSError, ValueError, TypeError):
+        return None
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_enriched_market_sales(cache_buster: str = None) -> Optional[pd.DataFrame]:

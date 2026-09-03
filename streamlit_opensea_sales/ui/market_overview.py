@@ -231,7 +231,13 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
     daily_df = mda.load_daily_market_metrics(cache_buster=cache_buster)
     monthly_df = mda.load_monthly_market_metrics(cache_buster=cache_buster)
     summary = mda.load_market_summary(cache_buster=cache_buster)
-    sales_df = mda.load_enriched_market_sales(cache_buster=cache_buster)
+    prepared_periods = mda.load_market_period_summaries(cache_buster=cache_buster)
+    sales_df = None
+    selected_prepared_summary = None
+    if prepared_periods is not None:
+        selected_prepared_summary = prepared_periods.get('periods', {}).get(market_time_range)
+    if selected_prepared_summary is None:
+        sales_df = mda.load_enriched_market_sales(cache_buster=cache_buster)
     
     if daily_df is None or summary is None:
         _render_no_data_state({
@@ -249,8 +255,11 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
         end_date,
         is_all_time
     )
-    kpi_sales_df = _filter_market_sales_data(sales_df, start_date, end_date, is_all_time)
-    kpi_summary = _build_period_market_summary(kpi_sales_df, summary)
+    if selected_prepared_summary is not None:
+        kpi_summary = selected_prepared_summary
+    else:
+        kpi_sales_df = _filter_market_sales_data(sales_df, start_date, end_date, is_all_time)
+        kpi_summary = _build_period_market_summary(kpi_sales_df, summary)
     
     # Render KPI metrics
     _render_kpi_metrics(kpi_summary, show_usd=show_usd, current_gun_price=current_gun_price)
@@ -600,5 +609,4 @@ def _render_market_footer(status: dict, summary: dict):
     # Footer metadata display has been removed.
     # Data range and built timestamp are no longer shown in the UI.
     pass
-
 
