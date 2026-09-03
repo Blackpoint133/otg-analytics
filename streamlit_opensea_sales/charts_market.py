@@ -346,6 +346,8 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
             name='Monthly Liquidity',
             marker=dict(color=COLOR_LINE),
             hovertemplate='<b>%{x}</b><br>Liquidity: %{y:,.0f} transactions<extra></extra>',
+            offsetgroup='liquidity',
+            yaxis='y',
         ))
 
         if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty:
@@ -355,6 +357,7 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
                 name='Unique Wallets', yaxis='y2',
                 marker=dict(color='#FFD400', line=dict(color='#8A7300', width=1.2)),
                 hovertemplate='<b>%{x}</b><br>Unique Wallets: %{y:,.0f}<extra></extra>',
+                offsetgroup='unique_wallets',
             ))
         
         xaxis_config = dict(
@@ -391,11 +394,16 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
             font=dict(color=COLOR_TEXT, family='monospace'),
             xaxis=xaxis_config,
             yaxis=yaxis_config,
-            margin=dict(l=4, r=4, t=36, b=40) if mobile_layout else dict(l=50, r=50, t=80, b=50),
+            barmode='group' if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty else 'overlay',
+            bargap=0.25,
+            bargroupgap=0.05,
+            margin=dict(l=4, r=4, t=36, b=40) if mobile_layout else dict(l=50, r=70 if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty else 50, t=80, b=50),
             height=240 if mobile_layout else 400,
             showlegend=False if mobile_layout else bool(show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty),
             yaxis2=yaxis2_config
         )
+        if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty and not mobile_layout:
+            fig.update_layout(legend=dict(orientation='h', x=0, xanchor='left', y=1.02, yanchor='bottom', font=dict(family='monospace', size=10, color='white')))
         fig.update_xaxes(title=None, showline=False)
         fig.update_yaxes(title=None, showline=False)
         

@@ -45,7 +45,14 @@ def test_monthly_wallet_overlay_is_optional_and_secondary():
     on = build_monthly_liquidity_chart(monthly, unique_wallets_df=wallet_monthly, show_unique_wallets=True)
     assert len(off.data) == 1
     assert len(on.data) == 2 and on.data[1].yaxis == "y2"
+    assert on.layout.barmode == "group"
+    assert on.data[0].offsetgroup == "liquidity"
+    assert on.data[1].offsetgroup == "unique_wallets"
+    assert on.data[0].yaxis == "y"
     assert on.layout.yaxis2.showline is False and on.layout.yaxis2.ticks == ""
+    assert on.layout.yaxis2.tickfont.color == "#FFD400"
+    assert on.layout.legend.orientation == "h"
+    assert on.layout.legend.x == 0
 
 
 def test_expansion_loader_rejects_stale_identity(tmp_path, monkeypatch):
