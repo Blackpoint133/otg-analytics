@@ -12,11 +12,16 @@ from config import FONT_FAMILY
 from theme import OTG_THEME
 from formatters import format_number
 
-BUY_COLOR = '#8B6FAE'
-SELL_COLOR = '#6E9B78'
+BUY_COLOR = '#A477C7'
+SELL_COLOR = '#78B887'
 OTHER_GUN_COLOR = '#6B6B73'
 OTHER_WGUN_COLOR = '#85858E'
 SELF_TRADE_COLOR = '#7E7487'
+BUY_OUTLINE_COLOR = '#5D397A'
+SELL_OUTLINE_COLOR = '#3F704A'
+OTHER_GUN_OUTLINE_COLOR = '#3F3F46'
+OTHER_WGUN_OUTLINE_COLOR = '#55555D'
+SELF_TRADE_OUTLINE_COLOR = '#453D59'
 
 
 def classify_wallet_role(row: pd.Series, highlight_wallet: str = None) -> str:
@@ -39,6 +44,18 @@ def wallet_point_colors(df: pd.DataFrame, token_type: str, highlight_wallet: str
     other = OTHER_GUN_COLOR if token_type == 'GUN' else OTHER_WGUN_COLOR
     return [
         {'BUY': BUY_COLOR, 'SELL': SELL_COLOR, 'SELF_TRADE': SELF_TRADE_COLOR}.get(
+            classify_wallet_role(row, highlight_wallet), other
+        ) for _, row in df.iterrows()
+    ]
+
+
+def wallet_point_outline_colors(df: pd.DataFrame, token_type: str, highlight_wallet: str = None) -> list:
+    if not highlight_wallet:
+        return '#8B0000' if token_type == 'GUN' else '#FF6B00'
+    other = OTHER_GUN_OUTLINE_COLOR if token_type == 'GUN' else OTHER_WGUN_OUTLINE_COLOR
+    return [
+        {'BUY': BUY_OUTLINE_COLOR, 'SELL': SELL_OUTLINE_COLOR,
+         'SELF_TRADE': SELF_TRADE_OUTLINE_COLOR}.get(
             classify_wallet_role(row, highlight_wallet), other
         ) for _, row in df.iterrows()
     ]
@@ -232,9 +249,10 @@ def build_sales_chart(
             y=y_sales,
             mode='markers',
             name='GUN',
-            marker=dict(size=12, color=wallet_point_colors(sales_df, 'GUN', highlight_wallet), opacity=0.9, line=dict(color='#8B0000', width=1.5)),
+            marker=dict(size=12, color=wallet_point_colors(sales_df, 'GUN', highlight_wallet), opacity=0.9, line=dict(color=wallet_point_outline_colors(sales_df, 'GUN', highlight_wallet), width=1.5)),
             hovertemplate=hover_template_sales,
             customdata=customdata_sales,
+            hoverlabel=dict(bgcolor='#080808', bordercolor='#5A5A62', font=dict(color='#FFFFFF')),
             showlegend=False
         ))
 
@@ -245,9 +263,10 @@ def build_sales_chart(
             y=y_offers,
             mode='markers',
             name='WGUN',
-            marker=dict(size=12, color=wallet_point_colors(offers_df, 'WGUN', highlight_wallet), opacity=0.85, line=dict(color='#FF6B00', width=1.5)),
+            marker=dict(size=12, color=wallet_point_colors(offers_df, 'WGUN', highlight_wallet), opacity=0.85, line=dict(color=wallet_point_outline_colors(offers_df, 'WGUN', highlight_wallet), width=1.5)),
             hovertemplate=hover_template_offers,
             customdata=customdata_offers,
+            hoverlabel=dict(bgcolor='#080808', bordercolor='#5A5A62', font=dict(color='#FFFFFF')),
             showlegend=False
         ))
 

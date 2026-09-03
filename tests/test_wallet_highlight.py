@@ -35,7 +35,15 @@ def test_default_colors_and_selected_role_colors():
     df = sales_fixture()
     assert charts.wallet_point_colors(df.iloc[[0]], "GUN") == charts.OTG_THEME.accent
     assert charts.wallet_point_colors(df.iloc[[1]], "WGUN") == "#FFD700"
-    assert charts.wallet_point_colors(df, "GUN", "0xBUY") == ["#8B6FAE", "#6E9B78", "#6B6B73", "#6B6B73"]
+    assert charts.wallet_point_colors(df, "GUN", "0xBUY") == ["#A477C7", "#78B887", "#6B6B73", "#6B6B73"]
+
+
+def test_selected_role_outlines_are_darker_and_follow_role_family():
+    df = sales_fixture()
+    assert charts.wallet_point_outline_colors(df, "GUN", "0xBUY") == [
+        "#5D397A", "#3F704A", "#3F3F46", "#3F3F46"
+    ]
+    assert charts.wallet_point_outline_colors(df.iloc[[1]], "WGUN", "0xBUY") == ["#3F704A"]
 
 
 def test_role_precedence_and_self_trade():
@@ -68,3 +76,10 @@ def test_chart_source_has_no_external_client_or_table_mutation():
     source = (APP / "charts.py").read_text(encoding="utf-8")
     assert "requests" not in source
     assert "highlight_wallet" in source
+
+
+def test_chart_ui_theme_and_legend_contract():
+    source = (APP / "ui" / "item_overview.py").read_text(encoding="utf-8")
+    styles = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
+    assert "wallet-highlight-legend" not in source
+    assert "#080808" in styles

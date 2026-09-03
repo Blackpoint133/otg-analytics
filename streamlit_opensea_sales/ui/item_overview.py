@@ -801,14 +801,6 @@ def render_item_overview(
     is_mobile_chart = bool(st.session_state.get('item_is_mobile_viewport', False))
     effective_item_view_mode = "chart" if is_mobile_chart else item_view_mode
 
-    if highlight_wallet:
-        st.markdown(
-            '<div class="wallet-highlight-legend"><span style="color:#8B6FAE">● BUY</span> '
-            '<span style="color:#6E9B78">● SELL</span> '
-            '<span style="color:#85858E">● OTHER</span></div>',
-            unsafe_allow_html=True,
-        )
-
     if is_mobile_chart:
         _render_item_card(df, filtered_df, item_name, rarity, metrics, ranking_metrics, show_usd, current_gun_price, supply_record, supply_rank)
         _render_item_chart(

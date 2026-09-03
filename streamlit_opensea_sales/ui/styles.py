@@ -230,6 +230,23 @@ def apply_global_styles():
             border-radius: 0 !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         }}
+
+        [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+        [role="listbox"], [role="option"] {{
+            background-color: #080808 !important;
+            color: #FFFFFF !important;
+            border-color: var(--otg-border) !important;
+        }}
+        [data-testid="stSelectbox"] [data-baseweb="select"] span,
+        [data-testid="stSelectbox"] [data-baseweb="select"] input,
+        [data-testid="stSelectbox"] [data-baseweb="select"] svg {{
+            color: #FFFFFF !important;
+            fill: #FFFFFF !important;
+        }}
+        [role="option"]:hover, [role="option"][aria-selected="true"] {{
+            background-color: #252525 !important;
+            color: #FFFFFF !important;
+        }}
         
         /* Hide selectbox dropdown indicator */
         [data-testid="stSelectbox"] svg {{
@@ -555,6 +572,11 @@ def apply_global_styles():
             width: 100%;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            color: #FFFFFF !important;
+        }}
+
+        .footer-section span, .footer-attribution-separator {{
+            color: #FFFFFF !important;
         }}
         
         .footer-divider {{

@@ -111,7 +111,7 @@ SHARED_DISPLAY_OPTIONS_CSS = """
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.6px;
-        color: var(--otg-text-secondary);
+        color: #FFFFFF !important;
         display: block;
         margin: 0 0 10px 0;
         padding: 0;
@@ -120,6 +120,29 @@ SHARED_DISPLAY_OPTIONS_CSS = """
         overflow: visible;
         line-height: 1.1;
     }
+
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div {
+        background-color: #080808 !important;
+        color: #FFFFFF !important;
+        border-color: var(--otg-border) !important;
+    }
+    [data-testid="stSelectbox"] [data-baseweb="select"] input,
+    [data-testid="stSelectbox"] [data-baseweb="select"] span,
+    [data-testid="stSelectbox"] [data-baseweb="select"] svg {
+        color: #FFFFFF !important;
+        fill: #FFFFFF !important;
+    }
+    [role="listbox"], [role="option"] {
+        background-color: #080808 !important;
+        color: #FFFFFF !important;
+    }
+    [role="option"]:hover, [role="option"][aria-selected="true"] {
+        background-color: #252525 !important;
+        color: #FFFFFF !important;
+    }
+    [data-testid="stCheckbox"] label,
+    [data-testid="stCheckbox"] label p,
+    [data-testid="stWidgetLabel"] p { color: #FFFFFF !important; }
 
     .otg-sidebar-section-gap {
         height: 14px;
