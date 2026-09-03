@@ -255,7 +255,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
     # Render KPI metrics
     _render_kpi_metrics(kpi_summary, show_usd=show_usd, current_gun_price=current_gun_price)
     
-    st.markdown("---")
+    st.markdown('<div class="market-section-divider"></div>', unsafe_allow_html=True)
     
     # Render main charts - styled to match MARKET ANALYTICS header
     st.markdown("""
@@ -439,7 +439,7 @@ def _render_kpi_metrics(summary: dict, show_usd: bool = False, current_gun_price
             column-gap: 48px;
             row-gap: 22px;
             margin-top: 16px;
-            margin-bottom: 28px;
+            margin-bottom: 12px;
         }
 
         .market-kpi {
@@ -476,8 +476,13 @@ def _render_kpi_metrics(summary: dict, show_usd: bool = False, current_gun_price
                 column-gap: 12px;
                 row-gap: 14px;
                 margin-top: 12px;
-                margin-bottom: 20px;
+                margin-bottom: 10px;
             }
+
+        .market-section-divider {
+            border-top: 1px solid var(--otg-border);
+            margin: 8px 0 12px 0;
+        }
 
             .market-kpi {
                 min-height: 58px;
@@ -595,6 +600,5 @@ def _render_market_footer(status: dict, summary: dict):
     # Footer metadata display has been removed.
     # Data range and built timestamp are no longer shown in the UI.
     pass
-
 
 

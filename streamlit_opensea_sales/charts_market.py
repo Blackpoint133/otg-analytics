@@ -83,7 +83,7 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             )
 
         fig.update_layout(
-            title='Daily Market Liquidity',
+            title=dict(text='Daily Market Liquidity', font=dict(color='#FFFFFF')),
             xaxis_title=None,
             yaxis_title=None,
             hovermode='x unified',
@@ -239,11 +239,10 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
                     overlaying='y',
                     side='right',
                     showgrid=False,
-                    linecolor='#AFFF01',
+                    ticks='',
                     tickfont=dict(color='#AFFF01', size=10),
                     zeroline=False,
-                    showline=True,
-                    linewidth=1
+                    showline=False
                 )
 
         xaxis_config = dict(
@@ -267,7 +266,7 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
             )
         
         fig.update_layout(
-            title=chart_title,
+            title=dict(text=chart_title, font=dict(color='#FFFFFF')),
             xaxis_title=None,
             yaxis_title=None,
             hovermode='x unified',
@@ -353,7 +352,7 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
             )
 
         fig.update_layout(
-            title='Monthly Market Liquidity',
+            title=dict(text='Monthly Market Liquidity', font=dict(color='#FFFFFF')),
             xaxis_title=None,
             yaxis_title=None,
             hovermode='x unified',
@@ -508,11 +507,10 @@ def build_monthly_volume_chart(monthly_df: pd.DataFrame, show_usd: bool = False,
                     overlaying='y',
                     side='right',
                     showgrid=False,
-                    linecolor='#AFFF01',
+                    ticks='',
                     tickfont=dict(color='#AFFF01', size=10),
                     zeroline=False,
-                    showline=True,
-                    linewidth=1
+                    showline=False
                 )
 
         xaxis_config = dict(
@@ -534,7 +532,7 @@ def build_monthly_volume_chart(monthly_df: pd.DataFrame, show_usd: bool = False,
             )
         
         fig.update_layout(
-            title=chart_title,
+            title=dict(text=chart_title, font=dict(color='#FFFFFF')),
             xaxis_title=None,
             yaxis_title=None,
             hovermode='x unified',

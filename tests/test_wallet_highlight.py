@@ -35,15 +35,15 @@ def test_default_colors_and_selected_role_colors():
     df = sales_fixture()
     assert charts.wallet_point_colors(df.iloc[[0]], "GUN") == charts.OTG_THEME.accent
     assert charts.wallet_point_colors(df.iloc[[1]], "WGUN") == "#FFD700"
-    assert charts.wallet_point_colors(df, "GUN", "0xBUY") == ["#A477C7", "#78B887", "#6B6B73", "#6B6B73"]
+    assert charts.wallet_point_colors(df, "GUN", "0xBUY") == ["#A477C7", "#67C77A", "#6B6B73", "#6B6B73"]
 
 
 def test_selected_role_outlines_are_darker_and_follow_role_family():
     df = sales_fixture()
     assert charts.wallet_point_outline_colors(df, "GUN", "0xBUY") == [
-        "#5D397A", "#3F704A", "#3F3F46", "#3F3F46"
+        "#5D397A", "#356B44", "#3F3F46", "#3F3F46"
     ]
-    assert charts.wallet_point_outline_colors(df.iloc[[1]], "WGUN", "0xBUY") == ["#3F704A"]
+    assert charts.wallet_point_outline_colors(df.iloc[[1]], "WGUN", "0xBUY") == ["#356B44"]
 
 
 def test_role_precedence_and_self_trade():
