@@ -25,7 +25,7 @@ COLOR_LINE = '#FF003A'  # OTG brand red for line charts
 COLOR_MARKER = '#CC0030'  # Darker red for markers/dots
 
 
-def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = False) -> Optional[go.Figure]:
+def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = False, unique_wallets_df: Optional[pd.DataFrame] = None, show_unique_wallets: bool = False) -> Optional[go.Figure]:
     """
     technical diagnostic text Daily Liquidity line chart.
     
@@ -61,6 +61,15 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             fill='tozeroy',
             fillcolor='rgba(255, 0, 58, 0.15)'
         ))
+
+        if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty:
+            wallet_df = unique_wallets_df.copy()
+            fig.add_trace(go.Scatter(
+                x=wallet_df['date'], y=pd.to_numeric(wallet_df['unique_wallets'], errors='coerce'),
+                mode='lines+markers', name='Unique Wallets', yaxis='y2',
+                line=dict(color='#FFD400', width=2.5), marker=dict(size=4, color='#FFD400'),
+                hovertemplate='<b>%{x|%Y-%m-%d}</b><br>Unique Wallets: %{y:,.0f}<extra></extra>',
+            ))
         
         xaxis_config = dict(
             showgrid=True,
@@ -72,6 +81,11 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             gridwidth=1,
             gridcolor=COLOR_GRID,
         )
+        yaxis2_config = None
+        if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty:
+            yaxis2_config = dict(overlaying='y', side='right', showgrid=False, showline=False, ticks='',
+                                 tickfont=dict(color='#FFD400', size=10), zeroline=False,
+                                 showticklabels=not mobile_layout)
         if mobile_layout:
             xaxis_config['domain'] = [0.0, 1.0]
             yaxis_config.update(
@@ -95,7 +109,8 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             yaxis=yaxis_config,
             margin=dict(l=4, r=4, t=36, b=40) if mobile_layout else dict(l=50, r=50, t=80, b=50),
             height=280 if mobile_layout else 400,
-            showlegend=False
+            showlegend=False if mobile_layout else bool(show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty),
+            yaxis2=yaxis2_config
         )
         fig.update_xaxes(title=None, showline=False)
         fig.update_yaxes(title=None, showline=False)
@@ -299,7 +314,7 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
         return None
 
 
-def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool = False) -> Optional[go.Figure]:
+def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool = False, unique_wallets_df: Optional[pd.DataFrame] = None, show_unique_wallets: bool = False) -> Optional[go.Figure]:
     """
     technical diagnostic text Monthly Liquidity bar chart.
     
@@ -332,6 +347,15 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
             marker=dict(color=COLOR_LINE),
             hovertemplate='<b>%{x}</b><br>Liquidity: %{y:,.0f} transactions<extra></extra>',
         ))
+
+        if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty:
+            wallet_df = unique_wallets_df.copy()
+            fig.add_trace(go.Bar(
+                x=wallet_df['month'], y=pd.to_numeric(wallet_df['unique_wallets'], errors='coerce'),
+                name='Unique Wallets', yaxis='y2',
+                marker=dict(color='#FFD400', line=dict(color='#8A7300', width=1.2)),
+                hovertemplate='<b>%{x}</b><br>Unique Wallets: %{y:,.0f}<extra></extra>',
+            ))
         
         xaxis_config = dict(
             showgrid=False,
@@ -341,6 +365,11 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
             gridwidth=1,
             gridcolor=COLOR_GRID,
         )
+        yaxis2_config = None
+        if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty:
+            yaxis2_config = dict(overlaying='y', side='right', showgrid=False, showline=False, ticks='',
+                                 tickfont=dict(color='#FFD400', size=10), zeroline=False,
+                                 showticklabels=not mobile_layout)
         if mobile_layout:
             xaxis_config['domain'] = [0.0, 1.0]
             yaxis_config.update(
@@ -364,7 +393,8 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
             yaxis=yaxis_config,
             margin=dict(l=4, r=4, t=36, b=40) if mobile_layout else dict(l=50, r=50, t=80, b=50),
             height=240 if mobile_layout else 400,
-            showlegend=False
+            showlegend=False if mobile_layout else bool(show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty),
+            yaxis2=yaxis2_config
         )
         fig.update_xaxes(title=None, showline=False)
         fig.update_yaxes(title=None, showline=False)

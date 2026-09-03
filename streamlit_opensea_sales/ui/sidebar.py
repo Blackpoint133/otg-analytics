@@ -393,6 +393,11 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
         value=False,
         key='market_show_token_price'
     )
+    show_unique_wallets = st.sidebar.checkbox(
+        'Unique Wallets',
+        value=False,
+        key='market_show_unique_wallets'
+    )
 
     if 'market_time_range' not in st.session_state:
         st.session_state.market_time_range = '12m'
@@ -498,11 +503,12 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
             st.session_state.market_time_range = '3m'
             st.rerun()
     
-    info(f"Market sidebar: show_usd={show_usd}, show_token_price={show_token_price}, time_range={current_period}")
+    info(f"Market sidebar: show_usd={show_usd}, show_token_price={show_token_price}, show_unique_wallets={show_unique_wallets}, time_range={current_period}")
     
     return {
         'show_usd': show_usd,
         'show_token_price': show_token_price
+        , 'show_unique_wallets': show_unique_wallets
     }
 
 

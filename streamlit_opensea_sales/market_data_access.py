@@ -89,6 +89,19 @@ def _get_market_period_summaries_path() -> Path:
     return get_market_overview_dir() / "market_period_summaries.json"
 
 
+def _get_market_expansion_metrics_path() -> Path:
+    return get_market_overview_dir() / "market_expansion_metrics.json"
+
+
+def get_market_expansion_metrics_file_version() -> str:
+    path = _get_market_expansion_metrics_path()
+    try:
+        stat = path.stat()
+        return f"{stat.st_mtime_ns}:{stat.st_size}"
+    except OSError:
+        return "missing"
+
+
 def get_market_period_summaries_file_version() -> str:
     path = _get_market_period_summaries_path()
     try:
@@ -274,9 +287,35 @@ def load_market_period_summaries(cache_buster: str = None, file_version: str = "
             usd = value.get('usd_pricing')
             if not isinstance(totals, dict) or not isinstance(usd, dict):
                 return None
-            if not {'transactions', 'volume_gun', 'unique_wallets', 'items_traded'}.issubset(totals):
+            if not {'transactions', 'volume_gun', 'unique_wallets', 'items_traded'}.issubset(totals) or 'total_volume_usd' not in usd:
                 return None
-            if 'total_volume_usd' not in usd:
+        return payload
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_market_expansion_metrics(cache_buster: str = None, file_version: str = "", expected_source_latest_date: str = "") -> Optional[Dict]:
+    path = _get_market_expansion_metrics_path()
+    if not path.exists():
+        return None
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+        if payload.get('schema_version') != 1:
+            return None
+        if payload.get('source_market_build_id') != cache_buster:
+            return None
+        if expected_source_latest_date and payload.get('source_latest_date') != expected_source_latest_date:
+            return None
+        wallets = payload.get('unique_wallets')
+        if not isinstance(wallets, dict) or not isinstance(wallets.get('daily'), list) or not isinstance(wallets.get('monthly'), list):
+            return None
+        for row in wallets['daily']:
+            if not isinstance(row, dict) or not row.get('date') or not isinstance(row.get('unique_wallets'), (int, float)) or row['unique_wallets'] < 0:
+                return None
+        for row in wallets['monthly']:
+            if not isinstance(row, dict) or not row.get('month') or not row.get('month_start') or not row.get('month_end') or not isinstance(row.get('unique_wallets'), (int, float)) or row['unique_wallets'] < 0:
                 return None
         return payload
     except (OSError, ValueError, TypeError):

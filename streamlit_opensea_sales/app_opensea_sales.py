@@ -141,7 +141,8 @@ def main():
             render_market_overview(
                 show_usd=market_controls['show_usd'],
                 current_gun_price=current_gun_price,
-                show_token_price=market_controls['show_token_price']
+                show_token_price=market_controls['show_token_price'],
+                show_unique_wallets=market_controls['show_unique_wallets']
             )
         render_sidebar_footer()
         return

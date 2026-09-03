@@ -182,7 +182,23 @@ def _resolve_market_mobile_state() -> bool:
     return bool(st.session_state.market_is_mobile_viewport)
 
 
-def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.03, show_token_price: bool = False):
+def _filter_expansion_series(expansion: Optional[dict], start_date, end_date, is_all_time):
+    if not expansion:
+        return None, None
+    daily = pd.DataFrame(expansion.get('unique_wallets', {}).get('daily', []))
+    monthly = pd.DataFrame(expansion.get('unique_wallets', {}).get('monthly', []))
+    if not daily.empty:
+        daily['date'] = pd.to_datetime(daily['date'])
+    if not monthly.empty:
+        monthly['month_start'] = pd.to_datetime(monthly['month_start'])
+        monthly['month_end'] = pd.to_datetime(monthly['month_end'])
+    if not is_all_time and start_date is not None and end_date is not None:
+        daily = daily[(daily['date'] >= start_date) & (daily['date'] <= end_date)]
+        monthly = monthly[(monthly['month_end'] >= start_date) & (monthly['month_start'] <= end_date)]
+    return daily, monthly
+
+
+def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.03, show_token_price: bool = False, show_unique_wallets: bool = False):
     """technical documentation technical documentation technical documentation Market Overview technical documentation."""
     
     # technical implementation note technical implementation note data
@@ -260,6 +276,14 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
         })
         return
 
+    expansion = None
+    if show_unique_wallets:
+        expansion = mda.load_market_expansion_metrics(
+            cache_buster=cache_buster,
+            file_version=mda.get_market_expansion_metrics_file_version(),
+            expected_source_latest_date=daily_df['date'].max().normalize().strftime('%Y-%m-%d'),
+        )
+
     start_date, end_date, is_all_time = _get_market_period_bounds(daily_df, market_time_range)
     chart_daily_df, chart_monthly_df = _filter_market_chart_data(
         daily_df,
@@ -269,6 +293,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
         end_date,
         is_all_time
     )
+    expansion_daily, expansion_monthly = _filter_expansion_series(expansion, start_date, end_date, is_all_time)
     kpi_summary = _resolve_period_kpi_summary(
         prepared_periods,
         market_time_range,
@@ -304,7 +329,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
     is_mobile_market_chart = _resolve_market_mobile_state()
 
     if is_mobile_market_chart:
-        daily_liq_fig = build_daily_liquidity_chart(chart_daily_df, mobile_layout=True)
+        daily_liq_fig = build_daily_liquidity_chart(chart_daily_df, mobile_layout=True, unique_wallets_df=expansion_daily, show_unique_wallets=show_unique_wallets)
         if daily_liq_fig:
             st.plotly_chart(
                 daily_liq_fig,
@@ -329,7 +354,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
             )
 
         if chart_monthly_df is not None:
-            monthly_liq_fig = build_monthly_liquidity_chart(chart_monthly_df, mobile_layout=True)
+            monthly_liq_fig = build_monthly_liquidity_chart(chart_monthly_df, mobile_layout=True, unique_wallets_df=expansion_monthly, show_unique_wallets=show_unique_wallets)
             if monthly_liq_fig:
                 st.plotly_chart(
                     monthly_liq_fig,
@@ -357,7 +382,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
         col1, col2 = st.columns(2)
         
         with col1:
-            daily_liq_fig = build_daily_liquidity_chart(chart_daily_df)
+            daily_liq_fig = build_daily_liquidity_chart(chart_daily_df, unique_wallets_df=expansion_daily, show_unique_wallets=show_unique_wallets)
             if daily_liq_fig:
                 st.plotly_chart(
                     daily_liq_fig,
@@ -385,7 +410,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
         
         with col3:
             if chart_monthly_df is not None:
-                monthly_liq_fig = build_monthly_liquidity_chart(chart_monthly_df)
+                monthly_liq_fig = build_monthly_liquidity_chart(chart_monthly_df, unique_wallets_df=expansion_monthly, show_unique_wallets=show_unique_wallets)
                 if monthly_liq_fig:
                     st.plotly_chart(
                         monthly_liq_fig,
