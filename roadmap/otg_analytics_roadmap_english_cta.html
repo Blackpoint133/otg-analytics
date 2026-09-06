@@ -136,7 +136,6 @@
     .status-icon-live{background-image:var(--status-icon-live)}
     .status-icon-development{background-image:var(--status-icon-development)}
     .status-icon-planned{background-image:var(--status-icon-planned)}
-    .status-icon-locked{background-image:var(--status-icon-locked)}
 
     .top-nav-right{
       display:flex;
@@ -428,7 +427,8 @@
     .status-live{color:#9fe870}
     .status-development{color:var(--red)}
     .status-planned{color:var(--cyan)}
-    .status-locked{color:#55585f}
+    .card-status{display:inline-block;margin-top:8px;padding:5px 8px;border:1px solid currentColor;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:900;line-height:1.1}
+    .card-status.pending{color:var(--red)}
     .live-stage-code .stage-marker__stage{color:#9fe870}
     .stage-title{
       display:flex;
@@ -564,14 +564,6 @@
     }
 
     .infra{--stage-color:var(--cyan)}
-    .locked{--stage-color:var(--grey)}
-    .locked .stage-desc{
-      border:1px solid rgba(255,255,255,.10);
-      padding:16px 18px;
-      color:#b6b8bc;
-      max-width:1100px;
-      background:rgba(255,255,255,.02);
-    }
 
     footer{
       padding:26px 0 10px;
@@ -713,7 +705,6 @@
         <span class="top-sep"> // </span>
         <a class="top-link" href="#stage-2"><span class="status-icon status-icon-planned" aria-hidden="true"></span>Planned</a>
         <span class="top-sep"> // </span>
-        <a class="top-link" href="#locked"><span class="status-icon status-icon-locked" aria-hidden="true"></span>Locked</a>
       </div>
     </nav>
 
@@ -885,7 +876,7 @@
           <article class="card">
             <div class="card-header">
               <h4 class="card-title">Unique Wallets</h4>
-              <div class="card-index">01 / Metric</div>
+              <div class="card-index">01 / Metric<div class="card-status pending">Completed / Pending Release</div></div>
             </div>
             <div class="card-body">
               <ul class="list">
@@ -1051,10 +1042,10 @@
           <div class="stage-code stage-marker"><span class="stage-marker__icon status-icon status-icon-planned" aria-hidden="true"></span><span class="stage-marker__copy"><span class="status-label status-planned">Planned</span><span class="stage-marker__stage">Stage 03</span></span></div>
           <div>
             <div class="stage-title">
-              <h3>Real-Time Marketplace & Trader Highlight</h3>
+              <h3>Real-Time & Cross-Market Analytics</h3>
               <span class="stage-sub">live listings / item analytics extension</span>
             </div>
-            <p class="stage-desc">Move from historical analytics to current market data and expand ITEM ANALYTICS with tools for analyzing individual traders.</p>
+            <p class="stage-desc">Extend historical analytics with real-time marketplace data, cross-market sales context, and practical trader analysis.</p>
           </div>
         </div>
 
@@ -1081,15 +1072,31 @@
           <article class="card">
             <div class="card-header">
               <h4 class="card-title">ITEM ANALYTICS — Trader Highlight</h4>
-              <div class="card-index">02 / Trader trace</div>
+              <div class="card-index">02 / Trader trace<div class="card-status pending">Completed / Pending Release</div></div>
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Quickly visualize how a specific trader bought and sold the selected item</li>
-                <li>Add a wallet address input field to <strong>Display Options</strong></li>
-                <li>Add an <strong>Apply</strong> button to apply the wallet address</li>
-                <li>Highlight in white the transaction points where the specified wallet bought the selected item</li>
-                <li>Highlight in gray the transaction points where the specified wallet sold the selected item</li>
+                <li>Select or search a wallet that participated in the selected item&rsquo;s history</li>
+                <li>Wallet options are ordered by activity, with the highest participation first; <strong>ALL WALLETS</strong> is the default</li>
+                <li>Highlight transactions involving the selected wallet in the sales chart: BUY in purple and SELL in green</li>
+                <li>Keep unrelated regular sales gray and unrelated OpenSea offer sales light gray</li>
+                <li>Preserve explicit self-trade handling and retain wallet-role details in hover information</li>
+                <li>When a wallet is selected, filter the related transaction table to its buyer-or-seller activity</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <h4 class="card-title">IN-GAME + OPENSEA SALES OVERLAY</h4>
+              <div class="card-index">03 / Cross-market view</div>
+            </div>
+            <div class="card-body">
+              <ul class="list">
+                <li>Show in-game sales and OpenSea sales on the same ITEM ANALYTICS sales chart</li>
+                <li>Use red for in-game sales, blue/cyan for OpenSea direct sales, and yellow for OpenSea offer sales</li>
+                <li>When Wallet Highlight is active, BUY remains purple, SELL remains green, and unrelated regular/offer sales use gray tones</li>
+                <li>Keep transaction source visible in hover/details when wallet-role colors take precedence</li>
               </ul>
             </div>
           </article>
@@ -1102,21 +1109,21 @@
           <div>
             <div class="stage-title">
               <h3>Inventory & Trading Analytics</h3>
-              <span class="stage-sub">portfolio / pnl / trader metrics</span>
+              <span class="stage-sub">inventory / portfolio / trading / trader metrics</span>
             </div>
-            <p class="stage-desc">Advanced analytics for wallets, inventories, and user trading activity.</p>
+            <p class="stage-desc">Separate portfolio, trading-result, and trader-behavior analytics for wallets and inventories.</p>
           </div>
         </div>
 
         <div class="cards">
           <article class="card third">
             <div class="card-header">
-              <h4 class="card-title">Inventory Analytics</h4>
-              <div class="card-index">01 / Portfolio</div>
+              <h4 class="card-title">Portfolio Analytics</h4>
+              <div class="card-index">01 / Inventory / Portfolio</div>
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Full user inventory analytics</li>
+                <li>Authenticated holdings, inventory, and portfolio analytics</li>
                 <li>Automatically identify items held by the wallet</li>
                 <li>Current inventory valuation</li>
                 <li>Historical inventory valuation</li>
@@ -1132,11 +1139,11 @@
           <article class="card third">
             <div class="card-header">
               <h4 class="card-title">Trading Analytics</h4>
-              <div class="card-index">02 / Trading results</div>
+              <div class="card-index">02 / Trading Analytics</div>
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Analytics for every purchase</li>
+                <li>Authenticated analytics for every purchase and sale</li>
                 <li>Analytics for every sale</li>
                 <li>Trading transaction history</li>
                 <li><strong>Realized profit / loss</strong></li>
@@ -1151,13 +1158,28 @@
 
           <article class="card third">
             <div class="card-header">
-              <h4 class="card-title">Trader Analytics</h4>
-              <div class="card-index">03 / Wallet layer</div>
+              <h4 class="card-title">TRADER ANALYTICS</h4>
+              <div class="card-index">03 / Trader Analytics</div>
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Activity analytics for a specific wallet</li>
-                <li>Top traders</li>
+                <li>Public analytics and rankings for marketplace traders and wallets</li>
+                <li>Public leaderboard, wallet ranking, OpenSea Realized P&amp;L, ROI, trades, win rate, volume, and activity</li>
+                <li>Compact public trader profile and wallet detail view</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="card third">
+            <div class="card-header">
+              <h4 class="card-title">AUTO-BUY ANALYTICS</h4>
+              <div class="card-index">04 / Behavioral Analysis</div>
+            </div>
+            <div class="card-body">
+              <ul class="list">
+                <li>Estimate an <strong>Auto-Buy Probability / Automation Likelihood</strong> from observable marketplace behavior</li>
+                <li>Use signals such as purchase timing, reaction speed, repeated timing patterns, sustained activity, and price-trigger behavior</li>
+                <li>Present a probability estimate, never a definitive claim that a wallet is a bot</li>
               </ul>
             </div>
           </article>
@@ -1188,54 +1210,6 @@
                 <li>Migration from temporary domain to permanent domain</li>
                 <li>Domain selection after communication with the OTG/Gunzilla team</li>
                 <li>Update all project links and integrations to the permanent domain</li>
-              </ul>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="stage locked" id="locked">
-        <div class="stage-head">
-          <div class="stage-code stage-marker"><span class="stage-marker__icon status-icon status-icon-locked" aria-hidden="true"></span><span class="stage-marker__copy"><span class="status-label status-locked">Locked</span><span class="stage-marker__stage">Locked</span></span></div>
-          <div>
-            <div class="stage-title">
-              <h3>In-Game Market Analytics</h3>
-              <span class="stage-sub">developer communication required</span>
-            </div>
-            <p class="stage-desc"><strong>Development of this direction will begin only after discussion and approval from the game developers, access to the required blockchain/RPC infrastructure, and definition of the technical implementation model.</strong></p>
-          </div>
-        </div>
-
-        <div class="pill-grid">
-          <div class="pill"><b>01 / Discussion</b>Communication with developers</div>
-          <div class="pill"><b>02 / Access</b>RPC and data constraints</div>
-          <div class="pill"><b>03 / Data</b>Data collection and architecture</div>
-          <div class="pill"><b>04 / Analytics</b>In-game market intelligence</div>
-        </div>
-
-        <div class="cards">
-          <article class="card wide">
-            <div class="card-header">
-              <h4 class="card-title">Locked Scope</h4>
-              <div class="card-index">Locked / gated</div>
-            </div>
-            <div class="card-body">
-              <ul class="list">
-                <li>Discuss the architecture with the game developers</li>
-                <li>Define acceptable data usage limitations</li>
-                <li>Obtain the required RPC access</li>
-                <li>Define data sources and collection methods</li>
-                <li>Obtain data on in-game transactions</li>
-                <li>In-game market analytics</li>
-                <li>Analyze in-game purchases and sales</li>
-                <li>In-game market history</li>
-                <li>In-game price analytics</li>
-                <li>Trading volume analytics</li>
-                <li>Connect the in-game market with the external NFT marketplace</li>
-                <li>Liquidity analytics</li>
-                <li>Analyze player behavior in the market</li>
-                <li>Track item movements</li>
-                <li>Advanced blockchain analytics</li>
               </ul>
             </div>
           </article>
