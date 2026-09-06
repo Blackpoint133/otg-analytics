@@ -75,7 +75,14 @@ def test_trader_pagination_geometry_and_context_are_scoped_and_deterministic():
     assert "color:var(--otg-text-secondary)" in TRADER_SOURCE
     assert "trader-ranking-context {{ font-size:11px; color:var(--otg-text-tertiary)" not in TRADER_SOURCE
     assert "grid-template-columns:110px minmax(0,1fr) 110px" in TRADER_SOURCE
-    assert '[data-testid="stHorizontalBlock"] > [data-testid="column"]:first-child' in TRADER_SOURCE
-    assert '[data-testid="stHorizontalBlock"] > [data-testid="column"]:last-child' in TRADER_SOURCE
+    base_selector = '[data-testid="stHorizontalBlock"] > [data-testid="stColumn"]'
+    old_selector = '[data-testid="stHorizontalBlock"] > [data-testid="column"]'
+    assert base_selector in TRADER_SOURCE
+    assert f'{base_selector}:first-child' in TRADER_SOURCE
+    assert f'{base_selector}:nth-child(2)' in TRADER_SOURCE
+    assert f'{base_selector}:last-child' in TRADER_SOURCE
+    assert old_selector not in TRADER_SOURCE
+    assert 'max-width:none!important' in TRADER_SOURCE
+    assert 'flex:none!important' in TRADER_SOURCE
     assert 'button {{ width:110px!important' in TRADER_SOURCE
     assert '.st-key-trader_pagination' in TRADER_SOURCE

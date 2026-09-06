@@ -139,10 +139,10 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         .trader-ranking-subtitle {{ font-size:13px; color:var(--otg-text-secondary); text-transform:uppercase; letter-spacing:.5px; margin:4px 0; }}
         .trader-ranking-context {{ font-size:11px; color:var(--otg-text-secondary); text-transform:uppercase; letter-spacing:.4px; margin:4px 0 12px; }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] {{ display:grid!important; grid-template-columns:110px minmax(0,1fr) 110px!important; column-gap:0!important; width:100%!important; align-items:start!important; }}
-        .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="column"] {{ width:100%!important; min-width:0!important; padding:0!important; }}
-        .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="column"]:first-child {{ display:flex!important; justify-content:flex-start!important; }}
-        .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="column"]:last-child {{ display:flex!important; justify-content:flex-end!important; }}
-        .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2) {{ display:flex!important; justify-content:center!important; }}
+        .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{ width:100%!important; min-width:0!important; max-width:none!important; padding:0!important; flex:none!important; }}
+        .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {{ display:flex!important; justify-content:flex-start!important; }}
+        .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {{ display:flex!important; justify-content:flex-end!important; }}
+        .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {{ display:flex!important; justify-content:center!important; }}
         .st-key-trader_pagination button {{ width:110px!important; background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; }}
         .st-key-trader_pagination button:hover:not(:disabled) {{ background:#FF003A!important; color:#000!important; }}
         .st-key-trader_pagination button:disabled {{ opacity:.35!important; }}
