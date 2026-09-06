@@ -16,6 +16,8 @@ from ui.trader_overview import (  # noqa: E402
     trader_is_pnl_eligible,
 )
 
+TRADER_SOURCE = (Path(__file__).parents[1] / "streamlit_opensea_sales" / "ui" / "trader_overview.py").read_text(encoding="utf-8")
+
 
 def row(wallet, trades=10, volume=100, matched=3, coverage=75, pnl=10, roi=.1, win=.5, supported=True):
     return {"wallet": wallet, "trade_count": trades, "total_volume_usd": volume,
@@ -67,3 +69,13 @@ def test_pagination_clamps_without_rendering_all_rows():
     rows = [row(f"0x{i:040x}") for i in range(51)]
     visible, page, pages = paginate_traders(rows, page=99, page_size=25)
     assert len(visible) == 1 and page == 3 and pages == 3
+
+
+def test_trader_pagination_geometry_and_context_are_scoped_and_deterministic():
+    assert "color:var(--otg-text-secondary)" in TRADER_SOURCE
+    assert "trader-ranking-context {{ font-size:11px; color:var(--otg-text-tertiary)" not in TRADER_SOURCE
+    assert "grid-template-columns:110px minmax(0,1fr) 110px" in TRADER_SOURCE
+    assert '[data-testid="stHorizontalBlock"] > [data-testid="column"]:first-child' in TRADER_SOURCE
+    assert '[data-testid="stHorizontalBlock"] > [data-testid="column"]:last-child' in TRADER_SOURCE
+    assert 'button {{ width:110px!important' in TRADER_SOURCE
+    assert '.st-key-trader_pagination' in TRADER_SOURCE
