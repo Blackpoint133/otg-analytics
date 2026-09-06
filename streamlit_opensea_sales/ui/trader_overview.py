@@ -138,7 +138,9 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         }}
         .trader-ranking-subtitle {{ font-size:13px; color:var(--otg-text-secondary); text-transform:uppercase; letter-spacing:.5px; margin:4px 0; }}
         .trader-ranking-context {{ font-size:11px; color:var(--otg-text-tertiary); text-transform:uppercase; letter-spacing:.4px; margin:4px 0 12px; }}
-        .st-key-trader_pagination button {{ background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; }}
+        .st-key-trader_pagination [data-testid="column"]:first-child {{ display:flex!important; justify-content:flex-start!important; }}
+        .st-key-trader_pagination [data-testid="column"]:last-child {{ display:flex!important; justify-content:flex-end!important; }}
+        .st-key-trader_pagination button {{ width:110px!important; background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; }}
         .st-key-trader_pagination button:hover:not(:disabled) {{ background:#FF003A!important; color:#000!important; }}
         .st-key-trader_pagination button:disabled {{ opacity:.35!important; }}
         </style>
@@ -152,9 +154,6 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         st.warning("Trader Analytics data is temporarily unavailable.")
         return
     rows = payload.get("wallets", [])
-    eligible_count = sum(trader_is_pnl_eligible(row) for row in rows)
-    st.caption(f"Public OpenSea activity · Tracked Traders: {payload.get('wallet_count', len(rows)):,} · Observed Trades: {payload.get('event_count', 0):,} · P&L Eligible: {eligible_count:,} · Data since {str(payload.get('date_min') or 'N/A')[:10]}")
-    if sort_by in PERFORMANCE_SORTS: st.caption(f"Eligibility: at least {PANDL_MIN_MATCHED_SALES} matched sales and {PANDL_MIN_COVERAGE_PCT:.0f}% P&L coverage.")
     ranked = sorted_trader_rows(rows, sort_by, show_usd)
     signature = (sort_by, show_usd)
     if st.session_state.get("trader_previous_selection") != signature:
@@ -162,9 +161,9 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
     visible, page, pages = paginate_traders(ranked, st.session_state.get("trader_page", 1)); st.session_state.trader_page = page
     render_trader_table(consolidated_table_rows(visible, show_usd))
     with st.container(key="trader_pagination"):
-        nav = st.columns([1, 2, 1])
-        if nav[0].button("Previous", disabled=page <= 1, key="trader_prev"): st.session_state.trader_page = page - 1; st.rerun()
+        nav = st.columns([1, 2, 1], gap="small")
+        if nav[0].button("Previous", disabled=page <= 1, key="trader_prev", use_container_width=False): st.session_state.trader_page = page - 1; st.rerun()
         nav[1].markdown(f"<div style='text-align:center;padding:8px;color:#FFF'>Page {page} of {pages}</div>", unsafe_allow_html=True)
-        if nav[2].button("Next", disabled=page >= pages, key="trader_next"): st.session_state.trader_page = page + 1; st.rerun()
+        if nav[2].button("Next", disabled=page >= pages, key="trader_next", use_container_width=False): st.session_state.trader_page = page + 1; st.rerun()
     selected = resolve_wallet_search(rows, highlight_wallet) if highlight_wallet else None
     if selected: _render_detail(selected, show_usd)
