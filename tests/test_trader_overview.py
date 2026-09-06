@@ -4,6 +4,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parents[1] / "streamlit_opensea_sales"))
 
 from ui.trader_overview import (  # noqa: E402
+    EARNED_COLOR,
+    INVESTED_COLOR,
+    SOLD_COLOR,
     PANDL_MIN_COVERAGE_PCT,
     PANDL_MIN_MATCHED_SALES,
     leaderboard_rows,
@@ -16,6 +19,7 @@ from ui.trader_overview import (  # noqa: E402
 
 def row(wallet, trades=10, volume=100, matched=3, coverage=75, pnl=10, roi=.1, win=.5, supported=True):
     return {"wallet": wallet, "trade_count": trades, "total_volume_usd": volume,
+            "buy_volume_usd": volume, "sell_volume_usd": volume,
             "total_volume_gun": volume / 10, "matched_realized_sales": matched,
             "pnl_coverage_sell_pct": coverage, "realized_pnl_usd": pnl,
             "realized_pnl_gun": pnl / 10, "roi": roi, "win_rate": win,
@@ -30,17 +34,23 @@ def test_calibrated_eligibility_contract():
     assert not trader_is_pnl_eligible(row("c", coverage=49))
 
 
+def test_public_money_metric_labels_and_colors_are_explicit():
+    assert EARNED_COLOR == "#67C77A"
+    assert INVESTED_COLOR == "#D8C3A5"
+    assert SOLD_COLOR == "#FFD400"
+
+
 def test_pnl_rankings_exclude_ineligible_but_volume_does_not():
     rows = [row("0xB", pnl=20), row("0xA", pnl=100, matched=1), row("0xC", volume=300, matched=0)]
-    assert [r["wallet"] for r in leaderboard_rows(rows, "Observed P&L")] == ["0xB"]
-    assert [r["wallet"] for r in leaderboard_rows(rows, "Volume")] == ["0xC", "0xA", "0xB"]
+    assert [r["wallet"] for r in leaderboard_rows(rows, "EARNED")] == ["0xB"]
+    assert [r["wallet"] for r in leaderboard_rows(rows, "INVESTED")] == ["0xC", "0xA", "0xB"]
 
 
 def test_metric_sorting_and_deterministic_ties():
     rows = [row("0xB", trades=10), row("0xA", trades=10), row("0xC", trades=2)]
-    assert [r["wallet"] for r in leaderboard_rows(rows, "Trades")] == ["0xA", "0xB", "0xC"]
+    assert [r["wallet"] for r in leaderboard_rows(rows, "TRADES")] == ["0xA", "0xB", "0xC"]
     assert [r["wallet"] for r in leaderboard_rows(rows, "ROI")] == ["0xA", "0xB", "0xC"]
-    assert [r["wallet"] for r in leaderboard_rows(rows, "Win Rate")] == ["0xA", "0xB", "0xC"]
+    assert [r["wallet"] for r in leaderboard_rows(rows, "WIN RATE")] == ["0xA", "0xB", "0xC"]
 
 
 def test_wallet_search_and_short_display_preserve_canonical_match():

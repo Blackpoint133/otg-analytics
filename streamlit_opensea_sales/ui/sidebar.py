@@ -16,6 +16,7 @@ from ui.viewport import get_viewport_info
 from site_item_events import record_explicit_item_selection, record_initial_item_context
 from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
 from data_access import load_item_data
+from trader_analytics import load_current_snapshot, normalize_wallet
 
 
 SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytics.log"
@@ -794,3 +795,34 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         'period': current_period,
         'top_items_view': current_view
     }
+
+
+def render_trader_sidebar_controls() -> Dict[str, Any]:
+    """Render native Trader controls and return one effective wallet value."""
+    payload = load_current_snapshot()
+    rows = payload.get('wallets', []) if payload else []
+    wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
+    st.sidebar.header("Trader Analytics Options")
+    st.sidebar.markdown('<div class="otg-sidebar-label">LEADERBOARD</div>', unsafe_allow_html=True)
+    metric = st.sidebar.selectbox(
+        "Leaderboard Metric",
+        ["EARNED", "INVESTED", "SOLD", "TRADES", "ROI", "WIN RATE"],
+        key="trader_metric",
+        label_visibility="collapsed",
+    )
+    st.sidebar.markdown('<div class="otg-sidebar-label">CURRENCY</div>', unsafe_allow_html=True)
+    currency = st.sidebar.selectbox("Currency", ["USD", "GUN"], key="trader_currency", label_visibility="collapsed")
+    st.sidebar.markdown('<div class="otg-sidebar-label">TRADER</div>', unsafe_allow_html=True)
+    selected = st.sidebar.selectbox(
+        "Trader",
+        ["ALL TRADERS", *wallets],
+        format_func=lambda value: value if value == "ALL TRADERS" else _short_wallet_label(value),
+        key="trader_selected_wallet",
+        label_visibility="collapsed",
+    )
+    manual = st.sidebar.text_input(
+        "Wallet Address", placeholder="Paste wallet address", key="trader_wallet_search", label_visibility="collapsed"
+    )
+    manual = str(manual).strip()
+    effective = normalize_wallet(manual) if manual else (None if selected == "ALL TRADERS" else normalize_wallet(selected))
+    return {"metric": metric, "currency": currency, "wallet": effective}
