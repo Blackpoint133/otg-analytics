@@ -73,6 +73,7 @@ from ui import (
 from ui.market_overview import render_market_overview
 from ui.top_items_overview import render_top_items_overview
 from ui.item_overview import render_item_overview
+from ui.trader_overview import render_trader_overview
 from site_analytics import record_current_session_once
 from visitor_identity import get_browser_identity
 from visitor_dashboard import render_visitor_dashboard
@@ -127,6 +128,12 @@ def main():
         item_key=st.query_params.get("item"),
         browser_identity=browser_identity,
     )
+
+    if current_mode == 'trader':
+        with st.container(key="trader_main_content"):
+            render_trader_overview()
+        render_sidebar_footer()
+        return
     
     # Load current gun price early for all modes
     current_gun_price = load_current_price()

@@ -17,7 +17,7 @@ import streamlit as st
 from typing import Literal
 
 
-def render_mode_switch() -> Literal['item', 'market', 'top_items']:
+def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
     """
     technical diagnostic text mode switcher technical diagnostic text sidebar technical diagnostic text technical diagnostic text HTML anchor links.
     
@@ -41,13 +41,14 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items']:
         current_mode = current_mode[0]
     
     # Ensure valid mode (whitelist: item, market, top_items)
-    if current_mode not in ['item', 'market', 'top_items']:
+    if current_mode not in ['item', 'market', 'top_items', 'trader']:
         current_mode = 'item'
     
     # Determine active classes
     item_class = "active" if current_mode == "item" else ""
     market_class = "active" if current_mode == "market" else ""
     top_items_class = "active" if current_mode == "top_items" else ""
+    trader_class = "active" if current_mode == "trader" else ""
     
     # Render mode switch using styled HTML anchor links with custom CSS
     st.sidebar.markdown(f"""
@@ -130,6 +131,7 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items']:
             <a class="otg-mode-link {item_class}" href="?mode=item" target="_self">ITEM ANALYTICS</a>
             <a class="otg-mode-link {market_class}" href="?mode=market" target="_self">MARKET ANALYTICS</a>
             <a class="otg-mode-link {top_items_class}" href="?mode=top_items" target="_self">TOP ITEMS ANALYTICS</a>
+            <a class="otg-mode-link {trader_class}" href="?mode=trader" target="_self">TRADER ANALYTICS</a>
             <button type="button" class="otg-mode-link otg-mode-roadmap-disabled" disabled aria-disabled="true" tabindex="-1">ROADMAP</button>
         </div>
     """, unsafe_allow_html=True)
