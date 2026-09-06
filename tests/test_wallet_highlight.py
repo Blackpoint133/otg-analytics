@@ -69,6 +69,27 @@ def test_wallet_filter_change_requires_page_reset():
     assert item_overview._wallet_filter_identity(' 0xA ') == '0xA'
 
 
+def test_empty_manual_wallet_keeps_selector():
+    assert sidebar._resolve_highlight_wallet("0xSELECTED", "") == "0xSELECTED"
+    assert sidebar._resolve_highlight_wallet("ALL WALLETS", "") is None
+
+
+def test_manual_wallet_overrides_selector_and_trims_outer_whitespace():
+    assert sidebar._resolve_highlight_wallet("0xSELECTED", " 0xMANUAL ") == "0xMANUAL"
+
+
+def test_manual_wallet_with_no_item_match_is_safe():
+    wallet = sidebar._resolve_highlight_wallet("ALL WALLETS", "0xUNKNOWN")
+    assert wallet == "0xUNKNOWN"
+    assert item_overview._filter_item_table_by_wallet(sales_fixture(), wallet).empty
+
+
+def test_manual_wallet_is_wired_into_sidebar_source():
+    source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
+    assert "item_manual_wallet_address" in source
+    assert "_resolve_highlight_wallet" in source
+
+
 def test_role_precedence_and_self_trade():
     df = sales_fixture()
     assert charts.classify_wallet_role(df.iloc[0], "0xBUY") == "BUY"

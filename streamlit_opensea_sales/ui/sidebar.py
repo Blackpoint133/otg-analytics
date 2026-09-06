@@ -103,6 +103,16 @@ def _short_wallet_label(wallet: str) -> str:
     return value if len(value) <= 12 else f"{value[:6]}…{value[-4:]}"
 
 
+def _resolve_highlight_wallet(selected_wallet: Optional[str], manual_wallet: Optional[str]) -> Optional[str]:
+    """Return one canonical wallet, giving non-empty manual input precedence."""
+    manual = "" if manual_wallet is None else str(manual_wallet).strip()
+    if manual:
+        return manual
+    if selected_wallet in (None, "", "ALL WALLETS"):
+        return None
+    return str(selected_wallet).strip() or None
+
+
 SHARED_DISPLAY_OPTIONS_CSS = """
     <style>
     .otg-sidebar-label {
@@ -308,6 +318,14 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         key=wallet_key,
         label_visibility="collapsed",
     )
+
+    manual_wallet = st.sidebar.text_input(
+        "Wallet Address",
+        key="item_manual_wallet_address",
+        placeholder="Paste wallet address",
+        label_visibility="collapsed",
+    ).strip()
+    effective_wallet = _resolve_highlight_wallet(highlight_wallet, manual_wallet)
     
     show_volume = False
     if 'item_show_usd' not in st.session_state:
@@ -360,7 +378,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         'show_trend_line': show_trend_line,
         'item_view_mode': current_item_view,
         'is_mobile_viewport': is_mobile_viewport
-        , 'highlight_wallet': None if highlight_wallet == "ALL WALLETS" else highlight_wallet
+        , 'highlight_wallet': effective_wallet
     }
 
 
