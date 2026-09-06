@@ -127,7 +127,7 @@ def _render_detail(row: dict[str, Any], show_usd: bool) -> None:
 
 def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None) -> None:
     payload = load_current_snapshot()
-    st.title("TRADER ANALYTICS")
+    st.markdown("""<style>.trader-page-header{font-family:'PP Supply Sans','Space Mono',monospace;font-size:28px;font-weight:700;letter-spacing:1px;color:#FFF;text-transform:uppercase;border-bottom:2px solid #FF003A;padding-bottom:10px;margin-bottom:10px}.st-key-trader_pagination button{background:#000!important;color:#FFF!important;border:1px solid #FF003A!important;border-radius:0!important}.st-key-trader_pagination button:hover:not(:disabled){background:#FF003A!important;color:#000!important}.st-key-trader_pagination button:disabled{opacity:.35!important}</style><div class="trader-page-header">TRADER ANALYTICS</div>""", unsafe_allow_html=True)
     if not payload:
         st.warning("Trader Analytics data is temporarily unavailable.")
         return
@@ -141,9 +141,10 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         st.session_state.trader_previous_selection = signature; st.session_state.trader_page = 1
     visible, page, pages = paginate_traders(ranked, st.session_state.get("trader_page", 1)); st.session_state.trader_page = page
     render_trader_table(consolidated_table_rows(visible, show_usd))
-    nav = st.columns([1, 2, 1])
-    if nav[0].button("Previous", disabled=page <= 1, key="trader_prev"): st.session_state.trader_page = page - 1; st.rerun()
-    nav[1].markdown(f"<div style='text-align:center;padding:8px;color:#FFF'>Page {page} of {pages}</div>", unsafe_allow_html=True)
-    if nav[2].button("Next", disabled=page >= pages, key="trader_next"): st.session_state.trader_page = page + 1; st.rerun()
+    with st.container(key="trader_pagination"):
+        nav = st.columns([1, 2, 1])
+        if nav[0].button("Previous", disabled=page <= 1, key="trader_prev"): st.session_state.trader_page = page - 1; st.rerun()
+        nav[1].markdown(f"<div style='text-align:center;padding:8px;color:#FFF'>Page {page} of {pages}</div>", unsafe_allow_html=True)
+        if nav[2].button("Next", disabled=page >= pages, key="trader_next"): st.session_state.trader_page = page + 1; st.rerun()
     selected = resolve_wallet_search(rows, highlight_wallet) if highlight_wallet else None
     if selected: _render_detail(selected, show_usd)
