@@ -798,7 +798,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
 
 
 def render_trader_sidebar_controls() -> Dict[str, Any]:
-    """Render native Trader controls and return one effective wallet value."""
+    """Render Trader controls, including one editable wallet combobox."""
     payload = load_current_snapshot()
     rows = payload.get('wallets', []) if payload else []
     wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
@@ -808,9 +808,31 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
     st.sidebar.markdown('<div class="otg-sidebar-label">TRADER</div>', unsafe_allow_html=True)
     with st.sidebar.container(key="trader_wallet_controls"):
-        st.markdown("""<style>.st-key-trader_wallet_controls input{background:#080808!important;color:#FFF!important;border:1px solid var(--otg-border)!important}.st-key-trader_wallet_controls input::placeholder{color:#C8C8CD!important}</style>""", unsafe_allow_html=True)
-        selected = st.selectbox("Trader", ["ALL TRADERS", *wallets], format_func=lambda value: value if value == "ALL TRADERS" else _short_wallet_label(value), key="trader_selected_wallet", label_visibility="collapsed")
-        manual = st.text_input("Wallet Address", placeholder="Paste wallet address", key="trader_wallet_search", label_visibility="collapsed")
+        st.markdown("""<style>
+        .st-key-trader_wallet_controls [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+        .st-key-trader_wallet_controls [data-baseweb="popover"] [data-baseweb="select"] > div {
+            background:#080808!important;color:#FFF!important;border:1px solid var(--otg-border)!important;
+            box-shadow:none!important;outline:none!important;
+        }
+        .st-key-trader_wallet_controls [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
+        .st-key-trader_wallet_controls [data-testid="stSelectbox"] input:focus,
+        .st-key-trader_wallet_controls [data-testid="stSelectbox"] input:focus-visible {
+            border-color:var(--otg-border)!important;box-shadow:none!important;outline:none!important;
+        }
+        .st-key-trader_wallet_controls [data-baseweb="popover"] {background:#080808!important;color:#FFF!important;}
+        .st-key-trader_wallet_controls [role="option"] {background:#080808!important;color:#FFF!important;}
+        .st-key-trader_wallet_controls [role="option"]:hover,
+        .st-key-trader_wallet_controls [aria-selected="true"] {background:#181D27!important;color:#FFF!important;}
+        </style>""", unsafe_allow_html=True)
+        selected = st.selectbox(
+            "Trader",
+            ["ALL TRADERS", *wallets],
+            format_func=lambda value: value if value == "ALL TRADERS" else _short_wallet_label(value),
+            key="trader_selected_wallet",
+            label_visibility="collapsed",
+            placeholder="Search or enter wallet address",
+            accept_new_options=True,
+        )
     if "trader_sort_by" not in st.session_state:
         st.session_state.trader_sort_by = "EARNED"
     st.sidebar.markdown('<div class="otg-sidebar-label">SORT BY</div>', unsafe_allow_html=True)
@@ -821,6 +843,6 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
                 st.session_state.trader_sort_by = option
                 st.session_state.trader_page = 1
                 st.rerun()
-    manual = str(manual).strip()
-    effective = normalize_wallet(manual) if manual else (None if selected == "ALL TRADERS" else normalize_wallet(selected))
+    selected_value = "" if selected is None else str(selected).strip()
+    effective = None if not selected_value or selected_value == "ALL TRADERS" else normalize_wallet(selected_value)
     return {"sort_by": st.session_state.trader_sort_by, "show_usd": show_usd, "wallet": effective}

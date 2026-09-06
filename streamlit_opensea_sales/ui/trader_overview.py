@@ -127,7 +127,27 @@ def _render_detail(row: dict[str, Any], show_usd: bool) -> None:
 
 def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None) -> None:
     payload = load_current_snapshot()
-    st.markdown("""<style>.trader-page-header{font-family:'PP Supply Sans','Space Mono',monospace;font-size:28px;font-weight:700;letter-spacing:1px;color:#FFF;text-transform:uppercase;border-bottom:2px solid #FF003A;padding-bottom:10px;margin-bottom:10px}.st-key-trader_pagination button{background:#000!important;color:#FFF!important;border:1px solid #FF003A!important;border-radius:0!important}.st-key-trader_pagination button:hover:not(:disabled){background:#FF003A!important;color:#000!important}.st-key-trader_pagination button:disabled{opacity:.35!important}</style><div class="trader-page-header">TRADER ANALYTICS</div>""", unsafe_allow_html=True)
+    st.markdown(f"""
+        <style>
+        .trader-ranking-header {{ margin-bottom:16px; }}
+        .trader-ranking-header h3 {{
+            margin:0 0 4px 0; border-bottom:2px solid var(--otg-accent);
+            padding-bottom:6px; text-transform:uppercase; font-size:16px;
+            letter-spacing:1px; font-family:'PP Supply Sans','Space Mono',monospace,sans-serif;
+            color:var(--otg-accent); font-weight:700;
+        }}
+        .trader-ranking-subtitle {{ font-size:13px; color:var(--otg-text-secondary); text-transform:uppercase; letter-spacing:.5px; margin:4px 0; }}
+        .trader-ranking-context {{ font-size:11px; color:var(--otg-text-tertiary); text-transform:uppercase; letter-spacing:.4px; margin:4px 0 12px; }}
+        .st-key-trader_pagination button {{ background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; }}
+        .st-key-trader_pagination button:hover:not(:disabled) {{ background:#FF003A!important; color:#000!important; }}
+        .st-key-trader_pagination button:disabled {{ opacity:.35!important; }}
+        </style>
+        <div class="trader-ranking-header">
+            <h3>TRADER ANALYTICS</h3>
+            <div class="trader-ranking-subtitle">PUBLIC OPENSEA TRADER OVERVIEW</div>
+            <div class="trader-ranking-context">SORT BY {html.escape(sort_by)} · {'USD' if show_usd else 'GUN'}</div>
+        </div>
+    """, unsafe_allow_html=True)
     if not payload:
         st.warning("Trader Analytics data is temporarily unavailable.")
         return
