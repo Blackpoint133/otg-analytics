@@ -134,8 +134,8 @@ def main():
         trader_controls = render_trader_sidebar_controls()
         with st.container(key="trader_main_content"):
             render_trader_overview(
-                metric=trader_controls['metric'],
-                currency=trader_controls['currency'],
+                sort_by=trader_controls['sort_by'],
+                show_usd=trader_controls['show_usd'],
                 highlight_wallet=trader_controls['wallet'],
             )
         render_sidebar_footer()

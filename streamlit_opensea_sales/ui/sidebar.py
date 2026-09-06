@@ -802,27 +802,25 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     payload = load_current_snapshot()
     rows = payload.get('wallets', []) if payload else []
     wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
+    st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
     st.sidebar.header("Trader Analytics Options")
-    st.sidebar.markdown('<div class="otg-sidebar-label">LEADERBOARD</div>', unsafe_allow_html=True)
-    metric = st.sidebar.selectbox(
-        "Leaderboard Metric",
-        ["EARNED", "INVESTED", "SOLD", "TRADES", "ROI", "WIN RATE"],
-        key="trader_metric",
-        label_visibility="collapsed",
-    )
-    st.sidebar.markdown('<div class="otg-sidebar-label">CURRENCY</div>', unsafe_allow_html=True)
-    currency = st.sidebar.selectbox("Currency", ["USD", "GUN"], key="trader_currency", label_visibility="collapsed")
+    st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
+    show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
+    if "trader_sort_by" not in st.session_state:
+        st.session_state.trader_sort_by = "EARNED"
+    st.sidebar.markdown('<div class="otg-sidebar-label">SORT BY</div>', unsafe_allow_html=True)
+    with st.sidebar.container(key="trader_sort_controls"):
+        st.markdown("""<style>.st-key-trader_sort_controls button{width:100%!important;min-height:28px!important}.st-key-trader_sort_controls button[data-testid="stBaseButton-primary"]{background:#FF003A!important;border:1px solid #FF003A!important}.st-key-trader_sort_controls button[data-testid="stBaseButton-secondary"]{background:#0a0a0a!important;border:1px solid #333!important;color:#FFF!important}</style>""", unsafe_allow_html=True)
+        for option in ["EARNED", "INVESTED", "SOLD", "TRADES", "ROI", "WIN RATE"]:
+            if st.button(option, key=f"trader_sort_{option.lower().replace(' ', '_')}", use_container_width=True, type="primary" if st.session_state.trader_sort_by == option else "secondary"):
+                st.session_state.trader_sort_by = option
+                st.session_state.trader_page = 1
+                st.rerun()
     st.sidebar.markdown('<div class="otg-sidebar-label">TRADER</div>', unsafe_allow_html=True)
-    selected = st.sidebar.selectbox(
-        "Trader",
-        ["ALL TRADERS", *wallets],
-        format_func=lambda value: value if value == "ALL TRADERS" else _short_wallet_label(value),
-        key="trader_selected_wallet",
-        label_visibility="collapsed",
-    )
-    manual = st.sidebar.text_input(
-        "Wallet Address", placeholder="Paste wallet address", key="trader_wallet_search", label_visibility="collapsed"
-    )
+    with st.sidebar.container(key="trader_wallet_controls"):
+        st.markdown("""<style>.st-key-trader_wallet_controls input{background:#080808!important;color:#FFF!important;border:1px solid var(--otg-border)!important}.st-key-trader_wallet_controls input::placeholder{color:#C8C8CD!important}</style>""", unsafe_allow_html=True)
+        selected = st.selectbox("Trader", ["ALL TRADERS", *wallets], format_func=lambda value: value if value == "ALL TRADERS" else _short_wallet_label(value), key="trader_selected_wallet", label_visibility="collapsed")
+        manual = st.text_input("Wallet Address", placeholder="Paste wallet address", key="trader_wallet_search", label_visibility="collapsed")
     manual = str(manual).strip()
     effective = normalize_wallet(manual) if manual else (None if selected == "ALL TRADERS" else normalize_wallet(selected))
-    return {"metric": metric, "currency": currency, "wallet": effective}
+    return {"sort_by": st.session_state.trader_sort_by, "show_usd": show_usd, "wallet": effective}

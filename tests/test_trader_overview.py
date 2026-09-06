@@ -42,7 +42,9 @@ def test_public_money_metric_labels_and_colors_are_explicit():
 
 def test_pnl_rankings_exclude_ineligible_but_volume_does_not():
     rows = [row("0xB", pnl=20), row("0xA", pnl=100, matched=1), row("0xC", volume=300, matched=0)]
-    assert [r["wallet"] for r in leaderboard_rows(rows, "EARNED")] == ["0xB"]
+    earned = leaderboard_rows(rows, "EARNED")
+    assert [r["wallet"] for r in earned] == ["0xB", "0xA", "0xC"]
+    assert earned[0]["rank"] == 1 and earned[1]["rank"] is None and earned[2]["rank"] is None
     assert [r["wallet"] for r in leaderboard_rows(rows, "INVESTED")] == ["0xC", "0xA", "0xB"]
 
 
