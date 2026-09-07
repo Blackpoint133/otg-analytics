@@ -24,6 +24,19 @@ def load_refresh():
 refresh = load_refresh()
 
 
+def test_supply_lock_is_os_level_and_reacquirable(tmp_path, monkeypatch):
+    lock_path = tmp_path / "supply.lock"
+    monkeypatch.setattr(refresh, "LOCK_PATH", lock_path)
+    first = refresh.acquire_lock()
+    assert first is not None
+    assert refresh.acquire_lock() is None
+    refresh.release_lock(first)
+    third = refresh.acquire_lock()
+    assert third is not None
+    refresh.release_lock(third)
+    assert "os.kill" not in SCRIPT.read_text(encoding="utf-8")
+
+
 def rec(value, status="ok"):
     return {"supply": value, "status": status, "fetched_at": "2026-09-02T00:00:00+00:00"}
 
@@ -193,7 +206,7 @@ def test_lock_cleanup_after_exception(tmp_path, monkeypatch):
     monkeypatch.setattr(refresh, "LOCK_PATH", tmp_path / "lock"); handle = refresh.acquire_lock()
     try: raise RuntimeError("synthetic")
     except RuntimeError: refresh.release_lock(handle)
-    assert not (tmp_path / "lock").exists()
+    assert (tmp_path / "lock").exists()
 
 
 def test_dry_run_mapping_is_offline(monkeypatch):

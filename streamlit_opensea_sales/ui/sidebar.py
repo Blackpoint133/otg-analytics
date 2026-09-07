@@ -104,11 +104,8 @@ def _short_wallet_label(wallet: str) -> str:
     return value if len(value) <= 12 else f"{value[:6]}…{value[-4:]}"
 
 
-def _resolve_highlight_wallet(selected_wallet: Optional[str], manual_wallet: Optional[str]) -> Optional[str]:
-    """Return one canonical wallet, giving non-empty manual input precedence."""
-    manual = "" if manual_wallet is None else str(manual_wallet).strip()
-    if manual:
-        return manual
+def _resolve_highlight_wallet(selected_wallet: Optional[str]) -> Optional[str]:
+    """Return the selected canonical wallet, or None for the all-wallets option."""
     if selected_wallet in (None, "", "ALL WALLETS"):
         return None
     return str(selected_wallet).strip() or None
@@ -320,13 +317,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         label_visibility="collapsed",
     )
 
-    manual_wallet = st.sidebar.text_input(
-        "Wallet Address",
-        key="item_manual_wallet_address",
-        placeholder="Paste wallet address",
-        label_visibility="collapsed",
-    ).strip()
-    effective_wallet = _resolve_highlight_wallet(highlight_wallet, manual_wallet)
+    effective_wallet = _resolve_highlight_wallet(highlight_wallet)
     
     show_volume = False
     if 'item_show_usd' not in st.session_state:

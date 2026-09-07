@@ -22,6 +22,11 @@ sys.path.insert(0, str(APP_DIR))
 from gunzscope_client import MAX_BATCH_ITEMS, GunzscopeError, fetch_batch  # noqa: E402
 from gunzscope_supply import ATTRIBUTION, provider_lookup_pair, validate_snapshot  # noqa: E402
 
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
+
 
 def timestamp():
     return datetime.now(timezone.utc).isoformat()
@@ -69,19 +74,42 @@ def chunks(values, size=MAX_BATCH_ITEMS):
 
 
 def acquire_lock():
+    LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    handle = LOCK_PATH.open("a+b")
     try:
-        return LOCK_PATH.open("x", encoding="ascii")
-    except FileExistsError:
+        handle.seek(0)
+        if handle.read(1) == b"":
+            handle.write(b"0")
+            handle.flush()
+        handle.seek(0)
+        if sys.platform == "win32":
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError:
+                handle.close()
+                return None
+        else:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                handle.close()
+                return None
+        return handle
+    except OSError:
+        handle.close()
         return None
 
 
 def release_lock(handle):
     if handle:
-        handle.close()
         try:
-            LOCK_PATH.unlink()
-        except FileNotFoundError:
-            pass
+            handle.seek(0)
+            if sys.platform == "win32":
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
 
 
 def load_previous():
