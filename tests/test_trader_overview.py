@@ -115,3 +115,17 @@ def test_profile_table_contract_and_escaping(monkeypatch):
     assert "Profile" in rendered and "Wallet" not in rendered.split("<thead>", 1)[1].split("</thead>", 1)[0]
     assert "&lt;Name&gt;" in rendered
     assert "&lt;b&gt;bio&lt;/b&gt;" not in rendered or "bio" in rendered
+
+
+def test_profile_fallback_avatar_is_embedded_once_for_25_rows(monkeypatch):
+    import ui.trader_overview as overview
+    captured = []
+    monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
+    rows = []
+    for index in range(25):
+        rows.append(dict(row("0x" + f"{index:040x}"), _profile={}, _ranks={}))
+    overview.render_trader_table(consolidated_table_rows(rows))
+    rendered = captured[0]
+    assert rendered.count("data:image/png;base64,") == 1
+    assert "onerror" not in rendered
+    assert len(rendered) > 0

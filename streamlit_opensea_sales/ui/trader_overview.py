@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from trader_analytics import load_current_snapshot, normalize_wallet
-from opensea_account_profiles import avatar_url, fallback_avatar_data_uri, get_profile, load_profile_snapshot, profile_name
+from opensea_account_profiles import fallback_avatar_data_uri, get_profile, load_profile_snapshot, profile_name, safe_avatar_css
 
 PANDL_MIN_MATCHED_SALES = 3
 PANDL_MIN_COVERAGE_PCT = 50.0
@@ -116,7 +116,7 @@ def consolidated_table_rows(rows: Iterable[dict[str, Any]], show_usd: bool = Tru
 def render_trader_table(rows: list[dict[str, Any]]) -> None:
     columns = ["Rank", "Profile", "Earned", "Invested", "Sold", "Trades", "Purchases", "Sales", "ROI", "Win Rate", "Coverage", "Matched Sales"]
     body = []
-    for row in rows:
+    for row_number, row in enumerate(rows, 1):
         cells = []
         for column in columns:
             value = html.escape(str(row[column]))
@@ -129,8 +129,8 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
                 display = html.escape(str(row["Profile"]))
                 username = str(profile.get("username") or "").strip()
                 secondary = f'<span class="trader-profile-secondary">@{html.escape(username)}</span>' if username and username != row["Profile"] else ""
-                image = html.escape(avatar_url(profile), quote=True)
-                fallback = html.escape(fallback_avatar_data_uri(), quote=True)
+                remote_css = safe_avatar_css(profile)
+                avatar_style = f' style="--trader-remote-avatar:{html.escape(remote_css, quote=True)};"' if remote_css else ""
                 verified = " ✓" if profile.get("is_verified") is True else ""
                 ranks = row.get("_ranks", {})
                 rank_lines = []
@@ -143,11 +143,12 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
                 ens = str(profile.get("ens_name") or "").strip()
                 ens_html = f'<div class="trader-profile-muted">ENS: {html.escape(ens)}</div>' if ens else ""
                 rank_html = "".join(rank_lines)
-                card = f'<div class="trader-profile-card"><div class="trader-profile-identity"><img src="{image}" onerror="this.onerror=null;this.src=\'{fallback}\'"><div><strong>{display}{verified}</strong>{secondary}</div></div><div class="trader-profile-muted">{html.escape(row["_wallet"])}</div>{ens_html}<a href="https://opensea.io/{html.escape(row["_wallet"], quote=True)}" target="_blank" rel="noopener noreferrer">OpenSea profile</a>{bio_html}<div class="trader-profile-ranks">{rank_html}</div></div>'
-                value = f'<span class="trader-profile-trigger"><img src="{image}" onerror="this.onerror=null;this.src=\'{fallback}\'"><span>{display}{verified}{secondary}</span>{card}</span>'
+                card = f'<div class="trader-profile-card"><div class="trader-profile-identity"><span class="trader-avatar trader-avatar-large"{avatar_style}></span><div><strong>{display}{verified}</strong>{secondary}</div></div><div class="trader-profile-muted">{html.escape(row["_wallet"])}</div>{ens_html}<a href="https://opensea.io/{html.escape(row["_wallet"], quote=True)}" target="_blank" rel="noopener noreferrer">OpenSea profile</a>{bio_html}<div class="trader-profile-ranks">{rank_html}</div></div>'
+                value = f'<span class="trader-profile-trigger"><span class="trader-avatar trader-avatar-small"{avatar_style}></span><span>{display}{verified}{secondary}</span>{card}</span>'
             cells.append(f'<td class="{cls}">{value}</td>')
         body.append("<tr>" + "".join(cells) + "</tr>")
-    css = f"""<style>.trader-table-scroll{{overflow-x:auto;width:100%;margin:16px 0}}.trader-table{{width:100%;min-width:1120px;border-collapse:collapse;background:#000;border:1px solid #FF003A;font-family:'Space Mono',monospace;font-size:11px}}.trader-table thead{{background:#0a0a0a;border-bottom:2px solid #FF003A}}.trader-table th{{color:#FF003A;padding:10px 8px;text-align:left;text-transform:uppercase;letter-spacing:.5px;font-size:10px;white-space:nowrap}}.trader-table td{{color:#FFF;padding:8px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}}.trader-table tbody tr:hover{{background:#0a0a0a}}.trader-table .earned-value{{color:{EARNED_COLOR};font-weight:700}}.trader-table .invested-value{{color:{INVESTED_COLOR};font-weight:700}}.trader-table .sold-value{{color:{SOLD_COLOR};font-weight:700}}.trader-profile-trigger{{display:inline-flex;align-items:center;gap:8px;position:relative;cursor:default}}.trader-profile-trigger>img{{width:28px;height:28px;border-radius:50%;object-fit:cover;background:#111;border:1px solid #FF003A}}.trader-profile-secondary{{display:block;color:#C8C8CD;font-size:10px;font-weight:400}}.trader-profile-card{{display:none;position:absolute;z-index:1000;left:0;bottom:calc(100% + 8px);width:330px;white-space:normal;background:#080808;border:1px solid #FF003A;padding:12px;color:#FFF;box-shadow:0 8px 24px #000;line-height:1.35}}.trader-profile-trigger:hover .trader-profile-card{{display:block}}.trader-profile-card img{{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid #FF003A}}.trader-profile-identity{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}.trader-profile-identity strong{{display:block;color:#FFF}}.trader-profile-card a{{display:block;color:#FF003A;margin:7px 0;text-decoration:none}}.trader-profile-muted{{color:#C8C8CD;font-size:10px;overflow-wrap:anywhere}}.trader-profile-bio{{color:#FFF;margin:8px 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}}.trader-profile-ranks{{border-top:1px solid #303030;margin-top:8px;padding-top:6px;font-size:10px}}.trader-profile-ranks div{{display:grid;grid-template-columns:72px 36px 1fr;gap:4px}}.trader-profile-ranks b{{color:#FFF}}.trader-profile-ranks em{{color:#C8C8CD;font-style:normal;text-align:right}}</style><div class="trader-table-scroll"><table class="trader-table"><thead><tr>{''.join(f'<th>{c}</th>' for c in columns)}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"""
+    fallback = fallback_avatar_data_uri()
+    css = f"""<style>.trader-table-scroll{{--trader-fallback-avatar:url(\"{fallback}\");overflow-x:auto;width:100%;margin:16px 0}}.trader-table{{width:100%;min-width:1120px;border-collapse:collapse;background:#000;border:1px solid #FF003A;font-family:'Space Mono',monospace;font-size:11px}}.trader-table thead{{background:#0a0a0a;border-bottom:2px solid #FF003A}}.trader-table th{{color:#FF003A;padding:10px 8px;text-align:left;text-transform:uppercase;letter-spacing:.5px;font-size:10px;white-space:nowrap}}.trader-table td{{color:#FFF;padding:8px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}}.trader-table tbody tr:hover{{background:#0a0a0a}}.trader-table .earned-value{{color:{EARNED_COLOR};font-weight:700}}.trader-table .invested-value{{color:{INVESTED_COLOR};font-weight:700}}.trader-table .sold-value{{color:{SOLD_COLOR};font-weight:700}}.trader-profile-trigger{{display:inline-flex;align-items:center;gap:8px;position:relative;cursor:default}}.trader-avatar{{display:inline-block;flex:0 0 auto;background-image:var(--trader-remote-avatar,none),var(--trader-fallback-avatar);background-size:cover;background-position:center;background-repeat:no-repeat;border-radius:50%;background-color:#111;border:1px solid #FF003A}}.trader-avatar-small{{width:28px;height:28px}}.trader-avatar-large{{width:44px;height:44px}}.trader-profile-secondary{{display:block;color:#C8C8CD;font-size:10px;font-weight:400}}.trader-profile-card{{display:none;position:absolute;z-index:1000;left:0;bottom:calc(100% + 8px);top:auto;width:330px;white-space:normal;background:#080808;border:1px solid #FF003A;padding:12px;color:#FFF;box-shadow:0 8px 24px #000;line-height:1.35}}.trader-table tbody tr:nth-child(-n+8) .trader-profile-card{{top:calc(100% + 8px);bottom:auto}}.trader-profile-trigger:hover .trader-profile-card{{display:block}}.trader-profile-identity{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}.trader-profile-identity strong{{display:block;color:#FFF}}.trader-profile-card a{{display:block;color:#FF003A;margin:7px 0;text-decoration:none}}.trader-profile-muted{{color:#C8C8CD;font-size:10px;overflow-wrap:anywhere}}.trader-profile-bio{{color:#FFF;margin:8px 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}}.trader-profile-ranks{{border-top:1px solid #303030;margin-top:8px;padding-top:6px;font-size:10px}}.trader-profile-ranks div{{display:grid;grid-template-columns:72px 36px 1fr;gap:4px}}.trader-profile-ranks b{{color:#FFF}}.trader-profile-ranks em{{color:#C8C8CD;font-style:normal;text-align:right}}</style><div class="trader-table-scroll"><table class="trader-table"><thead><tr>{''.join(f'<th>{c}</th>' for c in columns)}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"""
     st.markdown(css, unsafe_allow_html=True)
 
 

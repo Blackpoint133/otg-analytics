@@ -8,6 +8,8 @@ import zlib
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
+import json as _json
 
 from trader_analytics import normalize_wallet
 
@@ -25,7 +27,6 @@ def profile_name(wallet: str, profile: dict[str, Any] | None) -> str:
     return str(profile.get("display_name") or profile.get("username") or fallback_name(wallet)).strip()
 
 
-@lru_cache(maxsize=4)
 def load_profile_snapshot(path: str | Path = SNAPSHOT_PATH) -> dict[str, Any]:
     try:
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -53,4 +54,15 @@ def fallback_avatar_data_uri() -> str:
 
 
 def avatar_url(profile: dict[str, Any] | None) -> str:
-    return str((profile or {}).get("profile_image_url") or fallback_avatar_data_uri())
+    value = str((profile or {}).get("profile_image_url") or "").strip()
+    parsed = urlparse(value)
+    return value if parsed.scheme.lower() in {"http", "https"} and bool(parsed.netloc) else ""
+
+
+def safe_avatar_css(profile: dict[str, Any] | None) -> str:
+    """Return a quoted CSS url() only for a valid HTTP(S) remote avatar."""
+    value = avatar_url(profile)
+    if not value:
+        return ""
+    escaped = _json.dumps(value, ensure_ascii=True)[1:-1]
+    return f'url("{escaped}")'
