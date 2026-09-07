@@ -45,12 +45,14 @@ def test_public_money_metric_labels_and_colors_are_explicit():
     assert SOLD_COLOR == "#FFD400"
 
 
-def test_earned_ranks_numeric_values_but_roi_remains_eligibility_gated():
-    rows = [row("0xB", pnl=20), row("0xA", pnl=100, matched=1), row("0xC", volume=300, matched=0)]
+def test_earned_ranks_numeric_values_and_roi_is_numeric():
+    rows = [row("0xB", pnl=20), row("0xA", pnl=100, matched=1), row("0xC", volume=300, matched=0, supported=False)]
     earned = leaderboard_rows(rows, "EARNED")
     assert [r["wallet"] for r in earned] == ["0xA", "0xB", "0xC"]
     assert [r["rank"] for r in earned] == [1, 2, 3]
-    assert leaderboard_rows(rows, "ROI")[1]["rank"] is None
+    roi = leaderboard_rows(rows, "ROI")
+    assert next(r for r in roi if r["wallet"] == "0xA")["rank"] == 1
+    assert next(r for r in roi if r["wallet"] == "0xC")["rank"] == 3
     assert [r["wallet"] for r in leaderboard_rows(rows, "INVESTED")] == ["0xC", "0xA", "0xB"]
 
 
@@ -61,6 +63,35 @@ def test_earned_ranks_negative_zero_and_puts_na_last():
     assert [r["rank"] for r in earned] == [1, 2, 3, None]
     assert earned[0]["eligible"] is True
     assert earned[-1]["eligible"] is False
+
+
+def test_roi_ranks_pure_numeric_values_without_pnl_eligibility():
+    rows = [
+        row("0xLOW", matched=1, coverage=1, supported=False, roi=25.226),
+        row("0xHIGH", matched=5, coverage=100, roi=7.617),
+        row("0xZERO", matched=0, coverage=0, supported=False, roi=0),
+        row("0xNEG", matched=0, coverage=0, supported=False, roi=-1),
+        dict(row("0xNA"), roi=None),
+    ]
+    ranked = leaderboard_rows(rows, "ROI")
+    assert [r["wallet"] for r in ranked] == ["0xLOW", "0xHIGH", "0xZERO", "0xNEG", "0xNA"]
+    assert [r["rank"] for r in ranked] == [1, 2, 3, 4, None]
+    assert all(r["eligible"] for r in ranked[:-1])
+    assert ranked[-1]["eligible"] is False
+
+
+def test_win_rate_remains_eligibility_gated_while_roi_is_numeric():
+    candidate = row("0xA", matched=1, coverage=1, supported=False, roi=25.226, win=.99)
+    assert leaderboard_rows([candidate], "ROI")[0]["rank"] == 1
+    assert leaderboard_rows([candidate], "WIN RATE")[0]["rank"] is None
+
+
+def test_hover_rank_map_returns_numeric_roi_rank_for_ineligible_wallet():
+    import ui.trader_overview as overview
+    candidate = row("0xA", matched=1, coverage=1, supported=False, roi=25.226)
+    ranks = overview._rank_maps([candidate], show_usd=True)
+    assert ranks["ROI"]["0xA"]["rank"] == 1
+    assert ranks["WIN RATE"]["0xA"]["rank"] is None
 
 
 def test_selected_flag_survives_table_transformation_and_render(monkeypatch):
@@ -80,7 +111,7 @@ def test_selected_flag_survives_table_transformation_and_render(monkeypatch):
 def test_legacy_detail_function_and_call_are_removed():
     assert "def _render_detail" not in TRADER_SOURCE
     assert "_render_detail(" not in TRADER_SOURCE
-    assert 'PERFORMANCE_SORTS = {"ROI", "WIN RATE"}' in TRADER_SOURCE
+    assert 'PERFORMANCE_SORTS = {"WIN RATE"}' in TRADER_SOURCE
 
 
 def test_page_for_wallet_is_one_based_and_normalizes():

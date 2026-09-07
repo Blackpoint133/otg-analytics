@@ -18,7 +18,7 @@ TRADER_PAGE_SIZE = 25
 EARNED_COLOR = "#67C77A"
 INVESTED_COLOR = "#D8C3A5"
 SOLD_COLOR = "#FFD400"
-PERFORMANCE_SORTS = {"ROI", "WIN RATE"}
+PERFORMANCE_SORTS = {"WIN RATE"}
 SORT_OPTIONS = ["EARNED", "INVESTED", "SOLD", "TRADES", "ROI", "WIN RATE"]
 
 
@@ -51,13 +51,13 @@ def sorted_trader_rows(rows: Iterable[dict[str, Any]], sort_by: str = "EARNED", 
     def value(row):
         raw = row.get(field)
         return float(raw) if raw is not None and not pd.isna(raw) else float("-inf")
-    if sort_by == "EARNED":
+    if sort_by in {"EARNED", "ROI"}:
         result.sort(key=lambda row: (value(row) == float("-inf"), -value(row) if value(row) != float("-inf") else 0.0, -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
     elif sort_by in PERFORMANCE_SORTS:
         result.sort(key=lambda row: (not trader_is_pnl_eligible(row), -value(row), -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
     else:
         result.sort(key=lambda row: (-value(row) if value(row) != float("-inf") else 0.0, -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
-    eligible_count = (sum(value(row) != float("-inf") for row in result) if sort_by == "EARNED" else sum(trader_is_pnl_eligible(row) for row in result) if sort_by in PERFORMANCE_SORTS else sum(value(row) != float("-inf") for row in result))
+    eligible_count = (sum(value(row) != float("-inf") for row in result) if sort_by in {"EARNED", "ROI"} else sum(trader_is_pnl_eligible(row) for row in result) if sort_by in PERFORMANCE_SORTS else sum(value(row) != float("-inf") for row in result))
     for index, row in enumerate(result):
         row["eligible"] = trader_is_pnl_eligible(row) if sort_by in PERFORMANCE_SORTS else value(row) != float("-inf")
         row["rank"] = index + 1 if index < eligible_count and value(row) != float("-inf") else None
