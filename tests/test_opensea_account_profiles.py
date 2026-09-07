@@ -88,3 +88,60 @@ def test_rate_limit_stops_batch_without_overwriting_good_profile(monkeypatch, tm
     saved = json.loads(output.read_text(encoding="utf-8"))["profiles"][wallets[0]]
     assert result["stopped_for_rate_limit"] is True
     assert saved["username"] == "old"
+
+
+def test_default_request_cap_and_reserve_are_conservative():
+    assert refresh.DEFAULT_REQUEST_LIMIT == 20
+    assert refresh.DEFAULT_MIN_REMAINING == 60
+
+
+def test_reserve_stops_before_next_request_and_persists_current_result(monkeypatch, tmp_path):
+    output = tmp_path / "profiles.json"
+    wallets = [f"0x{i:040x}" for i in range(3)]
+    output.write_text(json.dumps({"schema_version": 1, "profiles": {}}), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(refresh, "PROFILE_SNAPSHOT", output)
+    monkeypatch.setattr(refresh, "_load_key", lambda: "test-key")
+    monkeypatch.setattr(refresh, "_wallets", lambda: wallets)
+    def request(wallet, key):
+        calls.append(wallet)
+        return "ok", {"address": wallet, "username": "x"}, {"rate_limit_limit": 120, "rate_limit_remaining": 60, "rate_limit_reset": 123}
+    monkeypatch.setattr(refresh, "_request", request)
+    result = refresh.refresh(limit=100)
+    saved = json.loads(output.read_text(encoding="utf-8"))
+    assert calls == [wallets[0]]
+    assert result["stopped_for_reserve"] is True
+    assert result["remaining_targets"] == 2
+    assert wallets[0] in saved["profiles"]
+
+
+def test_remaining_above_reserve_may_proceed(monkeypatch, tmp_path):
+    output = tmp_path / "profiles.json"
+    wallets = [f"0x{i:040x}" for i in range(2)]
+    output.write_text(json.dumps({"schema_version": 1, "profiles": {}}), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(refresh, "PROFILE_SNAPSHOT", output)
+    monkeypatch.setattr(refresh, "_load_key", lambda: "test-key")
+    monkeypatch.setattr(refresh, "_wallets", lambda: wallets)
+    def request(wallet, key):
+        calls.append(wallet)
+        return "ok", {"address": wallet}, {"rate_limit_limit": 120, "rate_limit_remaining": 61, "rate_limit_reset": 123}
+    monkeypatch.setattr(refresh, "_request", request)
+    result = refresh.refresh(limit=2)
+    assert len(calls) == 2
+    assert result["stopped_for_reserve"] is False
+
+
+def test_limit_zero_does_housekeeping_without_request(monkeypatch, tmp_path):
+    output = tmp_path / "profiles.json"
+    wallet = "0x" + "a" * 40
+    output.write_text(json.dumps({"schema_version": 1, "profiles": {}}), encoding="utf-8")
+    monkeypatch.setattr(refresh, "PROFILE_SNAPSHOT", output)
+    monkeypatch.setattr(refresh, "_wallets", lambda: [wallet])
+    monkeypatch.setattr(refresh, "_request", lambda *args: (_ for _ in ()).throw(AssertionError("network request")))
+    monkeypatch.setattr(refresh, "_load_key", lambda: (_ for _ in ()).throw(AssertionError("key load")))
+    result = refresh.refresh(limit=0)
+    saved = json.loads(output.read_text(encoding="utf-8"))
+    assert result["attempted"] == 0
+    assert result["requested_limit"] == 0
+    assert wallet in saved["fallback_names"]

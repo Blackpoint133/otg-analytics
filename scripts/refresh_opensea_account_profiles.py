@@ -21,6 +21,8 @@ TRADER_SNAPSHOT = APP / "data_opensea_sales" / "trader_analytics_snapshot.json"
 PROFILE_SNAPSHOT = APP / "data_opensea_sales" / "opensea_account_profiles_snapshot.json"
 ENV_FILE = Path(r"C:\VAMBAM\Projects\OTG\parsers\.env")
 API = "https://api.opensea.io/api/v2/accounts/"
+DEFAULT_REQUEST_LIMIT = 20
+DEFAULT_MIN_REMAINING = 60
 
 
 def _load_key() -> str:
@@ -70,13 +72,14 @@ def _rate_metadata(status: int | None, headers: dict[str, str]) -> dict[str, Any
     return {"http_status": status, "rate_limit_limit": number("x-ratelimit-limit"), "rate_limit_remaining": number("x-ratelimit-remaining"), "rate_limit_reset": number("x-ratelimit-reset")}
 
 
-def refresh(limit: int | None = None, wallet: str | None = None, force: bool = False, stale_hours: float = 168) -> dict[str, Any]:
+def refresh(limit: int | None = None, wallet: str | None = None, force: bool = False, stale_hours: float = 168, min_remaining: int = DEFAULT_MIN_REMAINING) -> dict[str, Any]:
     existing = _load_json(PROFILE_SNAPSHOT, {"schema_version": 1, "source": "opensea", "profiles": {}})
     profiles = existing.get("profiles", {}) if isinstance(existing.get("profiles"), dict) else {}
     targets = [wallet.strip().lower()] if wallet else _wallets()
     all_wallets = _wallets()
     fallback_names = allocate_fallback_names(all_wallets, existing.get("fallback_names", {}))
-    key = _load_key() if limit != 0 else ""
+    requested_limit = DEFAULT_REQUEST_LIMIT if limit is None else max(0, limit)
+    key = _load_key() if requested_limit != 0 else ""
     cutoff = _now() - timedelta(hours=stale_hours)
     selected = []
     for item in targets:
@@ -86,29 +89,37 @@ def refresh(limit: int | None = None, wallet: str | None = None, force: bool = F
         except (TypeError, ValueError): pass
         if force or not old or old.get("status") in {"stale", "error"} or stale:
             selected.append(item)
-    if limit is not None:
-        selected = selected[:max(0, limit)]
-    diagnostics = {"requested": len(selected), "attempted": 0, "successful": 0, "errors": 0, "not_found": 0, "stopped_for_rate_limit": False, "rate_limit_remaining": None, "rate_limit_reset": None}
+    selected = selected[:requested_limit]
+    diagnostics = {"requested_limit": requested_limit, "requested": len(selected), "attempted": 0, "successful": 0, "errors": 0, "not_found": 0, "rate_limit_limit": None, "rate_limit_remaining": None, "rate_limit_reset": None, "min_remaining": min_remaining, "stopped_for_rate_limit": False, "stopped_for_reserve": False, "remaining_targets": len(selected)}
     for item in selected:
         diagnostics["attempted"] += 1
         status, data, rate = _request(item, key)
+        diagnostics["rate_limit_limit"] = rate.get("rate_limit_limit")
         diagnostics["rate_limit_remaining"] = rate.get("rate_limit_remaining")
         diagnostics["rate_limit_reset"] = rate.get("rate_limit_reset")
         if status == "rate_limited":
             diagnostics["stopped_for_rate_limit"] = True
             if item in profiles: profiles[item]["status"] = "stale"; profiles[item]["last_attempt_at"] = _now().isoformat()
+            diagnostics["remaining_targets"] = len(selected) - diagnostics["attempted"]
             break
         if status == "error" and item in profiles:
             profiles[item]["status"] = "stale"
             profiles[item]["last_attempt_at"] = _now().isoformat()
             diagnostics["errors"] += 1
-            if rate.get("rate_limit_remaining") == 0: diagnostics["stopped_for_rate_limit"] = True; break
+            if rate.get("rate_limit_remaining") is not None and rate.get("rate_limit_remaining") <= min_remaining:
+                diagnostics["stopped_for_reserve"] = True
+                diagnostics["remaining_targets"] = len(selected) - diagnostics["attempted"]
+                break
             continue
         profiles[item] = {"wallet": item, "username": data.get("username"), "display_name": data.get("display_name"), "profile_image_url": data.get("profile_image_url"), "is_verified": bool(data.get("is_verified")), "ens_name": data.get("ens_name"), "bio": data.get("bio"), "website": data.get("website"), "status": status, "updated_at": _now().isoformat()}
         diagnostics["successful"] += status == "ok"
         diagnostics["not_found"] += status == "not_found"
         diagnostics["errors"] += status == "error"
-        if rate.get("rate_limit_remaining") == 0: diagnostics["stopped_for_rate_limit"] = True; break
+        remaining = rate.get("rate_limit_remaining")
+        diagnostics["remaining_targets"] = len(selected) - diagnostics["attempted"]
+        if remaining is not None and remaining <= min_remaining:
+            diagnostics["stopped_for_reserve"] = True
+            break
     output = {"schema_version": 1, "generated_at": _now().isoformat(), "source": "opensea", "profiles": profiles, "fallback_names": fallback_names}
     PROFILE_SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=PROFILE_SNAPSHOT.name + ".", dir=PROFILE_SNAPSHOT.parent, text=True)
@@ -122,12 +133,13 @@ def refresh(limit: int | None = None, wallet: str | None = None, force: bool = F
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--limit", type=int)
+    parser.add_argument("--limit", type=int, default=DEFAULT_REQUEST_LIMIT)
     parser.add_argument("--wallet")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--stale-hours", type=float, default=168)
+    parser.add_argument("--min-remaining", type=int, default=DEFAULT_MIN_REMAINING)
     args = parser.parse_args()
-    print(json.dumps(refresh(args.limit, args.wallet, args.force, args.stale_hours), sort_keys=True))
+    print(json.dumps(refresh(args.limit, args.wallet, args.force, args.stale_hours, args.min_remaining), sort_keys=True))
 
 
 if __name__ == "__main__": main()
