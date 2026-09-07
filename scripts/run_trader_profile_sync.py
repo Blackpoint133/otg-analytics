@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -16,38 +15,50 @@ from refresh_opensea_account_profiles import (
 )
 
 LOCK_PATH = PROFILE_SNAPSHOT.with_name("trader_profile_sync.lock")
+AUTOSYNC_STALE_HOURS = 720
 
-
-def _pid_is_running(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except (OSError, ValueError):
-        return False
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
 
 
 def acquire_lock(path: Path = LOCK_PATH):
     path.parent.mkdir(parents=True, exist_ok=True)
-    for _ in range(2):
-        try:
-            handle = path.open("x", encoding="utf-8")
-            handle.write(str(os.getpid()))
+    handle = path.open("a+b")
+    try:
+        handle.seek(0)
+        if handle.read(1) == b"":
+            handle.write(b"0")
             handle.flush()
-            return handle
-        except FileExistsError:
+        handle.seek(0)
+        if sys.platform == "win32":
             try:
-                owner = int(path.read_text(encoding="utf-8").strip())
-            except (OSError, ValueError):
-                return None
-            if _pid_is_running(owner):
-                return None
-            try:
-                path.unlink()
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
             except OSError:
+                handle.close()
                 return None
-    return None
+        else:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                handle.close()
+                return None
+        return handle
+    except OSError:
+        handle.close()
+        return None
+
+
+def release_lock(handle) -> None:
+    try:
+        handle.seek(0)
+        if sys.platform == "win32":
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+    finally:
+        handle.close()
 
 
 def run_once() -> dict:
@@ -55,15 +66,15 @@ def run_once() -> dict:
     if lock is None:
         return {"status": "already_running", "requested_limit": DEFAULT_REQUEST_LIMIT, "min_remaining": DEFAULT_MIN_REMAINING}
     try:
-        result = refresh(limit=DEFAULT_REQUEST_LIMIT, min_remaining=DEFAULT_MIN_REMAINING)
+        result = refresh(
+            limit=DEFAULT_REQUEST_LIMIT,
+            min_remaining=DEFAULT_MIN_REMAINING,
+            stale_hours=AUTOSYNC_STALE_HOURS,
+        )
         result["status"] = "completed"
         return result
     finally:
-        lock.close()
-        try:
-            LOCK_PATH.unlink()
-        except OSError:
-            pass
+        release_lock(lock)
 
 
 if __name__ == "__main__":
