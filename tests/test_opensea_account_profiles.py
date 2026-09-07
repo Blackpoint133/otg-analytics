@@ -8,7 +8,7 @@ SPEC = importlib.util.spec_from_file_location("profile_refresh", ROOT / "scripts
 refresh = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(refresh)
 
-from opensea_account_profiles import load_profile_snapshot, safe_avatar_css  # noqa: E402
+from opensea_account_profiles import allocate_fallback_names, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
 
 
 def test_snapshot_rewrite_is_visible_without_cache_clear(tmp_path):
@@ -50,6 +50,30 @@ def test_stale_and_error_are_selected_and_transient_error_preserves_updated_at(m
     assert result["attempted"] == 1 and saved["status"] == "stale"
     assert saved["updated_at"] == old_time
     assert "last_attempt_at" in saved
+
+
+def test_1334_aliases_are_unique_and_stable_when_wallets_are_added():
+    wallets = [f"0x{i:040x}" for i in range(1334)]
+    first = allocate_fallback_names(wallets)
+    second = allocate_fallback_names(wallets, first)
+    expanded = allocate_fallback_names(wallets + ["0x" + "f" * 40], first)
+    assert len(first) == len(set(first.values())) == 1334
+    assert all(__import__("re").fullmatch(r"NoName\d{4}", value) for value in first.values())
+    assert second == first
+    assert all(expanded[wallet] == first[wallet] for wallet in wallets)
+
+
+def test_alias_collision_uses_deterministic_linear_probe(monkeypatch):
+    monkeypatch.setattr("opensea_account_profiles.zlib.crc32", lambda value: 7)
+    aliases = allocate_fallback_names(["0x" + "a" * 40, "0x" + "b" * 40])
+    assert len(set(aliases.values())) == 2
+    assert set(aliases.values()) == {"NoName0007", "NoName0008"}
+
+
+def test_whitespace_profile_names_use_username_then_persisted_alias():
+    wallet = "0x" + "a" * 40
+    assert profile_name(wallet, {"display_name": "   ", "username": " TraderOne\t"}, {wallet: "NoName0001"}) == "TraderOne"
+    assert profile_name(wallet, {"display_name": " ", "username": "\t"}, {wallet: "NoName0001"}) == "NoName0001"
 
 
 def test_rate_limit_stops_batch_without_overwriting_good_profile(monkeypatch, tmp_path):

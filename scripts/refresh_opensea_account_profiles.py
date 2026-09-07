@@ -11,9 +11,12 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "streamlit_opensea_sales"
+sys.path.insert(0, str(APP))
+from opensea_account_profiles import allocate_fallback_names  # noqa: E402
 TRADER_SNAPSHOT = APP / "data_opensea_sales" / "trader_analytics_snapshot.json"
 PROFILE_SNAPSHOT = APP / "data_opensea_sales" / "opensea_account_profiles_snapshot.json"
 ENV_FILE = Path(r"C:\VAMBAM\Projects\OTG\parsers\.env")
@@ -68,10 +71,12 @@ def _rate_metadata(status: int | None, headers: dict[str, str]) -> dict[str, Any
 
 
 def refresh(limit: int | None = None, wallet: str | None = None, force: bool = False, stale_hours: float = 168) -> dict[str, Any]:
-    key = _load_key()
     existing = _load_json(PROFILE_SNAPSHOT, {"schema_version": 1, "source": "opensea", "profiles": {}})
     profiles = existing.get("profiles", {}) if isinstance(existing.get("profiles"), dict) else {}
     targets = [wallet.strip().lower()] if wallet else _wallets()
+    all_wallets = _wallets()
+    fallback_names = allocate_fallback_names(all_wallets, existing.get("fallback_names", {}))
+    key = _load_key() if limit != 0 else ""
     cutoff = _now() - timedelta(hours=stale_hours)
     selected = []
     for item in targets:
@@ -104,7 +109,7 @@ def refresh(limit: int | None = None, wallet: str | None = None, force: bool = F
         diagnostics["not_found"] += status == "not_found"
         diagnostics["errors"] += status == "error"
         if rate.get("rate_limit_remaining") == 0: diagnostics["stopped_for_rate_limit"] = True; break
-    output = {"schema_version": 1, "generated_at": _now().isoformat(), "source": "opensea", "profiles": profiles}
+    output = {"schema_version": 1, "generated_at": _now().isoformat(), "source": "opensea", "profiles": profiles, "fallback_names": fallback_names}
     PROFILE_SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=PROFILE_SNAPSHOT.name + ".", dir=PROFILE_SNAPSHOT.parent, text=True)
     try:

@@ -22,9 +22,45 @@ def fallback_name(wallet: str) -> str:
     return f"NoName{zlib.crc32(canonical.encode('utf-8')) % 10000:04d}"
 
 
-def profile_name(wallet: str, profile: dict[str, Any] | None) -> str:
+def valid_fallback_name(value: Any) -> bool:
+    value = str(value or "")
+    return len(value) == 10 and value.startswith("NoName") and value[6:].isdigit()
+
+
+def allocate_fallback_names(wallets: list[str], existing: dict[str, Any] | None = None) -> dict[str, str]:
+    canonical_wallets = sorted({normalize_wallet(wallet) or str(wallet).strip().lower() for wallet in wallets if str(wallet).strip()})
+    result: dict[str, str] = {}
+    used: set[int] = set()
+    for wallet, alias in (existing or {}).items():
+        canonical = normalize_wallet(wallet) or str(wallet).strip().lower()
+        suffix = str(alias)[6:] if valid_fallback_name(alias) else ""
+        if canonical in canonical_wallets and suffix and int(suffix) not in used:
+            result[canonical] = str(alias)
+            used.add(int(suffix))
+    if len(canonical_wallets) > 10000:
+        raise ValueError("NoName#### namespace exhausted")
+    for wallet in canonical_wallets:
+        if wallet in result:
+            continue
+        start = zlib.crc32(wallet.encode("utf-8")) % 10000
+        for offset in range(10000):
+            suffix = (start + offset) % 10000
+            if suffix not in used:
+                result[wallet] = f"NoName{suffix:04d}"
+                used.add(suffix)
+                break
+        else:
+            raise ValueError("NoName#### namespace exhausted")
+    return result
+
+
+def profile_name(wallet: str, profile: dict[str, Any] | None, fallback_names: dict[str, str] | None = None) -> str:
     profile = profile or {}
-    return str(profile.get("display_name") or profile.get("username") or fallback_name(wallet)).strip()
+    display = str(profile.get("display_name") or "").strip()
+    username = str(profile.get("username") or "").strip()
+    canonical = normalize_wallet(wallet) or str(wallet).strip().lower()
+    persisted = (fallback_names or {}).get(canonical)
+    return display or username or (persisted if valid_fallback_name(persisted) else fallback_name(wallet))
 
 
 def load_profile_snapshot(path: str | Path = SNAPSHOT_PATH) -> dict[str, Any]:

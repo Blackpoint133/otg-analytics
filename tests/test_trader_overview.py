@@ -129,3 +129,19 @@ def test_profile_fallback_avatar_is_embedded_once_for_25_rows(monkeypatch):
     assert rendered.count("data:image/png;base64,") == 1
     assert "onerror" not in rendered
     assert len(rendered) > 0
+
+
+def test_hover_rank_uses_em_dash_and_readable_metric_labels(monkeypatch):
+    import ui.trader_overview as overview
+    captured = []
+    monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
+    ranks = {metric: {"rank": None, "value": "N/A"} for metric in overview.SORT_OPTIONS}
+    ranks["INVESTED"] = {"rank": 4, "value": "4.00 USD"}
+    overview.render_trader_table(consolidated_table_rows([dict(row("0x" + "A" * 40), _profile={}, _ranks=ranks)]))
+    rendered = captured[0]
+    assert "<span>ROI</span><b>—</b>" in rendered
+    assert "<span>Win Rate</span><b>—</b>" in rendered
+    assert "<span>Invested</span><b>#4</b>" in rendered
+    assert "<span>ROI</span>" in rendered and "<span>Roi</span>" not in rendered
+    assert "height:8px;bottom:-8px" in rendered
+    assert "nth-child(-n+8) .trader-profile-card::before" in rendered
