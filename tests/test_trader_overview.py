@@ -12,6 +12,7 @@ from ui.trader_overview import (  # noqa: E402
     PANDL_MIN_MATCHED_SALES,
     leaderboard_rows,
     paginate_traders,
+    page_for_wallet,
     resolve_wallet_search,
     short_wallet,
     trader_is_pnl_eligible,
@@ -44,12 +45,29 @@ def test_public_money_metric_labels_and_colors_are_explicit():
     assert SOLD_COLOR == "#FFD400"
 
 
-def test_pnl_rankings_exclude_ineligible_but_volume_does_not():
+def test_earned_ranks_numeric_values_but_roi_remains_eligibility_gated():
     rows = [row("0xB", pnl=20), row("0xA", pnl=100, matched=1), row("0xC", volume=300, matched=0)]
     earned = leaderboard_rows(rows, "EARNED")
-    assert [r["wallet"] for r in earned] == ["0xB", "0xA", "0xC"]
-    assert earned[0]["rank"] == 1 and earned[1]["rank"] is None and earned[2]["rank"] is None
+    assert [r["wallet"] for r in earned] == ["0xA", "0xB", "0xC"]
+    assert [r["rank"] for r in earned] == [1, 2, 3]
+    assert leaderboard_rows(rows, "ROI")[1]["rank"] is None
     assert [r["wallet"] for r in leaderboard_rows(rows, "INVESTED")] == ["0xC", "0xA", "0xB"]
+
+
+def test_earned_ranks_negative_zero_and_puts_na_last():
+    rows = [dict(row("0xN"), realized_pnl_usd=None, realized_pnl_gun=None), row("0xZ", pnl=0), row("0xM", pnl=-5), row("0xP", pnl=10)]
+    earned = leaderboard_rows(rows, "EARNED")
+    assert [r["wallet"] for r in earned] == ["0xP", "0xZ", "0xM", "0xN"]
+    assert [r["rank"] for r in earned] == [1, 2, 3, None]
+
+
+def test_page_for_wallet_is_one_based_and_normalizes():
+    rows = [row(f"0x{i:040x}") for i in range(900)]
+    assert page_for_wallet(rows, rows[0]["wallet"]) == 1
+    assert page_for_wallet(rows, rows[24]["wallet"]) == 1
+    assert page_for_wallet(rows, rows[25]["wallet"]) == 2
+    assert page_for_wallet(rows, "0x" + rows[879]["wallet"][2:].upper()) == 36
+    assert page_for_wallet(rows, "0x" + "f" * 40) is None
 
 
 def test_metric_sorting_and_deterministic_ties():

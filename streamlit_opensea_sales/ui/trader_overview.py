@@ -51,15 +51,27 @@ def sorted_trader_rows(rows: Iterable[dict[str, Any]], sort_by: str = "EARNED", 
     def value(row):
         raw = row.get(field)
         return float(raw) if raw is not None and not pd.isna(raw) else float("-inf")
-    if sort_by in PERFORMANCE_SORTS:
+    if sort_by == "EARNED":
+        result.sort(key=lambda row: (value(row) == float("-inf"), -value(row) if value(row) != float("-inf") else 0.0, -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
+    elif sort_by in PERFORMANCE_SORTS:
         result.sort(key=lambda row: (not trader_is_pnl_eligible(row), -value(row), -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
     else:
         result.sort(key=lambda row: (-value(row) if value(row) != float("-inf") else 0.0, -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
-    eligible_count = sum(trader_is_pnl_eligible(row) for row in result) if sort_by in PERFORMANCE_SORTS else len(result)
+    eligible_count = (sum(value(row) != float("-inf") for row in result) if sort_by == "EARNED" else sum(trader_is_pnl_eligible(row) for row in result) if sort_by in PERFORMANCE_SORTS else sum(value(row) != float("-inf") for row in result))
     for index, row in enumerate(result):
-        row["eligible"] = trader_is_pnl_eligible(row)
-        row["rank"] = index + 1 if index < eligible_count else None
+        row["eligible"] = trader_is_pnl_eligible(row) if sort_by in PERFORMANCE_SORTS else value(row) != float("-inf")
+        row["rank"] = index + 1 if index < eligible_count and value(row) != float("-inf") else None
     return result
+
+
+def page_for_wallet(ranked_rows: Iterable[dict[str, Any]], wallet: Optional[str], page_size: int = TRADER_PAGE_SIZE) -> Optional[int]:
+    target = normalize_wallet(wallet)
+    if not target:
+        return None
+    for index, row in enumerate(ranked_rows):
+        if normalize_wallet(row.get("wallet")) == target:
+            return index // max(1, int(page_size)) + 1
+    return None
 
 
 def leaderboard_rows(rows: Iterable[dict[str, Any]], metric: str = "EARNED", currency: str = "USD") -> list[dict[str, Any]]:
@@ -147,9 +159,10 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
                 card = f'<div class="trader-profile-card"><div class="trader-profile-identity"><span class="trader-avatar trader-avatar-large"{avatar_style}></span><div><strong>{display}{verified}</strong>{secondary}</div></div><div class="trader-profile-muted">{html.escape(row["_wallet"])}</div>{ens_html}<a href="https://opensea.io/{html.escape(row["_wallet"], quote=True)}" target="_blank" rel="noopener noreferrer">OpenSea profile</a>{bio_html}<div class="trader-profile-ranks">{rank_html}</div></div>'
                 value = f'<span class="trader-profile-trigger"><span class="trader-avatar trader-avatar-small"{avatar_style}></span><span>{display}{verified}{secondary}</span>{card}</span>'
             cells.append(f'<td class="{cls}">{value}</td>')
-        body.append("<tr>" + "".join(cells) + "</tr>")
+        selected_class = " trader-row-selected" if row.get("_selected") else ""
+        body.append(f'<tr class="{selected_class.strip()}">' + "".join(cells) + "</tr>")
     fallback = fallback_avatar_data_uri()
-    css = f"""<style>.trader-table-scroll{{--trader-fallback-avatar:url(\"{fallback}\");overflow-x:auto;width:100%;margin:16px 0}}.trader-table{{width:100%;min-width:1120px;border-collapse:collapse;background:#000;border:1px solid #FF003A;font-family:'Space Mono',monospace;font-size:11px}}.trader-table thead{{background:#0a0a0a;border-bottom:2px solid #FF003A}}.trader-table th{{color:#FF003A;padding:10px 8px;text-align:left;text-transform:uppercase;letter-spacing:1px;font-size:10px;white-space:nowrap}}.trader-table td{{color:#FFF;padding:8px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}}.trader-table tbody tr:hover{{background:#0a0a0a}}.trader-table .earned-value{{color:{EARNED_COLOR};font-weight:700}}.trader-table .invested-value{{color:{INVESTED_COLOR};font-weight:700}}.trader-table .sold-value{{color:{SOLD_COLOR};font-weight:700}}.trader-profile-trigger{{display:inline-flex;align-items:center;gap:8px;position:relative;cursor:default}}.trader-avatar{{display:inline-block;flex:0 0 auto;background-image:var(--trader-remote-avatar,none),var(--trader-fallback-avatar);background-size:cover;background-position:center;background-repeat:no-repeat;border-radius:50%;background-color:#111;border:1px solid #FF003A}}.trader-avatar-small{{width:28px;height:28px}}.trader-avatar-large{{width:44px;height:44px}}.trader-profile-secondary{{display:block;color:#C8C8CD;font-size:10px;font-weight:400}}.trader-profile-card{{display:none;position:absolute;z-index:1000;left:0;bottom:calc(100% + 8px);top:auto;width:330px;white-space:normal;background:#080808;border:1px solid #FF003A;padding:12px;color:#FFF;box-shadow:0 8px 24px #000;line-height:1.35}}.trader-profile-card::before{{content:"";position:absolute;left:0;right:0;height:8px;bottom:-8px}}.trader-table tbody tr:nth-child(-n+8) .trader-profile-card{{top:calc(100% + 8px);bottom:auto}}.trader-table tbody tr:nth-child(-n+8) .trader-profile-card::before{{top:-8px;bottom:auto}}.trader-profile-trigger:hover .trader-profile-card{{display:block}}.trader-profile-identity{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}.trader-profile-identity strong{{display:block;color:#FFF}}.trader-profile-card a{{display:block;color:#FF003A;margin:7px 0;text-decoration:none}}.trader-profile-muted{{color:#C8C8CD;font-size:10px;overflow-wrap:anywhere}}.trader-profile-bio{{color:#FFF;margin:8px 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}}.trader-profile-ranks{{border-top:1px solid #303030;margin-top:8px;padding-top:6px;font-size:10px}}.trader-profile-ranks div{{display:grid;grid-template-columns:72px 36px 1fr;gap:4px}}.trader-profile-ranks b{{color:#FFF}}.trader-profile-ranks em{{color:#C8C8CD;font-style:normal;text-align:right}}</style><div class="trader-table-scroll"><table class="trader-table"><thead><tr>{''.join(f'<th>{c}</th>' for c in columns)}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"""
+    css = f"""<style>.trader-table-scroll{{--trader-fallback-avatar:url(\"{fallback}\");overflow-x:auto;width:100%;margin:16px 0}}.trader-table{{width:100%;min-width:1120px;border-collapse:collapse;background:#000;border:1px solid #FF003A;font-family:'Space Mono',monospace;font-size:11px}}.trader-table thead{{background:#0a0a0a;border-bottom:2px solid #FF003A}}.trader-table th{{color:#FF003A;padding:10px 8px;text-align:left;text-transform:uppercase;letter-spacing:1px;font-size:10px;white-space:nowrap}}.trader-table td{{color:#FFF;padding:8px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}}.trader-table tbody tr:hover{{background:#0a0a0a}}.trader-table tbody tr.trader-row-selected{{background:rgba(255,0,58,.07);box-shadow:inset 3px 0 0 #FF003A}}.trader-table .earned-value{{color:{EARNED_COLOR};font-weight:700}}.trader-table .invested-value{{color:{INVESTED_COLOR};font-weight:700}}.trader-table .sold-value{{color:{SOLD_COLOR};font-weight:700}}.trader-profile-trigger{{display:inline-flex;align-items:center;gap:8px;position:relative;cursor:default}}.trader-avatar{{display:inline-block;flex:0 0 auto;background-image:var(--trader-remote-avatar,none),var(--trader-fallback-avatar);background-size:cover;background-position:center;background-repeat:no-repeat;border-radius:50%;background-color:#111;border:1px solid #FF003A}}.trader-avatar-small{{width:28px;height:28px}}.trader-avatar-large{{width:44px;height:44px}}.trader-profile-secondary{{display:block;color:#C8C8CD;font-size:10px;font-weight:400}}.trader-profile-card{{display:none;position:absolute;z-index:1000;left:0;bottom:calc(100% + 8px);top:auto;width:330px;white-space:normal;background:#080808;border:1px solid #FF003A;padding:12px;color:#FFF;box-shadow:0 8px 24px #000;line-height:1.35}}.trader-profile-card::before{{content:"";position:absolute;left:0;right:0;height:8px;bottom:-8px}}.trader-table tbody tr:nth-child(-n+8) .trader-profile-card{{top:calc(100% + 8px);bottom:auto}}.trader-table tbody tr:nth-child(-n+8) .trader-profile-card::before{{top:-8px;bottom:auto}}.trader-profile-trigger:hover .trader-profile-card{{display:block}}.trader-profile-identity{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}.trader-profile-identity strong{{display:block;color:#FFF}}.trader-profile-card a{{display:block;color:#FF003A;margin:7px 0;text-decoration:none}}.trader-profile-muted{{color:#C8C8CD;font-size:10px;overflow-wrap:anywhere}}.trader-profile-bio{{color:#FFF;margin:8px 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}}.trader-profile-ranks{{border-top:1px solid #303030;margin-top:8px;padding-top:6px;font-size:10px}}.trader-profile-ranks div{{display:grid;grid-template-columns:72px 36px 1fr;gap:4px}}.trader-profile-ranks b{{color:#FFF}}.trader-profile-ranks em{{color:#C8C8CD;font-style:normal;text-align:right}}</style><div class="trader-table-scroll"><table class="trader-table"><thead><tr>{''.join(f'<th>{c}</th>' for c in columns)}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"""
     st.markdown(css, unsafe_allow_html=True)
 
 
@@ -207,15 +220,16 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         row["_profile"] = row.get("_profile", {})
         row["_profile_name"] = profile_name(row.get("wallet", ""), row["_profile"], fallback_names)
     ranked = sorted_trader_rows(rows, sort_by, show_usd)
-    signature = (sort_by, show_usd)
+    selected_wallet = normalize_wallet(highlight_wallet)
+    signature = (sort_by, show_usd, selected_wallet)
     if st.session_state.get("trader_previous_selection") != signature:
-        st.session_state.trader_previous_selection = signature; st.session_state.trader_page = 1
+        st.session_state.trader_previous_selection = signature
+        st.session_state.trader_page = page_for_wallet(ranked, selected_wallet) or 1
     visible, page, pages = paginate_traders(ranked, st.session_state.get("trader_page", 1)); st.session_state.trader_page = page
+    visible = [dict(row, _selected=bool(selected_wallet and normalize_wallet(row.get("wallet")) == selected_wallet)) for row in visible]
     render_trader_table(consolidated_table_rows(visible, show_usd))
     with st.container(key="trader_pagination"):
         nav = st.columns([1, 2, 1], gap="small")
         if nav[0].button("Previous", disabled=page <= 1, key="trader_prev", use_container_width=False): st.session_state.trader_page = page - 1; st.rerun()
         nav[1].markdown(f"<div style='text-align:center;padding:8px;color:#FFF'>Page {page} of {pages}</div>", unsafe_allow_html=True)
         if nav[2].button("Next", disabled=page >= pages, key="trader_next", use_container_width=False): st.session_state.trader_page = page + 1; st.rerun()
-    selected = resolve_wallet_search(rows, highlight_wallet) if highlight_wallet else None
-    if selected: _render_detail(selected, show_usd)
