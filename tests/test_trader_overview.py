@@ -65,6 +65,13 @@ def test_earned_ranks_negative_zero_and_puts_na_last():
     assert earned[-1]["eligible"] is False
 
 
+def test_consolidated_table_uses_absolute_position_for_na_metric():
+    rows = [dict(row("0xA"), _position=1266, realized_pnl_usd=None, realized_pnl_gun=None)]
+    table = consolidated_table_rows(rows)
+    assert table[0]["Rank"] == 1266
+    assert table[0]["Earned"] == "N/A"
+
+
 def test_roi_ranks_pure_numeric_values_without_pnl_eligibility():
     rows = [
         row("0xLOW", matched=1, coverage=1, supported=False, roi=25.226),
@@ -112,6 +119,7 @@ def test_legacy_detail_function_and_call_are_removed():
     assert "def _render_detail" not in TRADER_SOURCE
     assert "_render_detail(" not in TRADER_SOURCE
     assert 'PERFORMANCE_SORTS = {"WIN RATE"}' in TRADER_SOURCE
+    assert "TOP TRADERS ANALYTICS" in TRADER_SOURCE
 
 
 def test_page_for_wallet_is_one_based_and_normalizes():

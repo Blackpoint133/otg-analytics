@@ -121,7 +121,7 @@ def _format_percent(value: Any) -> str:
 def consolidated_table_rows(rows: Iterable[dict[str, Any]], show_usd: bool = True) -> list[dict[str, Any]]:
     result = []
     for row in rows:
-        result.append({"Rank": row.get("rank") or "", "Profile": row.get("_profile_name") or profile_name(row.get("wallet", ""), row.get("_profile")), "Earned": _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True), "Invested": _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd), "Sold": _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd), "Trades": int(row.get("trade_count") or 0), "Purchases": int(row.get("buy_count") or 0), "Sales": int(row.get("sell_count") or 0), "ROI": _format_percent(row.get("roi")), "Win Rate": _format_percent(row.get("win_rate")), "Coverage": _format_percent((row.get("pnl_coverage_sell_pct") or 0) / 100), "Matched Sales": int(row.get("matched_realized_sales") or 0), "_wallet": row.get("wallet", ""), "_profile": row.get("_profile", {}), "_ranks": row.get("_ranks", {}), "_eligible": row.get("eligible", False), "_selected": bool(row.get("_selected", False))})
+        result.append({"Rank": row.get("_position", row.get("rank") or ""), "Profile": row.get("_profile_name") or profile_name(row.get("wallet", ""), row.get("_profile")), "Earned": _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True), "Invested": _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd), "Sold": _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd), "Trades": int(row.get("trade_count") or 0), "Purchases": int(row.get("buy_count") or 0), "Sales": int(row.get("sell_count") or 0), "ROI": _format_percent(row.get("roi")), "Win Rate": _format_percent(row.get("win_rate")), "Coverage": _format_percent((row.get("pnl_coverage_sell_pct") or 0) / 100), "Matched Sales": int(row.get("matched_realized_sales") or 0), "_wallet": row.get("wallet", ""), "_profile": row.get("_profile", {}), "_ranks": row.get("_ranks", {}), "_eligible": row.get("eligible", False), "_selected": bool(row.get("_selected", False))})
     return result
 
 
@@ -189,13 +189,13 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         .st-key-trader_pagination button:disabled {{ opacity:.35!important; }}
         </style>
         <div class="trader-ranking-header">
-            <h3>TRADER ANALYTICS</h3>
+            <h3>TOP TRADERS ANALYTICS</h3>
             <div class="trader-ranking-subtitle">PUBLIC OPENSEA TRADER OVERVIEW</div>
             <div class="trader-ranking-context">SORT BY {html.escape(sort_by)} · {'USD' if show_usd else 'GUN'}</div>
         </div>
     """, unsafe_allow_html=True)
     if not payload:
-        st.warning("Trader Analytics data is temporarily unavailable.")
+        st.warning("Top Traders Analytics data is temporarily unavailable.")
         return
     rows = payload.get("wallets", [])
     profile_snapshot = load_profile_snapshot()
@@ -207,7 +207,7 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
     for row in rows:
         row["_profile"] = row.get("_profile", {})
         row["_profile_name"] = profile_name(row.get("wallet", ""), row["_profile"], fallback_names)
-    ranked = sorted_trader_rows(rows, sort_by, show_usd)
+    ranked = [dict(row, _position=index + 1) for index, row in enumerate(sorted_trader_rows(rows, sort_by, show_usd))]
     selected_wallet = normalize_wallet(highlight_wallet)
     signature = (sort_by, show_usd, selected_wallet)
     if st.session_state.get("trader_previous_selection") != signature:

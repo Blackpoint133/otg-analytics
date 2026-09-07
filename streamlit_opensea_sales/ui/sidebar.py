@@ -803,7 +803,7 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     rows = payload.get('wallets', []) if payload else []
     wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
-    st.sidebar.header("Trader Analytics Options")
+    st.sidebar.header("Top Traders Analytics Options")
     st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
     show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
     st.sidebar.markdown('<div class="otg-sidebar-label">TRADER</div>', unsafe_allow_html=True)
