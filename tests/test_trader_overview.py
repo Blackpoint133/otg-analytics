@@ -59,6 +59,28 @@ def test_earned_ranks_negative_zero_and_puts_na_last():
     earned = leaderboard_rows(rows, "EARNED")
     assert [r["wallet"] for r in earned] == ["0xP", "0xZ", "0xM", "0xN"]
     assert [r["rank"] for r in earned] == [1, 2, 3, None]
+    assert earned[0]["eligible"] is True
+    assert earned[-1]["eligible"] is False
+
+
+def test_selected_flag_survives_table_transformation_and_render(monkeypatch):
+    import ui.trader_overview as overview
+    captured = []
+    monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
+    selected = consolidated_table_rows([dict(row("0x" + "A" * 40), _selected=True, _profile={}, _ranks={})])
+    ordinary = consolidated_table_rows([dict(row("0x" + "B" * 40), _selected=False, _profile={}, _ranks={})])
+    assert selected[0]["_selected"] is True
+    assert ordinary[0]["_selected"] is False
+    overview.render_trader_table(selected)
+    overview.render_trader_table(ordinary)
+    assert 'class="trader-row-selected"' in captured[0]
+    assert 'class="trader-row-selected"' not in captured[1]
+
+
+def test_legacy_detail_function_and_call_are_removed():
+    assert "def _render_detail" not in TRADER_SOURCE
+    assert "_render_detail(" not in TRADER_SOURCE
+    assert 'PERFORMANCE_SORTS = {"ROI", "WIN RATE"}' in TRADER_SOURCE
 
 
 def test_page_for_wallet_is_one_based_and_normalizes():

@@ -18,7 +18,7 @@ TRADER_PAGE_SIZE = 25
 EARNED_COLOR = "#67C77A"
 INVESTED_COLOR = "#D8C3A5"
 SOLD_COLOR = "#FFD400"
-PERFORMANCE_SORTS = {"EARNED", "ROI", "WIN RATE"}
+PERFORMANCE_SORTS = {"ROI", "WIN RATE"}
 SORT_OPTIONS = ["EARNED", "INVESTED", "SOLD", "TRADES", "ROI", "WIN RATE"]
 
 
@@ -121,7 +121,7 @@ def _format_percent(value: Any) -> str:
 def consolidated_table_rows(rows: Iterable[dict[str, Any]], show_usd: bool = True) -> list[dict[str, Any]]:
     result = []
     for row in rows:
-        result.append({"Rank": row.get("rank") or "", "Profile": row.get("_profile_name") or profile_name(row.get("wallet", ""), row.get("_profile")), "Earned": _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True), "Invested": _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd), "Sold": _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd), "Trades": int(row.get("trade_count") or 0), "Purchases": int(row.get("buy_count") or 0), "Sales": int(row.get("sell_count") or 0), "ROI": _format_percent(row.get("roi")), "Win Rate": _format_percent(row.get("win_rate")), "Coverage": _format_percent((row.get("pnl_coverage_sell_pct") or 0) / 100), "Matched Sales": int(row.get("matched_realized_sales") or 0), "_wallet": row.get("wallet", ""), "_profile": row.get("_profile", {}), "_ranks": row.get("_ranks", {}), "_eligible": row.get("eligible", False)})
+        result.append({"Rank": row.get("rank") or "", "Profile": row.get("_profile_name") or profile_name(row.get("wallet", ""), row.get("_profile")), "Earned": _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True), "Invested": _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd), "Sold": _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd), "Trades": int(row.get("trade_count") or 0), "Purchases": int(row.get("buy_count") or 0), "Sales": int(row.get("sell_count") or 0), "ROI": _format_percent(row.get("roi")), "Win Rate": _format_percent(row.get("win_rate")), "Coverage": _format_percent((row.get("pnl_coverage_sell_pct") or 0) / 100), "Matched Sales": int(row.get("matched_realized_sales") or 0), "_wallet": row.get("wallet", ""), "_profile": row.get("_profile", {}), "_ranks": row.get("_ranks", {}), "_eligible": row.get("eligible", False), "_selected": bool(row.get("_selected", False))})
     return result
 
 
@@ -164,18 +164,6 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
     fallback = fallback_avatar_data_uri()
     css = f"""<style>.trader-table-scroll{{--trader-fallback-avatar:url(\"{fallback}\");overflow-x:auto;width:100%;margin:16px 0}}.trader-table{{width:100%;min-width:1120px;border-collapse:collapse;background:#000;border:1px solid #FF003A;font-family:'Space Mono',monospace;font-size:11px}}.trader-table thead{{background:#0a0a0a;border-bottom:2px solid #FF003A}}.trader-table th{{color:#FF003A;padding:10px 8px;text-align:left;text-transform:uppercase;letter-spacing:1px;font-size:10px;white-space:nowrap}}.trader-table td{{color:#FFF;padding:8px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}}.trader-table tbody tr:hover{{background:#0a0a0a}}.trader-table tbody tr.trader-row-selected{{background:rgba(255,0,58,.07);box-shadow:inset 3px 0 0 #FF003A}}.trader-table .earned-value{{color:{EARNED_COLOR};font-weight:700}}.trader-table .invested-value{{color:{INVESTED_COLOR};font-weight:700}}.trader-table .sold-value{{color:{SOLD_COLOR};font-weight:700}}.trader-profile-trigger{{display:inline-flex;align-items:center;gap:8px;position:relative;cursor:default}}.trader-avatar{{display:inline-block;flex:0 0 auto;background-image:var(--trader-remote-avatar,none),var(--trader-fallback-avatar);background-size:cover;background-position:center;background-repeat:no-repeat;border-radius:50%;background-color:#111;border:1px solid #FF003A}}.trader-avatar-small{{width:28px;height:28px}}.trader-avatar-large{{width:44px;height:44px}}.trader-profile-secondary{{display:block;color:#C8C8CD;font-size:10px;font-weight:400}}.trader-profile-card{{display:none;position:absolute;z-index:1000;left:0;bottom:calc(100% + 8px);top:auto;width:330px;white-space:normal;background:#080808;border:1px solid #FF003A;padding:12px;color:#FFF;box-shadow:0 8px 24px #000;line-height:1.35}}.trader-profile-card::before{{content:"";position:absolute;left:0;right:0;height:8px;bottom:-8px}}.trader-table tbody tr:nth-child(-n+8) .trader-profile-card{{top:calc(100% + 8px);bottom:auto}}.trader-table tbody tr:nth-child(-n+8) .trader-profile-card::before{{top:-8px;bottom:auto}}.trader-profile-trigger:hover .trader-profile-card{{display:block}}.trader-profile-identity{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}.trader-profile-identity strong{{display:block;color:#FFF}}.trader-profile-card a{{display:block;color:#FF003A;margin:7px 0;text-decoration:none}}.trader-profile-muted{{color:#C8C8CD;font-size:10px;overflow-wrap:anywhere}}.trader-profile-bio{{color:#FFF;margin:8px 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}}.trader-profile-ranks{{border-top:1px solid #303030;margin-top:8px;padding-top:6px;font-size:10px}}.trader-profile-ranks div{{display:grid;grid-template-columns:72px 36px 1fr;gap:4px}}.trader-profile-ranks b{{color:#FFF}}.trader-profile-ranks em{{color:#C8C8CD;font-style:normal;text-align:right}}</style><div class="trader-table-scroll"><table class="trader-table"><thead><tr>{''.join(f'<th>{c}</th>' for c in columns)}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"""
     st.markdown(css, unsafe_allow_html=True)
-
-
-def _render_detail(row: dict[str, Any], show_usd: bool) -> None:
-    st.subheader(f"TRADER · {short_wallet(row['wallet'])}")
-    st.caption(f"Wallet: `{row['wallet']}`")
-    cols = st.columns(3)
-    cols[0].metric("EARNED", _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True))
-    cols[1].metric("INVESTED", _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd))
-    cols[2].metric("SOLD", _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd))
-    if not trader_is_pnl_eligible(row): st.info("Insufficient matched history for performance leaderboard.")
-    detail = {"ROI": _format_percent(row.get("roi")), "Win Rate": _format_percent(row.get("win_rate")), "Coverage": _format_percent((row.get("pnl_coverage_sell_pct") or 0) / 100), "Matched Sales": row.get("matched_realized_sales", 0), "Unmatched Sales": row.get("unmatched_sales", 0), "Trades": row.get("trade_count", 0), "Purchases": row.get("buy_count", 0), "Sales": row.get("sell_count", 0), "Unique Items / Assets": f"{row.get('unique_items_traded', 0)} / {row.get('unique_assets_traded', 0)}", "Counterparties": row.get("unique_counterparties", 0), "Active Days": row.get("active_days", 0), "First Trade": row.get("first_trade_at") or "N/A", "Last Trade": row.get("last_trade_at") or "N/A"}
-    st.dataframe(pd.DataFrame([detail]), use_container_width=True, hide_index=True)
 
 
 def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None) -> None:
