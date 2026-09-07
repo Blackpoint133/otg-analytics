@@ -172,6 +172,27 @@ def test_top_items_title_and_no_global_top_twenty_limit():
     assert "limit=20" not in source
 
 
+def test_top_items_responsive_grid_uses_only_page_size_divisors():
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert "repeat(auto-fit, minmax(280px, 1fr))" not in source
+    assert "repeat(5, minmax(0, 1fr))" in source
+    assert "repeat(4, minmax(0, 1fr))" in source
+    assert "repeat(2, minmax(0, 1fr))" in source
+    assert "grid-template-columns: 1fr" in source
+    assert "repeat(3," not in source
+
+
+def test_top_items_pager_matches_trader_contract():
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert 'key="top_items_pagination"' in source
+    assert "grid-template-columns:110px minmax(0,1fr) 110px" in source
+    assert "#FF003A" in source and "background:#000" in source
+    assert "color:#FFF" in source and "border-radius:0" in source
+    assert "opacity:.35" in source
+    assert 'st.button("Previous"' in source and 'st.button("Next"' in source
+    assert "Page {page} of {pages}" in source
+
+
 def test_total_supply_render_does_not_require_market_rank(monkeypatch):
     captured = {}
     data = pd.DataFrame([

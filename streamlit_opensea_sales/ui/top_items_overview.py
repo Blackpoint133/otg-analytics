@@ -56,13 +56,26 @@ def paginate_top_items(data: pd.DataFrame, page: int, page_size: int = TOP_ITEMS
 def _render_top_items_pager(page: int, pages: int) -> None:
     if pages <= 1:
         return
-    left, center, right = st.columns([1, 2, 1])
-    with left:
-        previous = st.button("PREVIOUS", disabled=page <= 1, key="top_items_previous", use_container_width=True)
-    with center:
-        st.markdown(f"<div style='text-align:center;padding-top:8px;'>PAGE {page} OF {pages}</div>", unsafe_allow_html=True)
-    with right:
-        next_page = st.button("NEXT", disabled=page >= pages, key="top_items_next", use_container_width=True)
+    st.markdown("""
+        <style>
+        .st-key-top_items_pagination [data-testid="stHorizontalBlock"] { display:grid!important; grid-template-columns:110px minmax(0,1fr) 110px!important; column-gap:0!important; width:100%!important; align-items:start!important; }
+        .st-key-top_items_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { width:100%!important; min-width:0!important; max-width:none!important; padding:0!important; flex:none!important; }
+        .st-key-top_items_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child { display:flex!important; justify-content:flex-start!important; }
+        .st-key-top_items_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child { display:flex!important; justify-content:flex-end!important; }
+        .st-key-top_items_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) { display:flex!important; justify-content:center!important; }
+        .st-key-top_items_pagination button { width:110px!important; background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; }
+        .st-key-top_items_pagination button:hover:not(:disabled) { background:#FF003A!important; color:#000!important; }
+        .st-key-top_items_pagination button:disabled { opacity:.35!important; }
+        </style>
+    """, unsafe_allow_html=True)
+    with st.container(key="top_items_pagination"):
+        left, center, right = st.columns([1, 2, 1], gap="small")
+        with left:
+            previous = st.button("Previous", disabled=page <= 1, key="top_items_previous", use_container_width=False)
+        with center:
+            st.markdown(f"<div style='text-align:center;padding:8px;color:#FFF'>Page {page} of {pages}</div>", unsafe_allow_html=True)
+        with right:
+            next_page = st.button("Next", disabled=page >= pages, key="top_items_next", use_container_width=False)
     if previous:
         st.session_state.top_items_page = page - 1
         st.rerun()
@@ -445,10 +458,19 @@ def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False,
         <style>
         .top-items-card-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 16px;
             margin-top: 16px;
             margin-bottom: 16px;
+        }
+        @media (max-width: 1399px) {
+            .top-items-card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        @media (max-width: 899px) {
+            .top-items-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 599px) {
+            .top-items-card-grid { grid-template-columns: 1fr; }
         }
         
         .top-items-card-link {
