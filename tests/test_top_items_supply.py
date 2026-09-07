@@ -133,7 +133,7 @@ def test_total_supply_header_is_period_independent_and_table_columns_are_reachab
     assert "GLOBAL CURRENT SUPPLY" in source
     assert "<th>Total Supply</th>" in source
     assert "<th>Supply Rank</th>" in source
-    assert "_render_top_items_table_view(display_data" in source
+    assert "_render_top_items_table_view(page_data" in source
 
 
 def test_market_period_loader_and_usd_resort_remain_in_source():
@@ -141,6 +141,35 @@ def test_market_period_loader_and_usd_resort_remain_in_source():
     assert "ranking_mode=ranking_mode" in source
     assert "ranking_mode == 'volume' and show_usd" in source
     assert "display_data = display_data.sort_values('volume_usd', ascending=False)" in source
+
+
+def test_full_dataset_pagination_helpers():
+    data = pd.DataFrame({"rank": range(1, 46)})
+    assert top_items_overview.TOP_ITEMS_PAGE_SIZE == 20
+    assert top_items_overview.page_count(45) == 3
+    first, page, pages = top_items_overview.paginate_top_items(data, 1)
+    assert page == 1 and pages == 3 and first["rank"].tolist() == list(range(1, 21))
+    second, page, _ = top_items_overview.paginate_top_items(data, 2)
+    assert page == 2 and second["rank"].tolist() == list(range(21, 41))
+    third, page, _ = top_items_overview.paginate_top_items(data, 3)
+    assert page == 3 and third["rank"].tolist() == list(range(41, 46))
+    assert top_items_overview.paginate_top_items(data, 0)[1] == 1
+    assert top_items_overview.paginate_top_items(data, 99)[1] == 3
+    assert top_items_overview.page_count(0) == 1
+    assert top_items_overview.paginate_top_items(data.iloc[0:0], 2)[0].empty
+
+
+def test_global_rank_survives_page_slice():
+    data = pd.DataFrame({"display_rank": range(1, 46), "item_key": [f"item-{i}" for i in range(45)]})
+    page, _, _ = top_items_overview.paginate_top_items(data, 2)
+    assert page["display_rank"].tolist() == list(range(21, 41))
+
+
+def test_top_items_title_and_no_global_top_twenty_limit():
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert 'ranking_title = "TOP ITEMS"' in source
+    assert 'ranking_title = "TOP 20 ITEMS"' not in source
+    assert "limit=20" not in source
 
 
 def test_total_supply_render_does_not_require_market_rank(monkeypatch):

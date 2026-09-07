@@ -35,6 +35,40 @@ _MARKET_METRIC_COLUMNS = (
     'weighted_volume_gun', 'period_events', 'active_trading_days',
     'avg_price_gun', 'avg_price_usd', 'transactions', 'image_url',
 )
+TOP_ITEMS_PAGE_SIZE = 20
+
+
+def page_count(total_rows: int, page_size: int = TOP_ITEMS_PAGE_SIZE) -> int:
+    return max(1, (max(0, total_rows) + page_size - 1) // page_size)
+
+
+def clamp_page(page: int, total_pages: int) -> int:
+    return min(max(1, int(page)), max(1, total_pages))
+
+
+def paginate_top_items(data: pd.DataFrame, page: int, page_size: int = TOP_ITEMS_PAGE_SIZE):
+    pages = page_count(len(data), page_size)
+    current = clamp_page(page, pages)
+    start = (current - 1) * page_size
+    return data.iloc[start:start + page_size].copy(), current, pages
+
+
+def _render_top_items_pager(page: int, pages: int) -> None:
+    if pages <= 1:
+        return
+    left, center, right = st.columns([1, 2, 1])
+    with left:
+        previous = st.button("PREVIOUS", disabled=page <= 1, key="top_items_previous", use_container_width=True)
+    with center:
+        st.markdown(f"<div style='text-align:center;padding-top:8px;'>PAGE {page} OF {pages}</div>", unsafe_allow_html=True)
+    with right:
+        next_page = st.button("NEXT", disabled=page >= pages, key="top_items_next", use_container_width=True)
+    if previous:
+        st.session_state.top_items_page = page - 1
+        st.rerun()
+    if next_page:
+        st.session_state.top_items_page = page + 1
+        st.rerun()
 
 
 def _normalize_top_item_image_url(image_url):
@@ -280,7 +314,7 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     """
     
     # Determine title and subtitle based on ranking mode
-    ranking_title = "TOP 20 ITEMS"
+    ranking_title = "TOP ITEMS"
     if ranking_mode == 'volume':
         ranking_subtitle = "Sorted by total trading volume"
     elif ranking_mode == 'liquidity':
@@ -354,8 +388,7 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         top_items = mda.load_top_items_ranking(
             ranking_mode=ranking_mode,
             period=period,
-            cache_buster=cache_buster,
-            limit=20
+            cache_buster=cache_buster
         )
     
     # Handle missing or empty period data
@@ -369,7 +402,7 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     
     # For Volume mode with USD toggle enabled, re-rank by volume_usd for display
     if ranking_mode == 'total_supply':
-        display_data = _prepare_total_supply_data(top_items, limit=20)
+        display_data = _prepare_total_supply_data(top_items)
     else:
         display_data = _attach_supply_metadata(_attach_canonical_item_keys(top_items))
     if ranking_mode == 'total_supply':
@@ -384,14 +417,24 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         # For other modes or when USD is off, use original ranking
         display_data['display_rank'] = display_data['rank']
     
-    # Render appropriate view (cards, chart, or table)
+    context = (ranking_mode, period, bool(show_usd and ranking_mode == 'volume'))
+    if st.session_state.get('top_items_page_context') != context:
+        st.session_state.top_items_page_context = context
+        st.session_state.top_items_page = 1
+    page_data, current_page, total_pages = paginate_top_items(
+        display_data, st.session_state.get('top_items_page', 1), TOP_ITEMS_PAGE_SIZE
+    )
+    st.session_state.top_items_page = current_page
+
+    # Render only the current page, after global ranking and rank assignment.
     if top_items_view == 'chart':
-        _render_top_items_chart_view(display_data, ranking_mode=ranking_mode, show_usd=show_usd, current_gun_price=current_gun_price)
+        _render_top_items_chart_view(page_data, ranking_mode=ranking_mode, show_usd=show_usd, current_gun_price=current_gun_price)
     elif top_items_view == 'table':
-        _render_top_items_table_view(display_data, ranking_mode=ranking_mode, show_usd=show_usd, current_gun_price=current_gun_price)
+        _render_top_items_table_view(page_data, ranking_mode=ranking_mode, show_usd=show_usd, current_gun_price=current_gun_price)
     else:
         # Default to cards view
-        _render_top_items_card_view(display_data, show_usd=show_usd, current_gun_price=current_gun_price, ranking_mode=ranking_mode)
+        _render_top_items_card_view(page_data, show_usd=show_usd, current_gun_price=current_gun_price, ranking_mode=ranking_mode)
+    _render_top_items_pager(current_page, total_pages)
 
 
 def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume'):

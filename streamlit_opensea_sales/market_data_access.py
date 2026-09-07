@@ -508,7 +508,7 @@ def load_top_items_ranking(
     ranking_mode: str = "volume",
     period: str = "all",
     cache_buster: str = None,
-    limit: int = 20
+    limit: Optional[int] = None
 ) -> Optional[pd.DataFrame]:
     """
     Load top items ranking for a specific mode and time period.
@@ -517,7 +517,7 @@ def load_top_items_ranking(
     - Whitelist both ranking_mode and period
     - Resolve filename from static mapping only (no dynamic construction)
     - Read prepared CSV only (no calculation or filtering in frontend)
-    - Return head(limit)
+    - Return the complete prepared ranking unless a compatibility limit is supplied
     - No sorting, no filtering, no raw sales access
     - If invalid mode/period, safely fallback to volume + all
     - If file missing, return None (no silent fallback)
@@ -526,7 +526,7 @@ def load_top_items_ranking(
         ranking_mode: 'volume', 'liquidity', 'market_strength' (default 'volume')
         period: 'all', '30d', '7d', '1d' (default 'all')
         cache_buster: cache invalidation (typically manifest built_at)
-        limit: max rows to return (default 20)
+    limit: optional max rows to return
     
     Returns:
         DataFrame with head(limit) rows, or None if file not found
@@ -552,7 +552,7 @@ def load_top_items_ranking(
     
     try:
         df = pd.read_csv(ranking_path)
-        return df.head(limit)
+        return df if limit is None else df.head(limit)
     except Exception as e:
         st.error(f"Failed to load {ranking_mode} {period} ranking: {e}")
         return None
