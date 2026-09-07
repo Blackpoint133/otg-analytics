@@ -7,6 +7,7 @@ from ui.trader_overview import (  # noqa: E402
     EARNED_COLOR,
     INVESTED_COLOR,
     SOLD_COLOR,
+    consolidated_table_rows,
     PANDL_MIN_COVERAGE_PCT,
     PANDL_MIN_MATCHED_SALES,
     leaderboard_rows,
@@ -15,6 +16,7 @@ from ui.trader_overview import (  # noqa: E402
     short_wallet,
     trader_is_pnl_eligible,
 )
+from opensea_account_profiles import fallback_name, get_profile, load_profile_snapshot, profile_name  # noqa: E402
 
 TRADER_SOURCE = (Path(__file__).parents[1] / "streamlit_opensea_sales" / "ui" / "trader_overview.py").read_text(encoding="utf-8")
 
@@ -86,3 +88,30 @@ def test_trader_pagination_geometry_and_context_are_scoped_and_deterministic():
     assert 'flex:none!important' in TRADER_SOURCE
     assert 'button {{ width:110px!important' in TRADER_SOURCE
     assert '.st-key-trader_pagination' in TRADER_SOURCE
+
+
+def test_profile_loader_and_nonetwork_fallbacks(tmp_path):
+    assert load_profile_snapshot(tmp_path / "missing.json")["profiles"] == {}
+    wallet = "0x" + "A" * 40
+    snapshot = {"schema_version": 1, "profiles": {wallet.lower(): {"wallet": wallet.lower(), "display_name": "Display", "username": "user"}}}
+    path = tmp_path / "profiles.json"
+    path.write_text(__import__("json").dumps(snapshot), encoding="utf-8")
+    loaded = load_profile_snapshot(path)
+    assert get_profile(wallet, loaded)["display_name"] == "Display"
+    assert profile_name(wallet, get_profile(wallet, loaded)) == "Display"
+    assert profile_name(wallet, {"username": "user"}) == "user"
+    assert profile_name(wallet, {}) == fallback_name(wallet)
+    assert fallback_name(wallet) == fallback_name(wallet)
+    assert fallback_name(wallet) != fallback_name("0x" + "B" * 40)
+
+
+def test_profile_table_contract_and_escaping(monkeypatch):
+    import ui.trader_overview as overview
+    captured = []
+    monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
+    row_data = consolidated_table_rows([dict(row("0x" + "A" * 40), _profile={"display_name": "<Name>", "bio": "<b>bio</b>"}, _ranks={})])
+    overview.render_trader_table(row_data)
+    rendered = captured[0]
+    assert "Profile" in rendered and "Wallet" not in rendered.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    assert "&lt;Name&gt;" in rendered
+    assert "&lt;b&gt;bio&lt;/b&gt;" not in rendered or "bio" in rendered

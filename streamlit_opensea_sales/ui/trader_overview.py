@@ -10,6 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from trader_analytics import load_current_snapshot, normalize_wallet
+from opensea_account_profiles import avatar_url, fallback_avatar_data_uri, get_profile, load_profile_snapshot, profile_name
 
 PANDL_MIN_MATCHED_SALES = 3
 PANDL_MIN_COVERAGE_PCT = 50.0
@@ -77,6 +78,23 @@ def metric_color(metric: str) -> str:
     return {"EARNED": EARNED_COLOR, "INVESTED": INVESTED_COLOR, "SOLD": SOLD_COLOR}.get(metric, "#FFFFFF")
 
 
+def _rank_maps(rows: list[dict[str, Any]], show_usd: bool) -> dict[str, dict[str, dict[str, Any]]]:
+    maps = {}
+    for metric in SORT_OPTIONS:
+        ranked = sorted_trader_rows(rows, metric, show_usd)
+        maps[metric] = {str(row.get("wallet")): {"rank": row.get("rank"), "value": _rank_display_value(row, metric, show_usd)} for row in ranked}
+    return maps
+
+
+def _rank_display_value(row: dict[str, Any], metric: str, show_usd: bool) -> str:
+    if metric == "EARNED": return _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True)
+    if metric == "INVESTED": return _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd)
+    if metric == "SOLD": return _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd)
+    if metric == "TRADES": return str(int(row.get("trade_count") or 0))
+    if metric == "ROI": return _format_percent(row.get("roi"))
+    return _format_percent(row.get("win_rate"))
+
+
 def _format_money(value: Any, show_usd: bool, signed: bool = False) -> str:
     if value is None or pd.isna(value):
         return "N/A"
@@ -91,12 +109,12 @@ def _format_percent(value: Any) -> str:
 def consolidated_table_rows(rows: Iterable[dict[str, Any]], show_usd: bool = True) -> list[dict[str, Any]]:
     result = []
     for row in rows:
-        result.append({"Rank": row.get("rank") or "", "Wallet": short_wallet(row.get("wallet", "")), "Earned": _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True), "Invested": _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd), "Sold": _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd), "Trades": int(row.get("trade_count") or 0), "Purchases": int(row.get("buy_count") or 0), "Sales": int(row.get("sell_count") or 0), "ROI": _format_percent(row.get("roi")), "Win Rate": _format_percent(row.get("win_rate")), "Coverage": _format_percent((row.get("pnl_coverage_sell_pct") or 0) / 100), "Matched Sales": int(row.get("matched_realized_sales") or 0), "_wallet": row.get("wallet", ""), "_eligible": row.get("eligible", False)})
+        result.append({"Rank": row.get("rank") or "", "Profile": profile_name(row.get("wallet", ""), row.get("_profile")), "Earned": _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True), "Invested": _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd), "Sold": _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd), "Trades": int(row.get("trade_count") or 0), "Purchases": int(row.get("buy_count") or 0), "Sales": int(row.get("sell_count") or 0), "ROI": _format_percent(row.get("roi")), "Win Rate": _format_percent(row.get("win_rate")), "Coverage": _format_percent((row.get("pnl_coverage_sell_pct") or 0) / 100), "Matched Sales": int(row.get("matched_realized_sales") or 0), "_wallet": row.get("wallet", ""), "_profile": row.get("_profile", {}), "_ranks": row.get("_ranks", {}), "_eligible": row.get("eligible", False)})
     return result
 
 
 def render_trader_table(rows: list[dict[str, Any]]) -> None:
-    columns = ["Rank", "Wallet", "Earned", "Invested", "Sold", "Trades", "Purchases", "Sales", "ROI", "Win Rate", "Coverage", "Matched Sales"]
+    columns = ["Rank", "Profile", "Earned", "Invested", "Sold", "Trades", "Purchases", "Sales", "ROI", "Win Rate", "Coverage", "Matched Sales"]
     body = []
     for row in rows:
         cells = []
@@ -106,10 +124,30 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
             if column == "Earned": cls += " earned-value"
             if column == "Invested": cls += " invested-value"
             if column == "Sold": cls += " sold-value"
-            if column == "Wallet": value = f'<span title="{html.escape(row["_wallet"], quote=True)}">{value}</span>'
+            if column == "Profile":
+                profile = row.get("_profile") or {}
+                display = html.escape(str(row["Profile"]))
+                username = str(profile.get("username") or "").strip()
+                secondary = f'<span class="trader-profile-secondary">@{html.escape(username)}</span>' if username and username != row["Profile"] else ""
+                image = html.escape(avatar_url(profile), quote=True)
+                fallback = html.escape(fallback_avatar_data_uri(), quote=True)
+                verified = " ✓" if profile.get("is_verified") is True else ""
+                ranks = row.get("_ranks", {})
+                rank_lines = []
+                for metric in SORT_OPTIONS:
+                    entry = ranks.get(metric, {})
+                    rank = entry.get("rank") or ""
+                    rank_lines.append(f'<div><span>{html.escape(metric.title())}</span><b>{html.escape("#" + str(rank) if rank else "")}</b><em>{html.escape(entry.get("value", "N/A"))}</em></div>')
+                bio = str(profile.get("bio") or "").strip()
+                bio_html = f'<div class="trader-profile-bio">{html.escape(bio)}</div>' if bio else ""
+                ens = str(profile.get("ens_name") or "").strip()
+                ens_html = f'<div class="trader-profile-muted">ENS: {html.escape(ens)}</div>' if ens else ""
+                rank_html = "".join(rank_lines)
+                card = f'<div class="trader-profile-card"><div class="trader-profile-identity"><img src="{image}" onerror="this.onerror=null;this.src=\'{fallback}\'"><div><strong>{display}{verified}</strong>{secondary}</div></div><div class="trader-profile-muted">{html.escape(row["_wallet"])}</div>{ens_html}<a href="https://opensea.io/{html.escape(row["_wallet"], quote=True)}" target="_blank" rel="noopener noreferrer">OpenSea profile</a>{bio_html}<div class="trader-profile-ranks">{rank_html}</div></div>'
+                value = f'<span class="trader-profile-trigger"><img src="{image}" onerror="this.onerror=null;this.src=\'{fallback}\'"><span>{display}{verified}{secondary}</span>{card}</span>'
             cells.append(f'<td class="{cls}">{value}</td>')
         body.append("<tr>" + "".join(cells) + "</tr>")
-    css = f"""<style>.trader-table-scroll{{overflow-x:auto;width:100%;margin:16px 0}}.trader-table{{width:100%;min-width:1120px;border-collapse:collapse;background:#000;border:1px solid #FF003A;font-family:'Space Mono',monospace;font-size:11px}}.trader-table thead{{background:#0a0a0a;border-bottom:2px solid #FF003A}}.trader-table th{{color:#FF003A;padding:10px 8px;text-align:left;text-transform:uppercase;letter-spacing:.5px;font-size:10px;white-space:nowrap}}.trader-table td{{color:#FFF;padding:8px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}}.trader-table tbody tr:hover{{background:#0a0a0a}}.trader-table .earned-value{{color:{EARNED_COLOR};font-weight:700}}.trader-table .invested-value{{color:{INVESTED_COLOR};font-weight:700}}.trader-table .sold-value{{color:{SOLD_COLOR};font-weight:700}}</style><div class="trader-table-scroll"><table class="trader-table"><thead><tr>{''.join(f'<th>{c}</th>' for c in columns)}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"""
+    css = f"""<style>.trader-table-scroll{{overflow-x:auto;width:100%;margin:16px 0}}.trader-table{{width:100%;min-width:1120px;border-collapse:collapse;background:#000;border:1px solid #FF003A;font-family:'Space Mono',monospace;font-size:11px}}.trader-table thead{{background:#0a0a0a;border-bottom:2px solid #FF003A}}.trader-table th{{color:#FF003A;padding:10px 8px;text-align:left;text-transform:uppercase;letter-spacing:.5px;font-size:10px;white-space:nowrap}}.trader-table td{{color:#FFF;padding:8px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}}.trader-table tbody tr:hover{{background:#0a0a0a}}.trader-table .earned-value{{color:{EARNED_COLOR};font-weight:700}}.trader-table .invested-value{{color:{INVESTED_COLOR};font-weight:700}}.trader-table .sold-value{{color:{SOLD_COLOR};font-weight:700}}.trader-profile-trigger{{display:inline-flex;align-items:center;gap:8px;position:relative;cursor:default}}.trader-profile-trigger>img{{width:28px;height:28px;border-radius:50%;object-fit:cover;background:#111;border:1px solid #FF003A}}.trader-profile-secondary{{display:block;color:#C8C8CD;font-size:10px;font-weight:400}}.trader-profile-card{{display:none;position:absolute;z-index:1000;left:0;bottom:calc(100% + 8px);width:330px;white-space:normal;background:#080808;border:1px solid #FF003A;padding:12px;color:#FFF;box-shadow:0 8px 24px #000;line-height:1.35}}.trader-profile-trigger:hover .trader-profile-card{{display:block}}.trader-profile-card img{{width:44px;height:44px;border-radius:50%;object-fit:cover;border:1px solid #FF003A}}.trader-profile-identity{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}.trader-profile-identity strong{{display:block;color:#FFF}}.trader-profile-card a{{display:block;color:#FF003A;margin:7px 0;text-decoration:none}}.trader-profile-muted{{color:#C8C8CD;font-size:10px;overflow-wrap:anywhere}}.trader-profile-bio{{color:#FFF;margin:8px 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}}.trader-profile-ranks{{border-top:1px solid #303030;margin-top:8px;padding-top:6px;font-size:10px}}.trader-profile-ranks div{{display:grid;grid-template-columns:72px 36px 1fr;gap:4px}}.trader-profile-ranks b{{color:#FFF}}.trader-profile-ranks em{{color:#C8C8CD;font-style:normal;text-align:right}}</style><div class="trader-table-scroll"><table class="trader-table"><thead><tr>{''.join(f'<th>{c}</th>' for c in columns)}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"""
     st.markdown(css, unsafe_allow_html=True)
 
 
@@ -157,6 +195,9 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         st.warning("Trader Analytics data is temporarily unavailable.")
         return
     rows = payload.get("wallets", [])
+    profile_snapshot = load_profile_snapshot()
+    rank_maps = _rank_maps(rows, show_usd)
+    rows = [dict(row, _profile=get_profile(row.get("wallet", ""), profile_snapshot), _ranks={metric: rank_maps[metric].get(str(row.get("wallet")), {}) for metric in SORT_OPTIONS}) for row in rows]
     ranked = sorted_trader_rows(rows, sort_by, show_usd)
     signature = (sort_by, show_usd)
     if st.session_state.get("trader_previous_selection") != signature:

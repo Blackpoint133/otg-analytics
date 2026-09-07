@@ -71,6 +71,7 @@ temp/
 /roadmap/footer_img.png
 
 # Private production ingestion/enrichment layer
+/streamlit_opensea_sales/data_opensea_sales/opensea_account_profiles_snapshot.json
 /build_enriched_market_overview.py
 /build_gun_price_history.py
 /dry_run_enrich_sales_usd.py
