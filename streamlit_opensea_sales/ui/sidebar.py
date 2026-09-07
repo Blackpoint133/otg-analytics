@@ -16,6 +16,7 @@ from ui.viewport import get_viewport_info
 from site_item_events import record_explicit_item_selection, record_initial_item_context
 from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
 from data_access import load_item_data
+from item_paths import resolve_item_path
 from trader_analytics import load_current_snapshot, normalize_wallet
 
 
@@ -78,7 +79,7 @@ def _wallet_options_for_item(item_record: Optional[Dict]) -> list:
     if not isinstance(item_record, dict) or not item_record.get('file_path'):
         return []
     try:
-        path = Path(item_record['file_path'])
+        path = resolve_item_path(item_record['file_path'])
         if not path.exists():
             return []
         df = load_item_data(str(path), path.stat().st_mtime)

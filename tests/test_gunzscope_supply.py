@@ -104,27 +104,27 @@ def test_active_mints_is_primary_supply():
 
 def test_empty_provider_result_is_unavailable():
     item, outcome = refresh.build_item_record(record(), {"items": []})
-    assert item["status"] == "unavailable" and outcome == "empty"
+    assert item["status"] == "unavailable" and item["last_refresh_outcome"] == "empty_result" and outcome == "empty_result"
 
 
 def test_provider_identity_mismatch_is_not_accepted():
     item, outcome = refresh.build_item_record(record(), {"items": [{"itemName": "Other", "rarity": "Epic", "activeMints": 1}]})
-    assert item["status"] == "unavailable" and outcome == "mismatch"
+    assert item["status"] == "unavailable" and item["last_refresh_outcome"] == "name_mismatch" and outcome == "name_mismatch"
 
 
 def test_missing_active_mints_is_invalid():
     item, _ = refresh.build_item_record(record(), {"items": [{"itemName": "Item", "rarity": "Epic"}]})
-    assert item["status"] == "unavailable"
+    assert item["status"] == "unavailable" and item["last_refresh_outcome"] == "invalid_payload"
 
 
 def test_negative_active_mints_is_invalid():
     item, _ = refresh.build_item_record(record(), {"items": [{"itemName": "Item", "rarity": "Epic", "activeMints": -1}]})
-    assert item["status"] == "unavailable"
+    assert item["status"] == "unavailable" and item["last_refresh_outcome"] == "invalid_payload"
 
 
 def test_non_integer_active_mints_is_invalid():
     item, _ = refresh.build_item_record(record(), {"items": [{"itemName": "Item", "rarity": "Epic", "activeMints": "1"}]})
-    assert item["status"] == "unavailable"
+    assert item["status"] == "unavailable" and item["last_refresh_outcome"] == "invalid_payload"
 
 
 def test_trimmed_request_and_identity_are_used():
@@ -190,7 +190,7 @@ def test_failed_publication_preserves_previous(tmp_path, monkeypatch):
 def test_last_known_good_becomes_stale():
     old = {"supply": 7, "status": "ok", "request_name": "Item", "request_rarity": "Epic"}
     item, outcome = refresh.build_item_record(record(), {"items": []}, old)
-    assert outcome == "stale" and item["supply"] == 7 and item["status"] == "stale"
+    assert outcome == "empty_result" and item["supply"] == 7 and item["status"] == "unavailable" and item["last_good_supply"] == 7
 
 
 def test_stale_state_is_ranked():
@@ -217,6 +217,33 @@ def test_dry_run_mapping_is_offline(monkeypatch):
 
 def test_unavailable_is_excluded_from_rank():
     assert supply.dense_supply_ranks(snap({"a": rec(1), "b": {"status": "unavailable"}})) == {"a": 1}
+
+
+def test_explicit_empty_keeps_last_good_but_is_excluded_from_rank():
+    item, outcome = refresh.build_item_record(record("AZV 100 Light Stock", "Epic"), {"items": []}, {"supply": 50, "status": "ok"})
+    assert outcome == "empty_result"
+    assert item["last_good_supply"] == 50 and item["status"] == "unavailable"
+    assert supply.dense_supply_ranks(snap({"epic": item, "valid": rec(10)})) == {"valid": 1}
+
+
+def test_temporary_failure_remains_distinct_and_rankable_when_retained():
+    item = refresh._retained_record({"supply": 50, "status": "ok"}, "transport_error", "now")
+    assert item["status"] == "stale" and item["last_refresh_outcome"] == "transport_error"
+    assert supply.dense_supply_ranks(snap({"stale": item, "valid": rec(10)})) == {"valid": 1, "stale": 2}
+
+
+def test_path_resolver_rebases_foreign_checkout():
+    from item_paths import resolve_item_path
+    current = Path("C:/current/app/data_opensea_sales")
+    foreign = Path("C:/old/opensea_sales/streamlit_opensea_sales/data_opensea_sales/sales/item.csv")
+    assert resolve_item_path(foreign, current) == current / "sales/item.csv"
+
+
+def test_path_resolver_keeps_unrelated_absolute_path():
+    from item_paths import resolve_item_path
+    current = Path("C:/current/app/data_opensea_sales")
+    foreign = Path("C:/other/item.csv")
+    assert resolve_item_path(foreign, current) == foreign
 
 
 def test_zero_supply_is_valid_and_lowest_dense_rank():

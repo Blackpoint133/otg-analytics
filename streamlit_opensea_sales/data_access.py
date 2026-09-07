@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import pandas as pd
 import streamlit as st
+from item_paths import resolve_item_path
 
 from logging_compat import debug, info, error, warning
 
@@ -297,7 +298,7 @@ def load_item_data(item_file_path: str, file_mtime: float) -> pd.DataFrame:
         FileNotFoundError: technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text
         pd.errors.ParserError: technical diagnostic text CSV technical diagnostic text
     """
-    file_path = Path(item_file_path)
+    file_path = resolve_item_path(item_file_path)
     
     if not file_path.exists():
         raise FileNotFoundError(f"technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text: {item_file_path}")
@@ -541,7 +542,8 @@ def get_item_data_from_record(item_record: Dict[str, Any]) -> pd.DataFrame:
     
     try:
         # technical implementation note technical implementation note CSV
-        df_original = load_item_data(file_path, file_mtime)
+        resolved_file_path = resolve_item_path(file_path)
+        df_original = load_item_data(str(resolved_file_path), file_mtime)
 
         def mark_historical_usd_state(df: pd.DataFrame, available: bool, status: str) -> pd.DataFrame:
             df.attrs['historical_usd_available'] = available
@@ -551,7 +553,7 @@ def get_item_data_from_record(item_record: Dict[str, Any]) -> pd.DataFrame:
         mark_historical_usd_state(df_original, False, 'original_sales_no_enriched')
         
         # technical implementation note technical implementation note technical implementation note technical implementation note
-        original_path = Path(file_path)
+        original_path = resolved_file_path
         enriched_dir = original_path.parent.parent / 'sales_enriched'
         enriched_path = enriched_dir / original_path.name
         
@@ -618,4 +620,3 @@ def get_item_data_from_record(item_record: Dict[str, Any]) -> pd.DataFrame:
     except Exception as e:
         debug(f"[DATA] technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text: {e}")
         return pd.DataFrame()
-

@@ -19,6 +19,7 @@ from formatters import format_number, format_metric_value, format_historical_met
 from charts import build_sales_chart
 from ui.tables import render_sales_table, paginate_dataframe, get_current_page
 from gunzscope_supply import ATTRIBUTION, get_item_supply_with_rank
+from item_paths import resolve_item_path
 
 
 # Image URL normalization
@@ -153,7 +154,7 @@ def _load_item_trend_data(item_record: Dict) -> pd.DataFrame:
     if not file_path:
         return pd.DataFrame()
 
-    original_path = Path(file_path)
+    original_path = resolve_item_path(file_path)
     trend_path = original_path.parent.parent / 'item_trends' / original_path.name
 
     if not trend_path.exists():

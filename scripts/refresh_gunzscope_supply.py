@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import time
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,7 +21,7 @@ SNAPSHOT_PATH = DATA_DIR / "gunzscope_supply_snapshot.json"
 LOCK_PATH = DATA_DIR / "gunzscope_supply_refresh.lock"
 sys.path.insert(0, str(APP_DIR))
 from gunzscope_client import MAX_BATCH_ITEMS, GunzscopeError, fetch_batch  # noqa: E402
-from gunzscope_supply import ATTRIBUTION, provider_lookup_pair, validate_snapshot  # noqa: E402
+from gunzscope_supply import ATTRIBUTION, provider_lookup_pair, validate_snapshot, valid_supply  # noqa: E402
 
 if sys.platform == "win32":
     import msvcrt
@@ -30,6 +31,16 @@ else:
 
 def timestamp():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _retained_record(previous_record, outcome, now):
+    retained = dict(previous_record) if isinstance(previous_record, dict) else {}
+    if valid_supply(retained.get("supply")):
+        retained["last_good_supply"] = retained.get("last_good_supply", retained["supply"])
+    retained["status"] = "stale" if outcome in {"transport_error", "rate_limit", "server_error"} else "unavailable"
+    retained["last_refresh_outcome"] = outcome
+    retained["last_attempt_at"] = now
+    return retained
 
 
 def load_catalog():
@@ -139,8 +150,25 @@ def publish(payload):
 def build_item_record(record, result, previous_record=None, wrapper_updated_at=None):
     key = record["item_key"]
     name, rarity = provider_lookup_pair(record["display_name"], record["rarity"])
-    candidates = result.get("items", []) if isinstance(result, dict) else []
+    candidates = result.get("items", []) if isinstance(result, dict) else None
+    now = timestamp()
+    def failure(outcome):
+        item = _retained_record(previous_record, outcome, now)
+        item.update({"request_name": name, "request_rarity": rarity})
+        return item, outcome
+    if not isinstance(candidates, list):
+        return failure("invalid_payload")
+    if not candidates:
+        return failure("empty_result")
+    if len(candidates) > 1:
+        return failure("multiple_candidates")
     candidate = candidates[0] if len(candidates) == 1 else None
+    if not isinstance(candidate, dict):
+        return failure("invalid_payload")
+    if candidate.get("itemName") != name:
+        return failure("name_mismatch")
+    if candidate.get("rarity") != rarity:
+        return failure("rarity_mismatch")
     valid = (isinstance(candidate, dict) and candidate.get("itemName") == name
              and candidate.get("rarity") == rarity
              and isinstance(candidate.get("activeMints"), int)
@@ -150,14 +178,9 @@ def build_item_record(record, result, previous_record=None, wrapper_updated_at=N
         return {"request_name": name, "request_rarity": rarity,
                 "provider_item_name": candidate["itemName"], "provider_rarity": candidate["rarity"],
                 "supply": candidate["activeMints"], "provider_updated_at": wrapper_updated_at,
-                "fetched_at": timestamp(), "status": "ok"}, "ok"
-    if (isinstance(previous_record, dict) and previous_record.get("status") in {"ok", "stale"}
-            and isinstance(previous_record.get("supply"), int) and previous_record["supply"] >= 0):
-        retained = dict(previous_record)
-        retained["status"] = "stale"
-        return retained, "stale"
-    return {"request_name": name, "request_rarity": rarity, "fetched_at": timestamp(),
-            "status": "unavailable"}, "mismatch" if candidates else "empty"
+                "fetched_at": now, "last_attempt_at": now,
+                "last_refresh_outcome": "ok", "status": "ok"}, "ok"
+    return failure("invalid_payload")
 
 
 def main():
@@ -185,7 +208,7 @@ def main():
     previous = load_previous()
     previous_items = previous.get("items", {}) if previous else {}
     items = {}
-    mapped = empty = mismatch = stale = 0
+    outcomes = Counter()
     try:
         for record in records:
             name, rarity = provider_lookup_pair(record.get("display_name"), record.get("rarity"))
@@ -197,23 +220,27 @@ def main():
                                "rarity": provider_lookup_pair(r["display_name"], r["rarity"])[1]} for r in batch]
             try:
                 payload = fetch_batch(requests_items)
-            except GunzscopeError:
+            except GunzscopeError as exc:
                 payload = None
+                message = str(exc).lower()
+                batch_outcome = "rate_limit" if "rate limit" in message or "429" in message else "server_error" if "server error" in message or "http 5" in message else "transport_error"
             results = payload.get("results", {}) if payload else {}
             for record in batch:
                 key = record["item_key"]
                 name, rarity = provider_lookup_pair(record["display_name"], record["rarity"])
-                result = results.get(f"{name}::{rarity}")
-                item, outcome = build_item_record(record, result, previous_items.get(key), payload.get("updatedAt") if payload else None)
+                result = results.get(f"{name}::{rarity}") if payload else None
+                if payload is None:
+                    outcome = batch_outcome
+                    item = _retained_record(previous_items.get(key), outcome, timestamp())
+                    item.update({"request_name": name, "request_rarity": rarity})
+                else:
+                    item, outcome = build_item_record(record, result, previous_items.get(key), payload.get("updatedAt"))
                 items[key] = item
-                mapped += outcome == "ok"
-                stale += outcome == "stale"
-                empty += outcome == "empty"
-                mismatch += outcome == "mismatch"
+                outcomes[outcome] += 1
             if batch_no + 1 < len(batches):
                 time.sleep(max(0.0, args.interval))
         publish({"schema_version": 1, "source": "gunzscope", "snapshot_fetched_at": timestamp(), "attribution": ATTRIBUTION, "items": items})
-        print(f"FULL_REFRESH PASS items={len(records)} batches={len(batches)} mapped_ok={mapped} empty={empty} mismatches={mismatch} stale={stale}")
+        print(f"FULL_REFRESH PASS items={len(records)} batches={len(batches)} outcomes={dict(sorted(outcomes.items()))}")
         return 0
     finally:
         release_lock(lock)
