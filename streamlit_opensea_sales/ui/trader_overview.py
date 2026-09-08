@@ -175,7 +175,7 @@ def _render_metric_guide() -> None:
     st.markdown("""<div class="trader-metric-guide"><p><b>EARNED</b> Realized profit/loss only from sales matched to a previous purchase of the exact same NFT.</p><p><b>INVESTED</b> Total value of all observed OpenSea purchases. <b>SOLD</b> Total value of all observed OpenSea sales.</p><p><b>TRADES</b> Observed marketplace participations. <b>PURCHASES</b> Observed purchases. <b>SALES</b> Observed sales.</p><p><b>ROI</b> Realized return on the acquisition cost of matched sold NFTs only. It is not return on total Invested.</p><p><b>WIN RATE</b> Share of evaluable matched sales closed in profit. <b>COVERAGE</b> Share of observed sales that could be matched to a previous acquisition. <b>MATCHED SALES</b> Sales linked to an observed previous purchase of the exact contract + tokenId.</p><p class="trader-guide-note"><b>Currency:</b> When USD Price is enabled, monetary metrics, ROI and Win Rate use historical USD values based on the GUN/USD price at the time of each transaction. When USD Price is disabled, those metrics use GUN values.</p><p class="trader-guide-note">Metrics are based only on observed OpenSea activity. Unknown external transfers, mints, in-game acquisitions, other marketplaces, fees and royalties are not included unless explicitly present in source data.</p></div>""", unsafe_allow_html=True)
 
 
-def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None) -> None:
+def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None, guide_open: bool = False) -> None:
     payload = load_current_snapshot()
     st.markdown(f"""
         <style>
@@ -192,8 +192,6 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         .trader-metric-guide p {{ margin:5px 0; }}
         .trader-metric-guide b {{ color:#FF003A; }}
         .trader-guide-note {{ color:var(--otg-text-secondary); }}
-        .st-key-trader_metric_guide button {{ background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; font-size:10px!important; letter-spacing:.08em!important; }}
-        .st-key-trader_metric_guide button:hover {{ background:#FF003A!important; color:#000!important; }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] {{ display:grid!important; grid-template-columns:110px minmax(0,1fr) 110px!important; column-gap:0!important; width:100%!important; align-items:start!important; }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{ width:100%!important; min-width:0!important; max-width:none!important; padding:0!important; flex:none!important; }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {{ display:flex!important; justify-content:flex-start!important; }}
@@ -209,14 +207,7 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
             <div class="trader-ranking-context">SORT BY {html.escape(sort_by)} · {'USD' if show_usd else 'GUN'}</div>
         </div>
     """, unsafe_allow_html=True)
-    guide_row = st.columns([5, 1], gap="small")
-    with guide_row[0]:
-        st.markdown("<div style='height:1px'></div>", unsafe_allow_html=True)
-    with guide_row[1]:
-        if st.button("METRIC GUIDE", key="trader_metric_guide"):
-            st.session_state.trader_metric_guide_open = not st.session_state.get("trader_metric_guide_open", False)
-            st.rerun()
-    if st.session_state.get("trader_metric_guide_open", False):
+    if guide_open:
         _render_metric_guide()
     if not payload:
         st.warning("Top Traders Analytics data is temporarily unavailable.")

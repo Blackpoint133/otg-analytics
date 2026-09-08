@@ -137,6 +137,7 @@ def main():
                 sort_by=trader_controls['sort_by'],
                 show_usd=trader_controls['show_usd'],
                 highlight_wallet=trader_controls['wallet'],
+                guide_open=trader_controls['guide_open'],
             )
         render_sidebar_footer()
         return

@@ -852,6 +852,8 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
                 st.session_state.trader_sort_by = option
                 st.session_state.trader_page = 1
                 st.rerun()
+    from ui.section_guide import render_section_guide_button
+    guide_open = render_section_guide_button("trader")
     selected_value = "" if selected is None else str(selected).strip()
     effective = None if not selected_value or selected_value == "ALL TRADERS" else normalize_wallet(selected_value)
-    return {"sort_by": st.session_state.trader_sort_by, "show_usd": show_usd, "wallet": effective}
+    return {"sort_by": st.session_state.trader_sort_by, "show_usd": show_usd, "wallet": effective, "guide_open": guide_open}
