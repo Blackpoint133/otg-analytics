@@ -178,20 +178,9 @@ def _render_metric_guide() -> None:
 
 def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None) -> None:
     payload = load_current_snapshot()
-    title_col, guide_col = st.columns([6, 1], gap="small")
-    with title_col:
-        st.markdown(f"<div class=\"trader-title-line\"><div><h3>TOP TRADERS ANALYTICS</h3><div class=\"trader-ranking-subtitle\">PUBLIC OPENSEA TRADER OVERVIEW</div><div class=\"trader-ranking-context\">SORT BY {html.escape(sort_by)} · {'USD' if show_usd else 'GUN'}</div></div></div>", unsafe_allow_html=True)
-    with guide_col:
-        if st.button("METRIC GUIDE", key="trader_metric_guide"):
-            st.session_state.trader_metric_guide_open = not st.session_state.get("trader_metric_guide_open", False)
-            st.rerun()
-    if st.session_state.get("trader_metric_guide_open", False):
-        _render_metric_guide()
     st.markdown(f"""
         <style>
-        .trader-ranking-header {{ display:none; margin-bottom:16px; }}
-        .trader-title-line {{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }}
-        .trader-title-line h3 {{ margin:0 0 4px 0; border-bottom:2px solid var(--otg-accent); padding-bottom:6px; text-transform:uppercase; font-size:16px; letter-spacing:1px; font-family:'PP Supply Sans','Space Mono',monospace,sans-serif; color:var(--otg-accent); font-weight:700; }}
+        .trader-ranking-header {{ margin-bottom:16px; }}
         .trader-ranking-header h3 {{
             margin:0 0 4px 0; border-bottom:2px solid var(--otg-accent);
             padding-bottom:6px; text-transform:uppercase; font-size:16px;
@@ -221,6 +210,15 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
             <div class="trader-ranking-context">SORT BY {html.escape(sort_by)} · {'USD' if show_usd else 'GUN'}</div>
         </div>
     """, unsafe_allow_html=True)
+    guide_row = st.columns([5, 1], gap="small")
+    with guide_row[0]:
+        st.markdown("<div style='height:1px'></div>", unsafe_allow_html=True)
+    with guide_row[1]:
+        if st.button("METRIC GUIDE", key="trader_metric_guide"):
+            st.session_state.trader_metric_guide_open = not st.session_state.get("trader_metric_guide_open", False)
+            st.rerun()
+    if st.session_state.get("trader_metric_guide_open", False):
+        _render_metric_guide()
     if not payload:
         st.warning("Top Traders Analytics data is temporarily unavailable.")
         return
