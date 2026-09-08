@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import html
 import json
 import zlib
 from functools import lru_cache
@@ -114,3 +115,11 @@ def safe_avatar_css(profile: dict[str, Any] | None) -> str:
         return ""
     escaped = _json.dumps(value, ensure_ascii=True)[1:-1]
     return f'url("{escaped}")'
+
+
+def avatar_style_attribute(profile: dict[str, Any] | None, wallet: str) -> str:
+    """Build one safely escaped style attribute for the trader avatar markup."""
+    remote_value = safe_avatar_css(profile) or "none"
+    fallback_uri = fallback_avatar_data_uri(wallet)
+    style_value = f"--trader-remote-avatar:{remote_value};--trader-fallback-avatar:url('{fallback_uri}');"
+    return f'style="{html.escape(style_value, quote=True)}"'

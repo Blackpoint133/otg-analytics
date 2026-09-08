@@ -8,7 +8,7 @@ SPEC = importlib.util.spec_from_file_location("profile_refresh", ROOT / "scripts
 refresh = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(refresh)
 
-from opensea_account_profiles import allocate_fallback_names, fallback_avatar_filename, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
+from opensea_account_profiles import allocate_fallback_names, avatar_style_attribute, fallback_avatar_filename, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
 
 
 def test_snapshot_rewrite_is_visible_without_cache_clear(tmp_path):
@@ -38,6 +38,31 @@ def test_fallback_avatar_set_is_fixed_and_legacy_reference_is_gone():
     source = (ROOT / "streamlit_opensea_sales" / "opensea_account_profiles.py").read_text(encoding="utf-8")
     assert "profile_" + "avatar_1.png" not in source
     assert "random(" not in source
+
+
+def test_avatar_style_attribute_escapes_complete_style_value():
+    fallback = avatar_style_attribute({}, "0xabc123")
+    remote = avatar_style_attribute({"profile_image_url": "https://example.com/avatar.png"}, "0xabc123")
+    assert fallback.startswith('style="') and fallback.endswith('"')
+    assert 'url("data:' not in fallback
+    assert "--trader-fallback-avatar:url(&#x27;data:image/png;base64," in fallback
+    assert "--trader-remote-avatar:none;" in fallback
+    assert "--trader-remote-avatar:url(&quot;https://example.com/avatar.png&quot;);" in remote
+    assert remote.index("--trader-remote-avatar") < remote.index("--trader-fallback-avatar")
+
+
+def test_mixed_avatar_rows_keep_structural_markup_and_wallet_mapping():
+    rows = []
+    for index in range(30):
+        wallet = f"0x{index:040x}"
+        profile = {"profile_image_url": "https://example.com/avatar.png"} if index % 2 else {}
+        style = avatar_style_attribute(profile, wallet)
+        rows.append(f'<span class="trader-avatar trader-avatar-small" {style}></span>')
+    markup = "".join(rows)
+    assert markup.count('<span class="trader-avatar trader-avatar-small"') == 30
+    assert markup.count("</span>") == 30
+    assert "<span class=\"trader-avatar" not in markup.replace('<span class="trader-avatar trader-avatar-small"', "")
+    assert all(fallback_avatar_filename(f"0x{index:040x}").startswith("avatar_") for index in range(30))
 
 
 def test_wallet_target_does_not_read_snapshot_wallets(monkeypatch, tmp_path):

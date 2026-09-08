@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from trader_analytics import load_current_snapshot, normalize_wallet
-from opensea_account_profiles import fallback_avatar_data_uri, get_profile, load_profile_snapshot, profile_name, safe_avatar_css
+from opensea_account_profiles import avatar_style_attribute, get_profile, load_profile_snapshot, profile_name
 
 PANDL_MIN_MATCHED_SALES = 3
 PANDL_MIN_COVERAGE_PCT = 50.0
@@ -148,9 +148,7 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
                 wallet = str(row.get("_wallet") or "")
                 username = str(profile.get("username") or "").strip()
                 secondary = f'<span class="trader-profile-secondary">@{html.escape(username)}</span>' if username and username != row["Profile"] else ""
-                remote_css = safe_avatar_css(profile)
-                fallback_css = fallback_avatar_data_uri(wallet)
-                avatar_style = f' style="--trader-remote-avatar:{html.escape(remote_css, quote=True)};--trader-fallback-avatar:url(\"{fallback_css}\");"'
+                avatar_style = " " + avatar_style_attribute(profile, wallet)
                 verified = " ✓" if profile.get("is_verified") is True else ""
                 ranks = row.get("_ranks", {})
                 rank_lines = []
