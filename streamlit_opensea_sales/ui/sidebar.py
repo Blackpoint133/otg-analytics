@@ -18,6 +18,7 @@ from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
 from data_access import load_item_data
 from item_paths import resolve_item_path
 from trader_analytics import load_current_snapshot, normalize_wallet
+from item_class_data import class_options, read_item_class_snapshot
 
 
 SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytics.log"
@@ -648,6 +649,21 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         value=True,
         key='top_items_show_usd'
     )
+
+    catalog_names = []
+    try:
+        from data_access import load_items_index
+        catalog, diagnostics = load_items_index()
+        if diagnostics.success:
+            catalog_names = sorted({str(record.get('display_name', '')).strip() for record in catalog.values() if isinstance(record, dict) and str(record.get('display_name', '')).strip()})
+    except Exception:
+        catalog_names = []
+    class_choices = class_options(catalog_names, read_item_class_snapshot())
+    selected_class = st.sidebar.selectbox(
+        'ITEM CLASS',
+        options=class_choices,
+        key='top_items_class',
+    )
     
     st.sidebar.markdown(
         '<div class="otg-sidebar-section-gap"></div>',
@@ -785,7 +801,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         'show_usd': show_usd,
         'ranking_mode': current_mode,
         'period': current_period,
-        'top_items_view': current_view
+        'top_items_view': current_view,
+        'item_class': selected_class,
     }
 
 

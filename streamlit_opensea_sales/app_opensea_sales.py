@@ -177,7 +177,8 @@ def main():
                 current_gun_price=current_gun_price,
                 ranking_mode=top_items_controls['ranking_mode'],
                 period=top_items_controls['period'],
-                top_items_view=top_items_controls['top_items_view']
+                top_items_view=top_items_controls['top_items_view'],
+                item_class=top_items_controls['item_class'],
             )
         render_sidebar_footer()
         return
