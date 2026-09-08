@@ -8,7 +8,7 @@ SPEC = importlib.util.spec_from_file_location("profile_refresh", ROOT / "scripts
 refresh = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(refresh)
 
-from opensea_account_profiles import allocate_fallback_names, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
+from opensea_account_profiles import allocate_fallback_names, fallback_avatar_filename, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
 
 
 def test_snapshot_rewrite_is_visible_without_cache_clear(tmp_path):
@@ -23,6 +23,21 @@ def test_remote_avatar_css_accepts_only_http_https():
     assert safe_avatar_css({"profile_image_url": "https://i2c.seadn.io/avatar.png"}).startswith('url("https://')
     assert safe_avatar_css({"profile_image_url": "javascript:alert(1)"}) == ""
     assert safe_avatar_css({"profile_image_url": "data:image/png;base64,abc"}) == ""
+
+
+def test_fallback_avatar_is_deterministic_and_normalized():
+    assert fallback_avatar_filename(" 0xABC123 ") == fallback_avatar_filename("0xabc123")
+    assert fallback_avatar_filename("") == "avatar_001.png"
+    assert fallback_avatar_filename("0xabc123").startswith("avatar_")
+    assert 1 <= int(fallback_avatar_filename("0xabc123")[7:10]) <= 94
+
+
+def test_fallback_avatar_set_is_fixed_and_legacy_reference_is_gone():
+    avatar_dir = ROOT / "img" / "profile_avatar"
+    assert sorted(p.name for p in avatar_dir.glob("avatar_*.png")) == [f"avatar_{i:03d}.png" for i in range(1, 95)]
+    source = (ROOT / "streamlit_opensea_sales" / "opensea_account_profiles.py").read_text(encoding="utf-8")
+    assert "profile_" + "avatar_1.png" not in source
+    assert "random(" not in source
 
 
 def test_wallet_target_does_not_read_snapshot_wallets(monkeypatch, tmp_path):

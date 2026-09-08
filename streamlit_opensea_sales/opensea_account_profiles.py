@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import zlib
 from functools import lru_cache
@@ -14,7 +15,8 @@ import json as _json
 from trader_analytics import normalize_wallet
 
 SNAPSHOT_PATH = Path(__file__).parent / "data_opensea_sales" / "opensea_account_profiles_snapshot.json"
-FALLBACK_AVATAR_PATH = Path(__file__).parent.parent / "img" / "profile_avatar" / "profile_avatar_1.png"
+FALLBACK_AVATAR_DIR = Path(__file__).parent.parent / "img" / "profile_avatar"
+FALLBACK_AVATAR_COUNT = 94
 
 
 def fallback_name(wallet: str) -> str:
@@ -80,10 +82,20 @@ def get_profile(wallet: str, snapshot: dict[str, Any] | None = None) -> dict[str
     return profile if isinstance(profile, dict) else {}
 
 
-@lru_cache(maxsize=1)
-def fallback_avatar_data_uri() -> str:
+def fallback_avatar_filename(wallet: str) -> str:
+    wallet_key = str(wallet or "").strip().lower()
+    if not wallet_key:
+        index = 1
+    else:
+        digest = hashlib.sha256(wallet_key.encode("utf-8")).digest()
+        index = int.from_bytes(digest[:8], "big") % FALLBACK_AVATAR_COUNT + 1
+    return f"avatar_{index:03d}.png"
+
+
+@lru_cache(maxsize=FALLBACK_AVATAR_COUNT + 1)
+def fallback_avatar_data_uri(wallet: str = "") -> str:
     try:
-        encoded = base64.b64encode(FALLBACK_AVATAR_PATH.read_bytes()).decode("ascii")
+        encoded = base64.b64encode((FALLBACK_AVATAR_DIR / fallback_avatar_filename(wallet)).read_bytes()).decode("ascii")
         return f"data:image/png;base64,{encoded}"
     except OSError:
         return ""
