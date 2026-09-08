@@ -83,6 +83,32 @@ def test_observable_fifo_pnl_uses_event_usd_and_does_not_reuse_acquisition():
     assert rows[wallet_b]["win_rate"] == 1.0
 
 
+def test_currency_specific_realized_roi_and_win_rate_are_explicit():
+    frame = raw_frame().iloc[[0, 1]].copy()
+    events, _ = normalize_trade_events(frame)
+    row = {item["wallet"]: item for item in aggregate_trader_metrics(events)}["0x" + "b" * 40]
+    assert row["realized_pnl_gun"] == 4
+    assert row["realized_pnl_usd"] == 1.0
+    assert row["roi_gun"] == 0.4
+    assert row["roi_usd"] == 1.0
+    assert row["win_count_gun"] == 1 and row["win_count_usd"] == 1
+    assert row["win_rate_gun"] == 1.0 and row["win_rate_usd"] == 1.0
+    assert row["roi"] == row["roi_gun"]
+    assert row["win_rate"] == row["win_rate_gun"]
+
+
+def test_currency_specific_profitability_can_disagree():
+    frame = raw_frame().iloc[[0, 1]].copy()
+    frame.loc[0, "price_usd_at_sale"] = 10.0
+    frame.loc[1, "price_usd_at_sale"] = 1.0
+    events, _ = normalize_trade_events(frame)
+    row = {item["wallet"]: item for item in aggregate_trader_metrics(events)}["0x" + "b" * 40]
+    assert row["roi_gun"] > 0
+    assert row["roi_usd"] < 0
+    assert row["win_rate_gun"] == 1.0
+    assert row["win_rate_usd"] == 0.0
+
+
 def test_unmatched_sale_is_not_profit():
     events, _ = normalize_trade_events(raw_frame().iloc[[1]])
     row = aggregate_trader_metrics(events)[0]

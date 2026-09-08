@@ -27,8 +27,10 @@ def short_wallet(wallet: str) -> str:
     return value if len(value) <= 12 else f"{value[:6]}…{value[-4:]}"
 
 
-def trader_is_pnl_eligible(row: dict[str, Any]) -> bool:
-    return bool(row.get("pnl_supported", False) and (row.get("matched_realized_sales") or 0) >= PANDL_MIN_MATCHED_SALES and (row.get("pnl_coverage_sell_pct") or 0) >= PANDL_MIN_COVERAGE_PCT)
+def trader_is_pnl_eligible(row: dict[str, Any], show_usd: bool = False) -> bool:
+    matched = row.get("matched_realized_sales_usd" if show_usd else "matched_realized_sales_gun", row.get("matched_realized_sales", 0))
+    rate = row.get("win_rate_usd" if show_usd else "win_rate_gun", row.get("win_rate"))
+    return bool(row.get("pnl_supported", False) and (matched or 0) >= PANDL_MIN_MATCHED_SALES and (row.get("pnl_coverage_sell_pct") or 0) >= PANDL_MIN_COVERAGE_PCT and rate is not None)
 
 
 def resolve_wallet_search(rows: Iterable[dict[str, Any]], query: Optional[str]) -> Optional[dict[str, Any]]:
@@ -39,7 +41,7 @@ def resolve_wallet_search(rows: Iterable[dict[str, Any]], query: Optional[str]) 
 
 
 def _sort_field(sort_by: str, show_usd: bool) -> str:
-    fields = {"EARNED": "realized_pnl_usd" if show_usd else "realized_pnl_gun", "INVESTED": "buy_volume_usd" if show_usd else "buy_volume_gun", "SOLD": "sell_volume_usd" if show_usd else "sell_volume_gun", "TRADES": "trade_count", "ROI": "roi", "WIN RATE": "win_rate"}
+    fields = {"EARNED": "realized_pnl_usd" if show_usd else "realized_pnl_gun", "INVESTED": "buy_volume_usd" if show_usd else "buy_volume_gun", "SOLD": "sell_volume_usd" if show_usd else "sell_volume_gun", "TRADES": "trade_count", "ROI": "roi_usd" if show_usd else "roi_gun", "WIN RATE": "win_rate_usd" if show_usd else "win_rate_gun"}
     if sort_by not in fields:
         raise ValueError(f"unsupported trader sort: {sort_by}")
     return fields[sort_by]
@@ -50,16 +52,20 @@ def sorted_trader_rows(rows: Iterable[dict[str, Any]], sort_by: str = "EARNED", 
     result = [row.copy() for row in rows]
     def value(row):
         raw = row.get(field)
+        if raw is None and field in {"roi_gun", "roi_usd"}:
+            raw = row.get("roi")
+        if raw is None and field in {"win_rate_gun", "win_rate_usd"}:
+            raw = row.get("win_rate")
         return float(raw) if raw is not None and not pd.isna(raw) else float("-inf")
     if sort_by in {"EARNED", "ROI"}:
         result.sort(key=lambda row: (value(row) == float("-inf"), -value(row) if value(row) != float("-inf") else 0.0, -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
     elif sort_by in PERFORMANCE_SORTS:
-        result.sort(key=lambda row: (not trader_is_pnl_eligible(row), -value(row), -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
+        result.sort(key=lambda row: (not trader_is_pnl_eligible(row, show_usd), -value(row), -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
     else:
         result.sort(key=lambda row: (-value(row) if value(row) != float("-inf") else 0.0, -(int(row.get("trade_count") or 0)), str(row.get("wallet", ""))))
-    eligible_count = (sum(value(row) != float("-inf") for row in result) if sort_by in {"EARNED", "ROI"} else sum(trader_is_pnl_eligible(row) for row in result) if sort_by in PERFORMANCE_SORTS else sum(value(row) != float("-inf") for row in result))
+    eligible_count = (sum(value(row) != float("-inf") for row in result) if sort_by in {"EARNED", "ROI"} else sum(trader_is_pnl_eligible(row, show_usd) for row in result) if sort_by in PERFORMANCE_SORTS else sum(value(row) != float("-inf") for row in result))
     for index, row in enumerate(result):
-        row["eligible"] = trader_is_pnl_eligible(row) if sort_by in PERFORMANCE_SORTS else value(row) != float("-inf")
+        row["eligible"] = trader_is_pnl_eligible(row, show_usd) if sort_by in PERFORMANCE_SORTS else value(row) != float("-inf")
         row["rank"] = index + 1 if index < eligible_count and value(row) != float("-inf") else None
     return result
 
@@ -103,8 +109,8 @@ def _rank_display_value(row: dict[str, Any], metric: str, show_usd: bool) -> str
     if metric == "INVESTED": return _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd)
     if metric == "SOLD": return _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd)
     if metric == "TRADES": return str(int(row.get("trade_count") or 0))
-    if metric == "ROI": return _format_percent(row.get("roi"))
-    return _format_percent(row.get("win_rate"))
+    if metric == "ROI": return _format_percent(row.get("roi_usd" if show_usd else "roi_gun"))
+    return _format_percent(row.get("win_rate_usd" if show_usd else "win_rate_gun"))
 
 
 def _format_money(value: Any, show_usd: bool, signed: bool = False) -> str:
@@ -121,7 +127,7 @@ def _format_percent(value: Any) -> str:
 def consolidated_table_rows(rows: Iterable[dict[str, Any]], show_usd: bool = True) -> list[dict[str, Any]]:
     result = []
     for row in rows:
-        result.append({"Rank": row.get("_position", row.get("rank") or ""), "Profile": row.get("_profile_name") or profile_name(row.get("wallet", ""), row.get("_profile")), "Earned": _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True), "Invested": _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd), "Sold": _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd), "Trades": int(row.get("trade_count") or 0), "Purchases": int(row.get("buy_count") or 0), "Sales": int(row.get("sell_count") or 0), "ROI": _format_percent(row.get("roi")), "Win Rate": _format_percent(row.get("win_rate")), "Coverage": _format_percent((row.get("pnl_coverage_sell_pct") or 0) / 100), "Matched Sales": int(row.get("matched_realized_sales") or 0), "_wallet": row.get("wallet", ""), "_profile": row.get("_profile", {}), "_ranks": row.get("_ranks", {}), "_eligible": row.get("eligible", False), "_selected": bool(row.get("_selected", False))})
+        result.append({"Rank": row.get("_position", row.get("rank") or ""), "Profile": row.get("_profile_name") or profile_name(row.get("wallet", ""), row.get("_profile")), "Earned": _format_money(row.get("realized_pnl_usd" if show_usd else "realized_pnl_gun"), show_usd, True), "Invested": _format_money(row.get("buy_volume_usd" if show_usd else "buy_volume_gun"), show_usd), "Sold": _format_money(row.get("sell_volume_usd" if show_usd else "sell_volume_gun"), show_usd), "Trades": int(row.get("trade_count") or 0), "Purchases": int(row.get("buy_count") or 0), "Sales": int(row.get("sell_count") or 0), "ROI": _format_percent(row.get("roi_usd" if show_usd else "roi_gun")), "Win Rate": _format_percent(row.get("win_rate_usd" if show_usd else "win_rate_gun")), "Coverage": _format_percent((row.get("pnl_coverage_sell_pct") or 0) / 100), "Matched Sales": int(row.get("matched_realized_sales") or 0), "_wallet": row.get("wallet", ""), "_profile": row.get("_profile", {}), "_ranks": row.get("_ranks", {}), "_eligible": row.get("eligible", False), "_selected": bool(row.get("_selected", False))})
     return result
 
 
@@ -166,11 +172,26 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
     st.markdown(css, unsafe_allow_html=True)
 
 
+def _render_metric_guide() -> None:
+    st.markdown("""<div class="trader-metric-guide"><p><b>EARNED</b> Realized profit/loss only from sales matched to a previous purchase of the exact same NFT.</p><p><b>INVESTED</b> Total value of all observed OpenSea purchases. <b>SOLD</b> Total value of all observed OpenSea sales.</p><p><b>TRADES</b> Observed marketplace participations. <b>PURCHASES</b> Observed purchases. <b>SALES</b> Observed sales.</p><p><b>ROI</b> Realized return on the acquisition cost of matched sold NFTs only. It is not return on total Invested.</p><p><b>WIN RATE</b> Share of evaluable matched sales closed in profit. <b>COVERAGE</b> Share of observed sales that could be matched to a previous acquisition. <b>MATCHED SALES</b> Sales linked to an observed previous purchase of the exact contract + tokenId.</p><p class="trader-guide-note"><b>Currency:</b> When USD Price is enabled, monetary metrics, ROI and Win Rate use historical USD values based on the GUN/USD price at the time of each transaction. When USD Price is disabled, those metrics use GUN values.</p><p class="trader-guide-note">Metrics are based only on observed OpenSea activity. Unknown external transfers, mints, in-game acquisitions, other marketplaces, fees and royalties are not included unless explicitly present in source data.</p></div>""", unsafe_allow_html=True)
+
+
 def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None) -> None:
     payload = load_current_snapshot()
+    title_col, guide_col = st.columns([6, 1], gap="small")
+    with title_col:
+        st.markdown(f"<div class=\"trader-title-line\"><div><h3>TOP TRADERS ANALYTICS</h3><div class=\"trader-ranking-subtitle\">PUBLIC OPENSEA TRADER OVERVIEW</div><div class=\"trader-ranking-context\">SORT BY {html.escape(sort_by)} · {'USD' if show_usd else 'GUN'}</div></div></div>", unsafe_allow_html=True)
+    with guide_col:
+        if st.button("METRIC GUIDE", key="trader_metric_guide"):
+            st.session_state.trader_metric_guide_open = not st.session_state.get("trader_metric_guide_open", False)
+            st.rerun()
+    if st.session_state.get("trader_metric_guide_open", False):
+        _render_metric_guide()
     st.markdown(f"""
         <style>
-        .trader-ranking-header {{ margin-bottom:16px; }}
+        .trader-ranking-header {{ display:none; margin-bottom:16px; }}
+        .trader-title-line {{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }}
+        .trader-title-line h3 {{ margin:0 0 4px 0; border-bottom:2px solid var(--otg-accent); padding-bottom:6px; text-transform:uppercase; font-size:16px; letter-spacing:1px; font-family:'PP Supply Sans','Space Mono',monospace,sans-serif; color:var(--otg-accent); font-weight:700; }}
         .trader-ranking-header h3 {{
             margin:0 0 4px 0; border-bottom:2px solid var(--otg-accent);
             padding-bottom:6px; text-transform:uppercase; font-size:16px;
@@ -179,6 +200,12 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         }}
         .trader-ranking-subtitle {{ font-size:13px; color:var(--otg-text-secondary); text-transform:uppercase; letter-spacing:.5px; margin:4px 0; }}
         .trader-ranking-context {{ font-size:11px; color:var(--otg-text-secondary); text-transform:uppercase; letter-spacing:.4px; margin:4px 0 12px; }}
+        .trader-metric-guide {{ background:#080808; border:1px solid #FF003A; padding:12px 14px; margin:0 0 16px; color:#FFF; font-size:12px; line-height:1.45; }}
+        .trader-metric-guide p {{ margin:5px 0; }}
+        .trader-metric-guide b {{ color:#FF003A; }}
+        .trader-guide-note {{ color:var(--otg-text-secondary); }}
+        .st-key-trader_metric_guide button {{ background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; font-size:10px!important; letter-spacing:.08em!important; }}
+        .st-key-trader_metric_guide button:hover {{ background:#FF003A!important; color:#000!important; }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] {{ display:grid!important; grid-template-columns:110px minmax(0,1fr) 110px!important; column-gap:0!important; width:100%!important; align-items:start!important; }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{ width:100%!important; min-width:0!important; max-width:none!important; padding:0!important; flex:none!important; }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {{ display:flex!important; justify-content:flex-start!important; }}

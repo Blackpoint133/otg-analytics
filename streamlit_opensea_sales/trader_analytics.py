@@ -132,6 +132,9 @@ def _metric_row(wallet: str) -> dict[str, Any]:
         "realized_pnl_gun": None, "known_cost_basis_usd": 0.0,
         "known_sale_proceeds_usd": 0.0, "realized_pnl_usd": None,
         "pnl_coverage_sell_pct": 0.0, "roi": None, "win_rate": None,
+        "matched_realized_sales_gun": 0, "matched_realized_sales_usd": 0,
+        "win_count_gun": 0, "win_count_usd": 0,
+        "roi_gun": None, "roi_usd": None, "win_rate_gun": None, "win_rate_usd": None,
     }
 
 
@@ -182,12 +185,18 @@ def aggregate_trader_metrics(events: Iterable[dict[str, Any]]) -> list[dict[str,
                 if lot["cost_usd"] is not None and price_usd is not None:
                     row["known_cost_basis_usd"] += lot["cost_usd"]
                     row["known_sale_proceeds_usd"] += price_usd
+                    row["matched_realized_sales_usd"] += 1
                 if lot["cost_gun"] is not None:
                     row["realized_pnl_gun"] = (row["realized_pnl_gun"] or 0.0) + price_gun - lot["cost_gun"]
                 if lot["cost_usd"] is not None and price_usd is not None:
                     row["realized_pnl_usd"] = (row["realized_pnl_usd"] or 0.0) + price_usd - lot["cost_usd"]
-                if lot["cost_gun"] > 0: row["_wins"] = row.get("_wins", 0) + int(price_gun > lot["cost_gun"])
-                if lot["cost_gun"] > 0: row["_roi_denominator"] = row.get("_roi_denominator", 0.0) + lot["cost_gun"]
+                if lot["cost_gun"] > 0:
+                    row["matched_realized_sales_gun"] += 1
+                    row["win_count_gun"] += int(price_gun > lot["cost_gun"])
+                    row["_roi_denominator"] = row.get("_roi_denominator", 0.0) + lot["cost_gun"]
+                if lot["cost_usd"] is not None and price_usd is not None and lot["cost_usd"] > 0:
+                    row["win_count_usd"] += int(price_usd > lot["cost_usd"])
+                    row["_roi_usd_denominator"] = row.get("_roi_usd_denominator", 0.0) + lot["cost_usd"]
                 if lot["cost_gun"] > 0: queue.popleft()
             if remaining: rows[seller]["unmatched_sales"] += remaining
         if buyer:
@@ -200,11 +209,15 @@ def aggregate_trader_metrics(events: Iterable[dict[str, Any]]) -> list[dict[str,
         row["active_days"] = len(sets[wallet]["days"])
         total_sells = row["matched_realized_sales"] + row["unmatched_sales"]
         row["pnl_coverage_sell_pct"] = (100.0 * row["matched_realized_sales"] / total_sells) if total_sells else 0.0
-        if row["matched_realized_sales"]:
-            cost = row.get("_roi_denominator", 0.0)
-            row["roi"] = row["realized_pnl_gun"] / cost if cost else None
-            row["win_rate"] = row.get("_wins", 0) / row["matched_realized_sales"]
-        for key in ("_wins", "_roi_denominator"):
+        cost = row.get("_roi_denominator", 0.0)
+        usd_cost = row.get("_roi_usd_denominator", 0.0)
+        row["roi_gun"] = row["realized_pnl_gun"] / cost if cost and row["realized_pnl_gun"] is not None else None
+        row["roi_usd"] = row["realized_pnl_usd"] / usd_cost if usd_cost and row["realized_pnl_usd"] is not None else None
+        row["roi"] = row["roi_gun"]
+        row["win_rate_gun"] = row["win_count_gun"] / row["matched_realized_sales_gun"] if row["matched_realized_sales_gun"] else None
+        row["win_rate_usd"] = row["win_count_usd"] / row["matched_realized_sales_usd"] if row["matched_realized_sales_usd"] else None
+        row["win_rate"] = row["win_rate_gun"]
+        for key in ("_roi_denominator", "_roi_usd_denominator"):
             row.pop(key, None)
     return [rows[wallet] for wallet in sorted(rows)]
 
