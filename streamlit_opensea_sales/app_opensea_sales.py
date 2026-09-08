@@ -74,6 +74,7 @@ from ui.market_overview import render_market_overview
 from ui.top_items_overview import render_top_items_overview
 from ui.item_overview import render_item_overview
 from ui.trader_overview import render_trader_overview
+from ui.roadmap_view import render_roadmap
 from ui.sidebar import render_trader_sidebar_controls
 from site_analytics import record_current_session_once
 from visitor_identity import get_browser_identity
@@ -129,6 +130,10 @@ def main():
         item_key=st.query_params.get("item"),
         browser_identity=browser_identity,
     )
+
+    if current_mode == 'roadmap':
+        render_roadmap()
+        return
 
     if current_mode == 'trader':
         trader_controls = render_trader_sidebar_controls()

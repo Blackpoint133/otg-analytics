@@ -17,7 +17,7 @@ import streamlit as st
 from typing import Literal
 
 
-def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
+def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader', 'roadmap']:
     """
     technical diagnostic text mode switcher technical diagnostic text sidebar technical diagnostic text technical diagnostic text HTML anchor links.
     
@@ -40,8 +40,8 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
     if isinstance(current_mode, list):
         current_mode = current_mode[0]
     
-    # Ensure valid mode (whitelist: item, market, top_items)
-    if current_mode not in ['item', 'market', 'top_items', 'trader']:
+    # Ensure valid mode (whitelist)
+    if current_mode not in ['item', 'market', 'top_items', 'trader', 'roadmap']:
         current_mode = 'item'
     
     # Determine active classes
@@ -49,6 +49,7 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
     market_class = "active" if current_mode == "market" else ""
     top_items_class = "active" if current_mode == "top_items" else ""
     trader_class = "active" if current_mode == "trader" else ""
+    roadmap_class = "active" if current_mode == "roadmap" else ""
     
     # Render mode switch using styled HTML anchor links with custom CSS
     st.sidebar.markdown(f"""
@@ -97,9 +98,30 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
             text-decoration: none !important;
         }}
 
+        .otg-mode-roadmap {{
+            border-color: #FF9D2E;
+            color: #FF9D2E !important;
+            animation: otg-roadmap-pulse 2.8s ease-in-out infinite;
+        }}
+
+        .otg-mode-link.otg-mode-roadmap:hover,
+        .otg-mode-link.otg-mode-roadmap.active {{
+            border-color: #FF9D2E;
+            background: #FF9D2E;
+            color: #000 !important;
+            box-shadow: 0 0 14px rgba(255, 157, 46, 0.45);
+        }}
+
+        @keyframes otg-roadmap-pulse {{
+            0%, 100% {{ box-shadow: 0 0 0 rgba(255, 157, 46, 0); }}
+            50% {{ box-shadow: 0 0 12px rgba(255, 157, 46, 0.38); }}
+        }}
+
+        @media (prefers-reduced-motion: reduce) {{
+            .otg-mode-link.otg-mode-roadmap {{ animation: none; }}
+        }}
+
         .otg-mode-roadmap-disabled {{
-            appearance: none;
-            -webkit-appearance: none;
             border: 2px solid rgba(200, 200, 205, 0.45);
             background: var(--otg-bg-secondary);
             color: var(--otg-text-secondary) !important;
@@ -114,17 +136,6 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
             text-align: center;
         }}
 
-        .otg-mode-link.otg-mode-roadmap-disabled:hover,
-        .otg-mode-link.otg-mode-roadmap-disabled:focus,
-        .otg-mode-link.otg-mode-roadmap-disabled:focus-visible {{
-            border-color: rgba(200, 200, 205, 0.45);
-            background: var(--otg-bg-secondary);
-            color: var(--otg-text-secondary) !important;
-            box-shadow: none;
-            outline: none;
-            text-decoration: none !important;
-        }}
-
         </style>
 
         <div class="otg-mode-switch">
@@ -132,7 +143,7 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
             <a class="otg-mode-link {market_class}" href="?mode=market" target="_self">MARKET ANALYTICS</a>
             <a class="otg-mode-link {top_items_class}" href="?mode=top_items" target="_self">TOP ITEMS ANALYTICS</a>
             <a class="otg-mode-link {trader_class}" href="?mode=trader" target="_self">TOP TRADERS ANALYTICS</a>
-            <button type="button" class="otg-mode-link otg-mode-roadmap-disabled" disabled aria-disabled="true" tabindex="-1">ROADMAP</button>
+            <a class="otg-mode-link otg-mode-roadmap {roadmap_class}" href="?mode=roadmap" target="_self">ROADMAP</a>
         </div>
     """, unsafe_allow_html=True)
     
