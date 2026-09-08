@@ -17,7 +17,7 @@ import streamlit as st
 from typing import Literal
 
 
-def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader', 'roadmap']:
+def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
     """
     technical diagnostic text mode switcher technical diagnostic text sidebar technical diagnostic text technical diagnostic text HTML anchor links.
     
@@ -41,7 +41,7 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader', 'ro
         current_mode = current_mode[0]
     
     # Ensure valid mode (whitelist)
-    if current_mode not in ['item', 'market', 'top_items', 'trader', 'roadmap']:
+    if current_mode not in ['item', 'market', 'top_items', 'trader']:
         current_mode = 'item'
     
     # Determine active classes
@@ -49,7 +49,6 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader', 'ro
     market_class = "active" if current_mode == "market" else ""
     top_items_class = "active" if current_mode == "top_items" else ""
     trader_class = "active" if current_mode == "trader" else ""
-    roadmap_class = "active" if current_mode == "roadmap" else ""
     
     # Render mode switch using styled HTML anchor links with custom CSS
     st.sidebar.markdown(f"""
@@ -121,21 +120,6 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader', 'ro
             .otg-mode-link.otg-mode-roadmap {{ animation: none; }}
         }}
 
-        .otg-mode-roadmap-disabled {{
-            border: 2px solid rgba(200, 200, 205, 0.45);
-            background: var(--otg-bg-secondary);
-            color: var(--otg-text-secondary) !important;
-            font-family: 'PP Supply Sans', 'Space Mono', monospace, sans-serif;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            line-height: normal;
-            text-transform: uppercase;
-            cursor: default;
-            transition: none;
-            text-align: center;
-        }}
-
         </style>
 
         <div class="otg-mode-switch">
@@ -143,7 +127,7 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader', 'ro
             <a class="otg-mode-link {market_class}" href="?mode=market" target="_self">MARKET ANALYTICS</a>
             <a class="otg-mode-link {top_items_class}" href="?mode=top_items" target="_self">TOP ITEMS ANALYTICS</a>
             <a class="otg-mode-link {trader_class}" href="?mode=trader" target="_self">TOP TRADERS ANALYTICS</a>
-            <a class="otg-mode-link otg-mode-roadmap {roadmap_class}" href="?mode=roadmap" target="_self">ROADMAP</a>
+            <a class="otg-mode-link otg-mode-roadmap" href="/?mode=roadmap" target="_self">ROADMAP</a>
         </div>
     """, unsafe_allow_html=True)
     
