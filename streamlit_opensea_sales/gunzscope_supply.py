@@ -11,6 +11,7 @@ import streamlit as st
 DATA_DIR = Path(__file__).resolve().parent / "data_opensea_sales"
 SNAPSHOT_PATH = DATA_DIR / "gunzscope_supply_snapshot.json"
 V2_SHADOW_PATH = DATA_DIR / "gunzscope_supply_snapshot_v2_shadow.json"
+V3_PROVIDER_PATH = DATA_DIR / "gunzscope_supply_snapshot_v3_provider.json"
 ATTRIBUTION = {"text": "Data by GUNZscope", "url": "https://gunzscope.xyz", "logoUrl": "https://gunzscope.xyz/brand/gunzscope-mark-mono.svg"}
 VALID_STATUSES = {"ok", "stale", "unavailable", "unmapped"}
 
@@ -108,12 +109,62 @@ def read_shadow_v2():
     return load_shadow_v2(str(V2_SHADOW_PATH), mtime)
 
 
+def validate_snapshot_v3(payload):
+    if not isinstance(payload, dict) or payload.get("schema_version") != 3 or payload.get("source") != "gunzscope":
+        raise ValueError("invalid v3 header")
+    scope = payload.get("provider_scope")
+    if not isinstance(scope, Mapping) or scope.get("exclude_zero") is not True or scope.get("exclude_base") is not True or scope.get("sort") != "activeMints" or scope.get("order") != "asc":
+        raise ValueError("invalid v3 provider scope")
+    providers, mappings = payload.get("provider_items"), payload.get("catalog_mappings")
+    if not isinstance(providers, dict) or not isinstance(mappings, dict) or not isinstance(payload.get("provider_item_conflicts", []), list):
+        raise ValueError("invalid v3 maps")
+    for key, record in providers.items():
+        if not isinstance(key, str) or not isinstance(record, Mapping) or record.get("provider_item_id") != key:
+            raise ValueError("invalid v3 provider identity")
+        if not isinstance(record.get("provider_item_name"), str) or not record["provider_item_name"].strip() or not isinstance(record.get("provider_rarity"), str) or not record["provider_rarity"].strip():
+            raise ValueError("invalid v3 provider fields")
+        if not isinstance(record.get("ranking_eligible"), bool):
+            raise ValueError("invalid v3 ranking eligibility")
+        if record["ranking_eligible"] and not valid_supply(record.get("raw_active_mints")):
+            raise ValueError("invalid v3 supply")
+    statuses = {"DIRECT_CURRENT", "RETIRED_RARITY_RESOLVED", "AMBIGUOUS_CURRENT", "UNAVAILABLE", "INVALID"}
+    for mapping in mappings.values():
+        if not isinstance(mapping, Mapping) or mapping.get("mapping_status") not in statuses:
+            raise ValueError("invalid v3 catalog mapping")
+        if mapping.get("mapping_status") in {"DIRECT_CURRENT", "RETIRED_RARITY_RESOLVED"} and mapping.get("provider_item_id") not in providers:
+            raise ValueError("dangling v3 mapping")
+    return payload
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_snapshot_v3(path: str = str(V3_PROVIDER_PATH), mtime: float | None = None):
+    del mtime
+    try:
+        return validate_snapshot_v3(json.loads(Path(path).read_text(encoding="utf-8")))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def read_snapshot_v3():
+    try:
+        mtime = V3_PROVIDER_PATH.stat().st_mtime
+    except OSError:
+        return None
+    return load_snapshot_v3(str(V3_PROVIDER_PATH), mtime)
+
+
 def selected_supply_source():
-    return "v2" if os.getenv("GUNZSCOPE_SUPPLY_SOURCE", "").strip().lower() == "v2" and read_shadow_v2() else "v1"
+    requested = os.getenv("GUNZSCOPE_SUPPLY_SOURCE", "").strip().lower()
+    if requested == "v3" and read_snapshot_v3():
+        return "v3"
+    if requested == "v2" and read_shadow_v2():
+        return "v2"
+    return "v1"
 
 
 def read_serving_snapshot():
-    return read_shadow_v2() if selected_supply_source() == "v2" else read_current_snapshot()
+    source = selected_supply_source()
+    return read_snapshot_v3() if source == "v3" else (read_shadow_v2() if source == "v2" else read_current_snapshot())
 
 
 def _v2_provider_for_item(item_key: str, snapshot):
@@ -125,9 +176,9 @@ def _v2_provider_for_item(item_key: str, snapshot):
 
 def get_item_supply(item_key: str, snapshot=None):
     data = snapshot if snapshot is not None else read_serving_snapshot()
-    if data and data.get("schema_version") == 2:
+    if data and data.get("schema_version") in {2, 3}:
         record = _v2_provider_for_item(item_key, data)
-        return {"supply": record["raw_active_mints"], "status": "ok", "provider_item_id": record["provider_item_id"]} if record else None
+        return {"supply": record["raw_active_mints"], "status": "ok", "provider_item_id": record["provider_item_id"]} if record and (data.get("schema_version") == 2 or record.get("status") == "ok") and valid_supply(record.get("raw_active_mints")) else None
     record = data.get("items", {}).get(item_key) if data else None
     if isinstance(record, dict) and record.get("status") in {"ok", "stale"} and valid_supply(record.get("supply")):
         return record
@@ -142,6 +193,13 @@ def dense_supply_ranks(snapshot):
         if not isinstance(providers, Mapping):
             return {}
         valid = [(key, record["raw_active_mints"]) for key, record in providers.items() if isinstance(record, Mapping) and record.get("status") == "ok" and valid_supply(record.get("raw_active_mints"))]
+        rank_by_value = {value: index + 1 for index, value in enumerate(sorted({value for _, value in valid}))}
+        return {key: rank_by_value[value] for key, value in valid}
+    if snapshot.get("schema_version") == 3:
+        providers = snapshot.get("provider_items")
+        if not isinstance(providers, Mapping):
+            return {}
+        valid = [(key, record["raw_active_mints"]) for key, record in providers.items() if isinstance(record, Mapping) and record.get("ranking_eligible") is True and valid_supply(record.get("raw_active_mints"))]
         rank_by_value = {value: index + 1 for index, value in enumerate(sorted({value for _, value in valid}))}
         return {key: rank_by_value[value] for key, value in valid}
     valid = [(key, record["supply"]) for key, record in snapshot["items"].items() if isinstance(record, Mapping) and record.get("status") in {"ok", "stale"} and valid_supply(record.get("supply"))]
@@ -170,10 +228,27 @@ def build_v2_canonical_index(snapshot):
     return {"canonical_by_provider_id": canonical, "aliases": aliases, "ambiguous_provider_ids": ambiguous}
 
 
+def build_v3_canonical_index(snapshot):
+    """Build the safe canonical local mapping for provider-wide rows."""
+    groups = {}
+    for item_key, mapping in (snapshot or {}).get("catalog_mappings", {}).items():
+        if mapping.get("mapping_status") in {"DIRECT_CURRENT", "RETIRED_RARITY_RESOLVED"}:
+            groups.setdefault(mapping.get("provider_item_id"), []).append((item_key, mapping.get("mapping_status")))
+    canonical, aliases, ambiguous = {}, {}, set()
+    for pid, entries in groups.items():
+        direct = [key for key, status in entries if status == "DIRECT_CURRENT"]
+        if len(direct) > 1 or (not direct and len(entries) != 1):
+            ambiguous.add(pid); continue
+        chosen = direct[0] if direct else entries[0][0]
+        canonical[pid] = chosen
+        aliases[pid] = [key for key, _ in entries if key != chosen]
+    return {"canonical_by_provider_id": canonical, "aliases": aliases, "ambiguous_provider_ids": ambiguous}
+
+
 def get_item_supply_with_rank(item_key: str, snapshot=None):
     data = snapshot if snapshot is not None else read_serving_snapshot()
     rank = dense_supply_ranks(data).get(item_key)
-    if data and data.get("schema_version") == 2:
+    if data and data.get("schema_version") in {2, 3}:
         mapping = data.get("catalog_mappings", {}).get(item_key, {})
         provider_id = mapping.get("provider_item_id")
         rank = dense_supply_ranks(data).get(provider_id)

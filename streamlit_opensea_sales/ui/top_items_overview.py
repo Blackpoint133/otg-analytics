@@ -24,7 +24,7 @@ import textwrap
 import market_data_access as mda
 from data_access import load_items_index
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
-from gunzscope_supply import build_v2_canonical_index, dense_supply_ranks, read_current_snapshot, read_serving_snapshot, selected_supply_source, valid_supply
+from gunzscope_supply import build_v2_canonical_index, build_v3_canonical_index, dense_supply_ranks, read_current_snapshot, read_serving_snapshot, read_snapshot_v3, selected_supply_source, valid_supply
 from item_class_data import UNCLASSIFIED, class_mapping, read_item_class_snapshot
 
 
@@ -141,6 +141,24 @@ def _format_rank(value) -> str:
 
 def _load_global_total_supply_candidates() -> Optional[pd.DataFrame]:
     """Load the complete tracked OTG catalog for global Supply ranking."""
+    if selected_supply_source() == 'v3':
+        data = read_snapshot_v3()
+        if not data:
+            return None
+        mappings = data.get('catalog_mappings', {})
+        canonical_by_pid = build_v3_canonical_index(data)['canonical_by_provider_id']
+        rows = []
+        local, diagnostics = load_items_index()
+        for pid, record in data.get('provider_items', {}).items():
+            if record.get('ranking_eligible') is not True:
+                continue
+            item_key = canonical_by_pid.get(pid, pd.NA)
+            local_record = local.get(item_key, {}) if pd.notna(item_key) else {}
+            rows.append({'item_key': item_key, 'item_name': record.get('provider_item_name', ''),
+                         'rarity': record.get('provider_rarity', ''),
+                         'image_url': local_record.get('image_url') or record.get('provider_image_url', ''),
+                         '_provider_item_id': pid})
+        return pd.DataFrame(rows)
     items_index, diagnostics = load_items_index()
     if not diagnostics.success or not items_index:
         return None
@@ -243,7 +261,20 @@ def _attach_supply_metadata(top_items: pd.DataFrame, snapshot=None) -> pd.DataFr
     records = data.get('items', {}) if isinstance(data, dict) else {}
     keys = result.get('_canonical_item_key', result.get('item_key', pd.Series(pd.NA, index=result.index)))
 
-    if data and data.get('schema_version') == 2:
+    if data and data.get('schema_version') in {2, 3}:
+        if data.get('schema_version') == 3:
+            v3_index = build_v3_canonical_index(data)
+            canonical = v3_index['canonical_by_provider_id']
+            ambiguous = v3_index['ambiguous_provider_ids']
+            provider_keys = list(result.get('_provider_item_id', pd.Series(pd.NA, index=result.index)))
+            provider_keys = [pid if (pd.isna(key) or (pid in canonical and pid not in ambiguous and canonical.get(pid) == key)) else pd.NA for pid, key in zip(provider_keys, keys)]
+            if all(pd.isna(value) for value in provider_keys):
+                mappings = data.get('catalog_mappings', {})
+                provider_keys = [mappings.get(key, {}).get('provider_item_id') if pd.notna(key) and mappings.get(key, {}).get('mapping_status') in {'DIRECT_CURRENT', 'RETIRED_RARITY_RESOLVED'} else None for key in keys]
+                provider_keys = [pid if pid in canonical and pid not in ambiguous and canonical.get(pid) == key else pd.NA for pid, key in zip(provider_keys, keys)]
+            result['_supply'] = [data.get('provider_items', {}).get(pid, {}).get('raw_active_mints', pd.NA) if isinstance(pid, str) else pd.NA for pid in provider_keys]
+            result['_supply_rank'] = [ranks.get(pid, pd.NA) if isinstance(pid, str) else pd.NA for pid in provider_keys]
+            return result
         mappings = data.get('catalog_mappings', {})
         canonical = build_v2_canonical_index(data)['canonical_by_provider_id']
         ambiguous = build_v2_canonical_index(data)['ambiguous_provider_ids']
@@ -662,7 +693,7 @@ def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False,
         
         image_url = row.get('image_url', '')
         
-        item_url = _build_item_mode_url(item_name, rarity)
+        item_url = _build_item_mode_url(item_name, rarity) if pd.notna(row.get('item_key')) else None
         
         # Escape HTML attributes
         item_name_safe = escape(item_name, quote=True)
@@ -814,18 +845,14 @@ def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False,
         metrics_html += '</div>'
         
         # Build card HTML wrapped in anchor link
-        card_html = (
-            f'<a href="{item_url}" class="top-items-card-link">'
-            '<div class="top-items-card">'
-            f'<div class="top-items-card-rank">{display_rank}</div>'
-            f'<div class="top-items-card-image-container">{image_html}</div>'
-            f'<div class="top-items-card-name">{item_name_safe}</div>'
-            f'<div class="top-items-card-rarity" style="color: {rarity_color};">{rarity_safe}</div>'
-            f'{metrics_html}'
-            f'{volume_section_html}'
-            '</div>'
-            '</a>'
-        )
+        card_open = f'<a href="{item_url}" class="top-items-card-link">' if item_url else '<div class="top-items-card-link">'
+        card_close = '</a>' if item_url else '</div>'
+        card_html = ''.join((card_open, '<div class="top-items-card">',
+            f'<div class="top-items-card-rank">{display_rank}</div>',
+            f'<div class="top-items-card-image-container">{image_html}</div>',
+            f'<div class="top-items-card-name">{item_name_safe}</div>',
+            f'<div class="top-items-card-rarity" style="color: {rarity_color};">{rarity_safe}</div>',
+            f'{metrics_html}', f'{volume_section_html}', '</div>', card_close))
         
         cards_html_parts.append(card_html)
     
@@ -895,10 +922,10 @@ def _render_top_items_chart_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         image_url = row.get('image_url', '')
         bar_width = bar_widths[idx]
         value_str = formatted_values[idx]
-        item_url = _build_item_mode_url(item_name, rarity)
+        item_url = _build_item_mode_url(item_name, rarity) if pd.notna(row.get('item_key')) else None
         item_name_safe = escape(item_name, quote=True)
         rarity_safe = escape(rarity, quote=True)
-        item_url_safe = escape(item_url, quote=True)
+        item_url_safe = escape(item_url, quote=True) if item_url else ''
         
         # Get rarity color
         rarity_color, _ = get_rarity_style(rarity)
@@ -907,12 +934,13 @@ def _render_top_items_chart_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         normalized_image_url = _normalize_top_item_image_url(image_url)
         if normalized_image_url:
             safe_image_url = escape(normalized_image_url, quote=True)
-            thumbnail_html = f'<a href="{item_url_safe}" class="leaderboard-image-link"><img src="{safe_image_url}" alt="{item_name_safe}"></a>'
+            thumbnail_html = f'<a href="{item_url_safe}" class="leaderboard-image-link"><img src="{safe_image_url}" alt="{item_name_safe}"></a>' if item_url else f'<span class="leaderboard-image-link"><img src="{safe_image_url}" alt="{item_name_safe}"></span>'
         else:
-            thumbnail_html = f'<a href="{item_url_safe}" class="leaderboard-image-link">-</a>'
+            thumbnail_html = f'<a href="{item_url_safe}" class="leaderboard-image-link">-</a>' if item_url else '<span class="leaderboard-image-link">-</span>'
         
         # Build row
-        row_html = f'<div class="leaderboard-row"><div class="leaderboard-thumbnail">{thumbnail_html}</div><div class="leaderboard-info"><div class="leaderboard-rank">{display_rank}</div><a href="{item_url_safe}" class="leaderboard-item-link"><div class="leaderboard-item-name">{item_name_safe}</div></a><div class="leaderboard-rarity" style="color: {rarity_color};">{rarity_safe}</div></div><div class="leaderboard-bar-container"><div class="leaderboard-bar"><div class="leaderboard-bar-fill" style="width: {bar_width:.1f}%;"></div></div><div class="leaderboard-value">{value_str}</div></div></div>'
+        name_html = f'<a href="{item_url_safe}" class="leaderboard-item-link"><div class="leaderboard-item-name">{item_name_safe}</div></a>' if item_url else f'<div class="leaderboard-item-name">{item_name_safe}</div>'
+        row_html = f'<div class="leaderboard-row"><div class="leaderboard-thumbnail">{thumbnail_html}</div><div class="leaderboard-info"><div class="leaderboard-rank">{display_rank}</div>{name_html}<div class="leaderboard-rarity" style="color: {rarity_color};">{rarity_safe}</div></div><div class="leaderboard-bar-container"><div class="leaderboard-bar"><div class="leaderboard-bar-fill" style="width: {bar_width:.1f}%;"></div></div><div class="leaderboard-value">{value_str}</div></div></div>'
         rows_html.append(row_html)
     
     # Build complete HTML with CSS
@@ -1108,8 +1136,8 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         display_rank = _format_rank(row.get('display_rank')) if ranking_mode == 'total_supply' else f"#{row.get('display_rank', row['rank'])}"
         item_name = str(row['item_name']).strip()
         rarity = str(row['rarity']).strip()
-        item_url = _build_item_mode_url(item_name, rarity)
-        item_url_safe = escape(item_url, quote=True)
+        item_url = _build_item_mode_url(item_name, rarity) if pd.notna(row.get('item_key')) else None
+        item_url_safe = escape(item_url, quote=True) if item_url else ''
         item_name_safe = escape(item_name, quote=True)
         
         # Normalize image URL
@@ -1122,7 +1150,7 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         # Build image cell
         if normalized_image_url:
             safe_image_url = escape(normalized_image_url, quote=True)
-            image_cell = f'<a href="{item_url_safe}" class="top-items-table-link"><img src="{safe_image_url}" alt="{item_name_safe}" style="max-width: 48px; max-height: 48px; object-fit: contain;"></a>'
+            image_cell = f'<a href="{item_url_safe}" class="top-items-table-link"><img src="{safe_image_url}" alt="{item_name_safe}" style="max-width: 48px; max-height: 48px; object-fit: contain;"></a>' if item_url else f'<span class="top-items-table-link"><img src="{safe_image_url}" alt="{item_name_safe}" style="max-width: 48px; max-height: 48px; object-fit: contain;"></span>'
         else:
             image_cell = ''
         
@@ -1157,10 +1185,11 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         supply_text = f"{int(total_supply):,}" if pd.notna(total_supply) and valid_supply(total_supply) else "N/A"
         supply_cells = f'<td>{supply_text}</td><td>{supply_rank}</td>'
 
+        item_name_cell = f'<a href="{item_url_safe}" class="top-items-table-link">{item_name_safe}</a>' if item_url else item_name_safe
         row_html = f'''<tr>
 <td>{display_rank}</td>
 <td style="text-align: center; padding: 4px;">{image_cell}</td>
-<td style="text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; max-width: 140px; word-break: break-word;"><a href="{item_url_safe}" class="top-items-table-link">{item_name_safe}</a></td>
+<td style="text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; max-width: 140px; word-break: break-word;">{item_name_cell}</td>
 <td style="text-transform: uppercase; letter-spacing: 0.3px; font-size: 10px; font-weight: 700; color: {rarity_color};">{escape(rarity, quote=True)}</td>
 <td>{market_strength_str}</td>
 <td>{liquidity_str}</td>

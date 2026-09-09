@@ -91,3 +91,57 @@ def fetch_item(name: str, rarity: str | None = None, *, session=None, timeout=DE
     if not isinstance(payload, Mapping) or not isinstance(payload.get("items"), list):
         raise GunzscopeError("GUNZscope item response has invalid shape")
     return payload
+
+
+def fetch_rankings(*, session=None, timeout=DEFAULT_TIMEOUT, max_attempts=3, sleep=time.sleep):
+    """Fetch the complete current nonzero, non-base provider universe."""
+    api_key = os.getenv("API_GUNZSCOPE", "").strip()
+    if not api_key:
+        raise GunzscopeError("API_GUNZSCOPE is not configured")
+    client = session or requests.Session()
+    headers = {"X-API-Key": api_key, "User-Agent": USER_AGENT}
+    rows, offset, seen_offsets = [], 0, set()
+    while True:
+        if offset in seen_offsets:
+            raise GunzscopeError("GUNZscope rankings pagination loop")
+        seen_offsets.add(offset)
+        params = {"sort": "activeMints", "order": "asc", "limit": 500,
+                  "offset": offset, "excludeZero": "true", "excludeBase": "true"}
+        last_error = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = client.get(BASE_URL + "/rankings", params=params, headers=headers, timeout=timeout)
+                if response.status_code == 429:
+                    if attempt == max_attempts:
+                        raise GunzscopeError("GUNZscope rate limit exceeded")
+                    sleep(_retry_after(response)); continue
+                if response.status_code >= 500:
+                    if attempt == max_attempts:
+                        raise GunzscopeError(f"GUNZscope server error HTTP {response.status_code}")
+                    sleep(min(2 ** (attempt - 1), 8)); continue
+                if response.status_code >= 400:
+                    raise GunzscopeError(f"GUNZscope request rejected HTTP {response.status_code}")
+                try:
+                    payload = response.json()
+                except ValueError as exc:
+                    raise GunzscopeError("GUNZscope returned malformed JSON") from exc
+                break
+            except (requests.Timeout, requests.ConnectionError) as exc:
+                last_error = exc
+                if attempt == max_attempts:
+                    raise GunzscopeError("GUNZscope network request failed") from exc
+                sleep(min(2 ** (attempt - 1), 8))
+        else:
+            raise GunzscopeError("GUNZscope rankings request failed") from last_error
+        if not isinstance(payload, Mapping) or not isinstance(payload.get("items"), list):
+            raise GunzscopeError("GUNZscope rankings response has invalid shape")
+        page = payload["items"]
+        rows.extend(page)
+        pagination = payload.get("pagination")
+        if not isinstance(pagination, Mapping) or not isinstance(pagination.get("hasMore"), bool):
+            raise GunzscopeError("GUNZscope rankings pagination is invalid")
+        if not pagination["hasMore"]:
+            return {"items": rows, "pagination": {"pages": len(seen_offsets), "total": len(rows)}}
+        if not page:
+            raise GunzscopeError("GUNZscope rankings pagination made no progress")
+        offset += len(page)
