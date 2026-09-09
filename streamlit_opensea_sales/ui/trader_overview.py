@@ -178,6 +178,8 @@ def _render_metric_guide() -> None:
 
 def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None, guide_open: bool = False) -> None:
     payload = load_current_snapshot()
+    if guide_open:
+        _render_metric_guide()
     st.markdown(f"""
         <style>
         .trader-ranking-header {{ margin-bottom:16px; }}
@@ -204,8 +206,6 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
             <div class="trader-ranking-context">SORT BY {html.escape(sort_by)} · {'USD' if show_usd else 'GUN'}</div>
         </div>
     """, unsafe_allow_html=True)
-    if guide_open:
-        _render_metric_guide()
     if not payload:
         st.warning("Top Traders Analytics data is temporarily unavailable.")
         return

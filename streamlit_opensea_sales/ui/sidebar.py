@@ -327,6 +327,8 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     if 'item_show_trend_line' not in st.session_state:
         st.session_state.item_show_trend_line = False
 
+    from ui.section_guide import section_guide_button_css
+    st.sidebar.html(section_guide_button_css("item"))
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
     show_usd = st.sidebar.checkbox('USD Price', key='item_show_usd')
@@ -389,6 +391,8 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
     Returns:
         dict: technical diagnostic text technical diagnostic text show_usd, show_token_price
     """
+    from ui.section_guide import section_guide_button_css
+    st.sidebar.html(section_guide_button_css("market"))
     st.sidebar.header("Display Options")
     
     if 'market_show_usd' not in st.session_state:
@@ -644,6 +648,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         </style>
     """)
 
+    from ui.section_guide import section_guide_button_css
+    st.sidebar.html(section_guide_button_css("top_items"))
     st.sidebar.header("Display Options")
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
     st.sidebar.markdown(
@@ -827,7 +833,8 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     payload = load_current_snapshot()
     rows = payload.get('wallets', []) if payload else []
     wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
-    st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
+    from ui.section_guide import section_guide_button_css
+    st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS + section_guide_button_css("trader"))
     st.sidebar.header("Display Options")
     st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
     show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
