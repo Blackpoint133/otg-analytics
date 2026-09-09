@@ -9,9 +9,12 @@ GUIDE = (ROOT / "streamlit_opensea_sales" / "ui" / "section_guide.py").read_text
 
 def test_trader_guide_is_sidebar_scoped_and_uses_stable_state_key():
     assert 'render_section_guide_button("trader")' in SIDEBAR
+    assert SIDEBAR.index('otg-sidebar-label">GUIDE') < SIDEBAR.index('render_section_guide_button("trader")')
     assert 'state_key = f"{section_key}_guide_open"' in GUIDE
     assert 'control_key = f"{section_key}_guide"' in GUIDE
     assert 'label: str = "GUIDE"' in GUIDE
+    assert 'type="primary" if is_open else "secondary"' in GUIDE
+    assert "background:#FF003A!important" in GUIDE
 
 
 def test_old_main_metric_trigger_is_removed_and_content_is_main_area():

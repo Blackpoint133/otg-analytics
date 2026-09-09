@@ -853,6 +853,7 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
                 st.session_state.trader_page = 1
                 st.rerun()
     from ui.section_guide import render_section_guide_button
+    st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
     guide_open = render_section_guide_button("trader")
     selected_value = "" if selected is None else str(selected).strip()
     effective = None if not selected_value or selected_value == "ALL TRADERS" else normalize_wallet(selected_value)

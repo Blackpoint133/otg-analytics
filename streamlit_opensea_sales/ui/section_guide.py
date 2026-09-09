@@ -9,6 +9,7 @@ def render_section_guide_button(section_key: str, *, label: str = "GUIDE") -> bo
     """Render a section-scoped sidebar guide toggle and return its open state."""
     state_key = f"{section_key}_guide_open"
     control_key = f"{section_key}_guide"
+    is_open = bool(st.session_state.get(state_key, False))
     st.sidebar.markdown(
         f"""<style>
         .st-key-{control_key} button {{
@@ -17,10 +18,11 @@ def render_section_guide_button(section_key: str, *, label: str = "GUIDE") -> bo
             font-size:10px!important;letter-spacing:.08em!important;
         }}
         .st-key-{control_key} button:hover {{background:#181D27!important;border-color:#FF003A!important;}}
+        .st-key-{control_key} button[data-testid="stBaseButton-primary"] {{background:#FF003A!important;color:#000!important;border-color:#FF003A!important;}}
         </style>""",
         unsafe_allow_html=True,
     )
-    if st.sidebar.button(label, key=control_key, use_container_width=True, type="secondary"):
+    if st.sidebar.button(label, key=control_key, use_container_width=True, type="primary" if is_open else "secondary"):
         st.session_state[state_key] = not st.session_state.get(state_key, False)
         st.rerun()
     return bool(st.session_state.get(state_key, False))
