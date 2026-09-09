@@ -260,20 +260,20 @@ def test_image_renderer_paths_use_shared_image_url_helper():
     assert "'image_url'," in source
 
 
-def test_bridge_rejects_duplicate_catalog_identity():
+def test_bridge_preserves_duplicate_catalog_identity_without_enrichment():
     catalog = pd.DataFrame([
         {"item_key": "a", "item_name": "A", "rarity": "Common"},
         {"item_key": "b", "item_name": "A", "rarity": "Common"},
     ])
-    with pytest.raises(ValueError, match="duplicate catalog"):
-        _enrich_with_all_time_market_metrics(catalog, pd.DataFrame([market_row("A")] ))
+    result = _enrich_with_all_time_market_metrics(catalog, pd.DataFrame([market_row("A")]))
+    assert len(result) == 2 and result["volume_gun"].isna().all()
 
 
-def test_bridge_rejects_duplicate_market_identity():
+def test_bridge_fails_safe_on_duplicate_market_identity():
     catalog = pd.DataFrame([{"item_key": "a", "item_name": "A", "rarity": "Common"}])
     market = pd.DataFrame([market_row("A"), market_row("A")])
-    with pytest.raises(ValueError, match="duplicate market"):
-        _enrich_with_all_time_market_metrics(catalog, market)
+    result = _enrich_with_all_time_market_metrics(catalog, market)
+    assert len(result) == 1 and result["volume_gun"].isna().all()
 
 
 def test_missing_market_row_is_preserved_for_supply_display():

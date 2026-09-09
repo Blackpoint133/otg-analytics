@@ -200,37 +200,27 @@ def _catalog_identity_map(catalog: pd.DataFrame) -> dict:
 
 
 def _enrich_with_all_time_market_metrics(catalog_rows: pd.DataFrame, market_rows: Optional[pd.DataFrame]) -> pd.DataFrame:
-    """Join all-time market metrics by exact name+rarity, never raw item_key."""
+    """Join unambiguous market metrics without collapsing provider identities."""
     result = catalog_rows.copy()
-    if market_rows is None:
-        for column in _MARKET_METRIC_COLUMNS:
-            if column not in result.columns:
-                result[column] = pd.NA
+    for column in _MARKET_METRIC_COLUMNS:
+        if column not in result.columns:
+            result[column] = pd.NA
+    if market_rows is None or not {'item_name', 'rarity'}.issubset(market_rows.columns):
         return result
-    required = {'item_name', 'rarity'}
-    if not required.issubset(market_rows.columns):
-        raise ValueError("market identity columns are missing")
+    provider_counts = result.groupby(['item_name', 'rarity'], dropna=False).size().to_dict()
     market = market_rows.copy()
     market['_identity'] = list(zip(market['item_name'], market['rarity']))
-    if market['_identity'].duplicated().any():
-        raise ValueError("duplicate market (item_name, rarity) identity")
-    catalog = result.copy()
-    catalog['_identity'] = list(zip(catalog['item_name'], catalog['rarity']))
-    if catalog['_identity'].duplicated().any():
-        raise ValueError("duplicate catalog (item_name, rarity) identity")
+    market_counts = market['_identity'].value_counts(dropna=False).to_dict()
     available = [column for column in _MARKET_METRIC_COLUMNS if column in market.columns]
-    joined = catalog.merge(
-        market[['_identity', *available]], on='_identity', how='left',
-        validate='one_to_one', suffixes=('', '_market'),
-    )
-    for column in _MARKET_METRIC_COLUMNS:
-        market_column = f'{column}_market'
-        if market_column in joined.columns:
-            joined[column] = joined[market_column]
-            joined = joined.drop(columns=[market_column])
-        elif column not in joined.columns:
-            joined[column] = pd.NA
-    return joined.drop(columns=['_identity'])
+    unique_market = {identity: row for identity, row in market.set_index('_identity').iterrows()
+                     if provider_counts.get(identity, 0) == 1 and market_counts.get(identity, 0) == 1}
+    for index, row in result.iterrows():
+        identity = (row.get('item_name'), row.get('rarity'))
+        values = unique_market.get(identity)
+        if values is not None:
+            for column in available:
+                result.at[index, column] = values[column]
+    return result
 
 
 def _attach_canonical_item_keys(top_items: pd.DataFrame) -> pd.DataFrame:
