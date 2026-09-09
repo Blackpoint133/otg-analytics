@@ -24,7 +24,7 @@ import textwrap
 import market_data_access as mda
 from data_access import load_items_index
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
-from gunzscope_supply import build_v2_canonical_index, build_v3_canonical_index, dense_supply_ranks, read_current_snapshot, read_serving_snapshot, read_snapshot_v3, selected_supply_source, valid_supply
+from gunzscope_supply import build_v2_canonical_index, build_v3_canonical_index, build_v3_supply_presentation_index, dense_supply_ranks, read_current_snapshot, read_serving_snapshot, read_snapshot_v3, selected_supply_source, valid_supply
 from item_class_data import UNCLASSIFIED, class_mapping, read_item_class_snapshot
 
 
@@ -149,15 +149,21 @@ def _load_global_total_supply_candidates() -> Optional[pd.DataFrame]:
         canonical_by_pid = build_v3_canonical_index(data)['canonical_by_provider_id']
         rows = []
         local, diagnostics = load_items_index()
+        presentation = build_v3_supply_presentation_index(data)
         for pid, record in data.get('provider_items', {}).items():
             if record.get('ranking_eligible') is not True:
                 continue
+            canonical_pid = presentation['canonical_by_member_provider_id'].get(pid, pid)
+            if pid in presentation['suppressed_provider_ids']:
+                continue
+            record = dict(record)
+            record['raw_active_mints'] = presentation['effective_supply_by_canonical_provider_id'].get(canonical_pid, record.get('raw_active_mints'))
             item_key = canonical_by_pid.get(pid, pd.NA)
             local_record = local.get(item_key, {}) if pd.notna(item_key) else {}
             rows.append({'item_key': item_key, 'item_name': record.get('provider_item_name', ''),
                          'rarity': record.get('provider_rarity', ''),
                          'image_url': local_record.get('image_url') or record.get('provider_image_url', ''),
-                         '_provider_item_id': pid})
+                         '_provider_item_id': canonical_pid})
         return pd.DataFrame(rows)
     items_index, diagnostics = load_items_index()
     if not diagnostics.success or not items_index:
@@ -262,8 +268,9 @@ def _attach_supply_metadata(top_items: pd.DataFrame, snapshot=None) -> pd.DataFr
                 mappings = data.get('catalog_mappings', {})
                 provider_keys = [mappings.get(key, {}).get('provider_item_id') if pd.notna(key) and mappings.get(key, {}).get('mapping_status') in {'DIRECT_CURRENT', 'RETIRED_RARITY_RESOLVED'} else None for key in keys]
                 provider_keys = [pid if pid in canonical and pid not in ambiguous and canonical.get(pid) == key else pd.NA for pid, key in zip(provider_keys, keys)]
-            result['_supply'] = [data.get('provider_items', {}).get(pid, {}).get('raw_active_mints', pd.NA) if isinstance(pid, str) else pd.NA for pid in provider_keys]
-            result['_supply_rank'] = [ranks.get(pid, pd.NA) if isinstance(pid, str) else pd.NA for pid in provider_keys]
+            presentation = build_v3_supply_presentation_index(data)
+            result['_supply'] = [presentation['effective_supply_by_canonical_provider_id'].get(presentation['canonical_by_member_provider_id'].get(pid, pid), pd.NA) if isinstance(pid, str) else pd.NA for pid in provider_keys]
+            result['_supply_rank'] = [ranks.get(presentation['canonical_by_member_provider_id'].get(pid, pid), pd.NA) if isinstance(pid, str) else pd.NA for pid in provider_keys]
             return result
         mappings = data.get('catalog_mappings', {})
         canonical = build_v2_canonical_index(data)['canonical_by_provider_id']

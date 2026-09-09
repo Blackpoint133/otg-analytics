@@ -12,6 +12,7 @@ DATA_DIR = Path(__file__).resolve().parent / "data_opensea_sales"
 SNAPSHOT_PATH = DATA_DIR / "gunzscope_supply_snapshot.json"
 V2_SHADOW_PATH = DATA_DIR / "gunzscope_supply_snapshot_v2_shadow.json"
 V3_PROVIDER_PATH = DATA_DIR / "gunzscope_supply_snapshot_v3_provider.json"
+SUPPLY_PRESENTATION_OVERRIDES_PATH = Path(__file__).resolve().parent / "config" / "supply_presentation_overrides.json"
 ATTRIBUTION = {"text": "Data by GUNZscope", "url": "https://gunzscope.xyz", "logoUrl": "https://gunzscope.xyz/brand/gunzscope-mark-mono.svg"}
 VALID_STATUSES = {"ok", "stale", "unavailable", "unmapped"}
 
@@ -32,6 +33,57 @@ def provider_lookup_pair(display_name: Any, rarity: Any) -> tuple[str, str]:
 
 def valid_supply(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _validate_supply_presentation_config(payload):
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1 or payload.get("purpose") != "opensea_sales presentation-only Supply canonicalization":
+        raise ValueError("invalid Supply presentation config")
+    groups, seen, result = payload.get("rename_groups"), set(), {}
+    if not isinstance(groups, dict):
+        raise ValueError("invalid Supply presentation groups")
+    for name, group in groups.items():
+        canonical, members = (group.get("canonical_provider_item_id"), group.get("member_provider_item_ids")) if isinstance(group, dict) else (None, None)
+        if not isinstance(name, str) or not name.strip() or not isinstance(canonical, str) or not canonical.strip() or not isinstance(members, list) or len(members) < 2 or canonical not in members or group.get("strategy") != "sum_raw_supply" or any(not isinstance(pid, str) or not pid.strip() for pid in members) or len(set(members)) != len(members) or seen.intersection(members) or ("reason" in group and not isinstance(group["reason"], str)):
+            raise ValueError("invalid Supply presentation group")
+        seen.update(members)
+        result[name] = {"canonical_provider_item_id": canonical, "member_provider_item_ids": tuple(members), "strategy": "sum_raw_supply"}
+    return result
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_supply_presentation_config(path: str = str(SUPPLY_PRESENTATION_OVERRIDES_PATH), mtime: float | None = None):
+    del mtime
+    try:
+        return _validate_supply_presentation_config(json.loads(Path(path).read_text(encoding="utf-8")))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return {}
+
+
+def read_supply_presentation_config():
+    try:
+        mtime = SUPPLY_PRESENTATION_OVERRIDES_PATH.stat().st_mtime
+    except OSError:
+        return {}
+    return load_supply_presentation_config(str(SUPPLY_PRESENTATION_OVERRIDES_PATH), mtime)
+
+
+def build_v3_supply_presentation_index(snapshot, overrides=None):
+    providers = snapshot.get("provider_items", {}) if isinstance(snapshot, dict) else {}
+    groups = read_supply_presentation_config() if overrides is None else _validate_supply_presentation_config(overrides)
+    canonical_by_member, suppressed, effective, members_by_canonical, invalid = {}, set(), {}, {}, set()
+    for group in groups.values():
+        members = group["member_provider_item_ids"]; canonical = group["canonical_provider_item_id"]
+        if not all(pid in providers and providers[pid].get("ranking_eligible") is True and valid_supply(providers[pid].get("raw_active_mints")) for pid in members):
+            invalid.add(canonical); continue
+        members_by_canonical[canonical] = members
+        effective[canonical] = sum(providers[pid]["raw_active_mints"] for pid in members)
+        for pid in members:
+            canonical_by_member[pid] = canonical
+            if pid != canonical: suppressed.add(pid)
+    for pid, record in providers.items():
+        if record.get("ranking_eligible") is True and pid not in canonical_by_member:
+            canonical_by_member[pid] = pid; effective[pid] = record.get("raw_active_mints"); members_by_canonical[pid] = (pid,)
+    return {"canonical_by_member_provider_id": canonical_by_member, "suppressed_provider_ids": suppressed, "effective_supply_by_canonical_provider_id": effective, "members_by_canonical_provider_id": members_by_canonical, "invalid_groups": invalid}
 
 
 def validate_snapshot(payload: Any) -> dict[str, Any]:
@@ -184,7 +236,14 @@ def get_item_supply(item_key: str, snapshot=None):
     data = snapshot if snapshot is not None else read_serving_snapshot()
     if data and data.get("schema_version") in {2, 3}:
         record = _v2_provider_for_item(item_key, data)
-        return {"supply": record["raw_active_mints"], "status": record.get("status", "ok"), "provider_item_id": record["provider_item_id"]} if record and (data.get("schema_version") == 2 or record.get("status") in {"ok", "catalog_only"}) and valid_supply(record.get("raw_active_mints")) else None
+        if record and (data.get("schema_version") == 2 or record.get("status") in {"ok", "catalog_only"}) and valid_supply(record.get("raw_active_mints")):
+            if data.get("schema_version") == 3:
+                idx = build_v3_supply_presentation_index(data)
+                pid = idx["canonical_by_member_provider_id"].get(record["provider_item_id"], record["provider_item_id"])
+                value = idx["effective_supply_by_canonical_provider_id"].get(pid, record["raw_active_mints"])
+                return {"supply": value, "status": record.get("status", "ok"), "provider_item_id": record["provider_item_id"]}
+            return {"supply": record["raw_active_mints"], "status": record.get("status", "ok"), "provider_item_id": record["provider_item_id"]}
+        return None
     record = data.get("items", {}).get(item_key) if data else None
     if isinstance(record, dict) and record.get("status") in {"ok", "stale"} and valid_supply(record.get("supply")):
         return record
@@ -205,7 +264,8 @@ def dense_supply_ranks(snapshot):
         providers = snapshot.get("provider_items")
         if not isinstance(providers, Mapping):
             return {}
-        valid = [(key, record["raw_active_mints"]) for key, record in providers.items() if isinstance(record, Mapping) and record.get("ranking_eligible") is True and valid_supply(record.get("raw_active_mints"))]
+        idx = build_v3_supply_presentation_index(snapshot)
+        valid = [(key, value) for key, value in idx["effective_supply_by_canonical_provider_id"].items() if valid_supply(value)]
         rank_by_value = {value: index + 1 for index, value in enumerate(sorted({value for _, value in valid}))}
         return {key: rank_by_value[value] for key, value in valid}
     valid = [(key, record["supply"]) for key, record in snapshot["items"].items() if isinstance(record, Mapping) and record.get("status") in {"ok", "stale"} and valid_supply(record.get("supply"))]
@@ -257,5 +317,7 @@ def get_item_supply_with_rank(item_key: str, snapshot=None):
     if data and data.get("schema_version") in {2, 3}:
         mapping = data.get("catalog_mappings", {}).get(item_key, {})
         provider_id = mapping.get("provider_item_id")
+        if data.get("schema_version") == 3:
+            provider_id = build_v3_supply_presentation_index(data)["canonical_by_member_provider_id"].get(provider_id, provider_id)
         rank = dense_supply_ranks(data).get(provider_id)
     return get_item_supply(item_key, data), rank

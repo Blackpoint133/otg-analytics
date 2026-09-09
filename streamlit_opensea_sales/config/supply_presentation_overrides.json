@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "purpose": "opensea_sales presentation-only Supply canonicalization",
+  "rename_groups": {
+    "red_ant_shorts": {
+      "canonical_provider_item_id": "cmmv915bi02pzw0omjj2dpp19",
+      "member_provider_item_ids": [
+        "cmmv915bi02pzw0omjj2dpp19",
+        "cmmv8jles00jbw0omw3xc16j4"
+      ],
+      "strategy": "sum_raw_supply",
+      "reason": "Explicit reviewed upstream rename: Red Ant Pants -> Red Ant Shorts"
+    }
+  }
+}
