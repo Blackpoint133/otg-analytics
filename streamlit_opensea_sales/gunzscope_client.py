@@ -30,7 +30,7 @@ def _validate_batch_payload(payload: Any) -> Mapping[str, Any]:
     return payload
 
 
-def fetch_batch(items: list[dict[str, str]], *, session=None, timeout=DEFAULT_TIMEOUT, max_attempts=3, sleep=time.sleep):
+def fetch_batch(items: list[dict[str, str]], *, session=None, timeout=DEFAULT_TIMEOUT, max_attempts=3, sleep=time.sleep, resolve_retired=False):
     if not 1 <= len(items) <= MAX_BATCH_ITEMS:
         raise ValueError("batch must contain 1..100 items")
     api_key = os.getenv("API_GUNZSCOPE", "").strip()
@@ -41,7 +41,8 @@ def fetch_batch(items: list[dict[str, str]], *, session=None, timeout=DEFAULT_TI
     last_error = None
     for attempt in range(1, max_attempts + 1):
         try:
-            response = client.post(BASE_URL + "/batch", json={"items": items}, headers=headers, timeout=timeout)
+            params = {"resolveRetired": "1"} if resolve_retired else None
+            response = client.post(BASE_URL + "/batch", params=params, json={"items": items}, headers=headers, timeout=timeout)
             if response.status_code == 429:
                 if attempt == max_attempts:
                     raise GunzscopeError("GUNZscope rate limit exceeded")
@@ -66,7 +67,7 @@ def fetch_batch(items: list[dict[str, str]], *, session=None, timeout=DEFAULT_TI
     raise GunzscopeError("GUNZscope request failed") from last_error
 
 
-def fetch_item(name: str, rarity: str | None = None, *, session=None, timeout=DEFAULT_TIMEOUT):
+def fetch_item(name: str, rarity: str | None = None, *, session=None, timeout=DEFAULT_TIMEOUT, resolve_retired=False):
     """Fetch one documented item for a bounded staging sanity check."""
     api_key = os.getenv("API_GUNZSCOPE", "").strip()
     if not api_key:
@@ -77,7 +78,7 @@ def fetch_item(name: str, rarity: str | None = None, *, session=None, timeout=DE
     client = session or requests.Session()
     response = client.get(
         BASE_URL + "/item",
-        params=params,
+        params={**params, **({"resolveRetired": "1"} if resolve_retired else {})},
         headers={"X-API-Key": api_key, "User-Agent": USER_AGENT},
         timeout=timeout,
     )
