@@ -16,6 +16,10 @@ def snapshot_path() -> Path:
     return Path(__file__).resolve().parent / "data_opensea_sales" / "item_class_snapshot.json"
 
 
+def overrides_path() -> Path:
+    return Path(__file__).resolve().parent / "config" / "item_class_overrides.json"
+
+
 @st.cache_data(show_spinner=False)
 def load_item_class_snapshot(path_string: str, mtime_ns: int) -> dict[str, Any]:
     del mtime_ns
@@ -36,13 +40,57 @@ def read_item_class_snapshot() -> dict[str, Any]:
     return load_item_class_snapshot(str(path), mtime_ns)
 
 
-def class_mapping(snapshot: dict[str, Any] | None = None) -> dict[str, str]:
+def source_class_mapping(snapshot: dict[str, Any] | None = None) -> dict[str, str]:
     payload = snapshot if snapshot is not None else read_item_class_snapshot()
     result: dict[str, str] = {}
     for name, record in (payload.get("items", {}) if isinstance(payload, dict) else {}).items():
         if isinstance(record, dict) and str(record.get("class") or "").strip():
             result[str(name)] = str(record["class"]).strip()
     return result
+
+
+@st.cache_data(show_spinner=False)
+def load_item_class_overrides(path_string: str, mtime_ns: int) -> dict[str, dict[str, str]]:
+    del mtime_ns
+    try:
+        payload = json.loads(Path(path_string).read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1 or not isinstance(payload.get("overrides"), dict):
+        return {}
+    valid: dict[str, dict[str, str]] = {}
+    for name, entry in payload["overrides"].items():
+        if not isinstance(name, str) or not name.strip() or not isinstance(entry, dict):
+            continue
+        class_name = entry.get("class")
+        if not isinstance(class_name, str) or not class_name.strip():
+            continue
+        reason = entry.get("reason", "")
+        if reason is not None and not isinstance(reason, str):
+            continue
+        valid[name] = {"class": class_name.strip(), "reason": reason or ""}
+    return valid
+
+
+def read_item_class_overrides() -> dict[str, dict[str, str]]:
+    path = overrides_path()
+    try:
+        mtime_ns = path.stat().st_mtime_ns
+    except OSError:
+        mtime_ns = 0
+    return load_item_class_overrides(str(path), mtime_ns)
+
+
+def effective_class_mapping(snapshot: dict[str, Any] | None = None) -> dict[str, str]:
+    result = dict(source_class_mapping(snapshot))
+    for name, entry in read_item_class_overrides().items():
+        result[name] = entry["class"]
+    return result
+
+
+def class_mapping(snapshot: dict[str, Any] | None = None) -> dict[str, str]:
+    """Return the effective opensea_sales presentation classification."""
+    return effective_class_mapping(snapshot)
 
 
 def trim_alias_mapping(snapshot: dict[str, Any] | None = None) -> tuple[dict[str, str], set[str]]:
