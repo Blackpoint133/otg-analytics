@@ -1,40 +1,53 @@
-import json
-from pathlib import Path
-
+import copy
 import pandas as pd
+import pytest
+import gunzscope_supply as supply
+from ui import top_items_overview as top
 
-from gunzscope_supply import build_v3_supply_presentation_index, get_item_supply_with_rank
-from ui.top_items_overview import _attach_supply_metadata, _load_global_total_supply_candidates
+SHORTS = "cmmv915bi02pzw0omjj2dpp19"
+PANTS = "cmmv8jles00jbw0omw3xc16j4"
+PURPOSE = "opensea_sales presentation-only Supply canonicalization"
 
+def rec(pid, name, value, asset="shared"):
+    return {"provider_item_id": pid, "provider_item_name": name, "provider_rarity": "Epic", "provider_asset_key": asset, "raw_active_mints": value, "ranking_eligible": True, "status": "ok"}
 
-def snapshot():
-    path = Path(__file__).parents[1] / "streamlit_opensea_sales" / "data_opensea_sales" / "gunzscope_supply_snapshot_v3_provider.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+def snap():
+    return {"schema_version": 3, "source": "gunzscope", "provider_scope": {"exclude_zero": True, "exclude_base": False, "sort": "activeMints", "order": "asc"}, "provider_items": {"a": rec("a", "A", 10, "x"), SHORTS: rec(SHORTS, "Red Ant Shorts", 20), PANTS: rec(PANTS, "Red Ant Pants", 30), "b": rec("b", "B", 40, "x"), "c": rec("c", "C", 100)}, "catalog_mappings": {"Red Ant Shorts Epic": {"mapping_status": "DIRECT_CURRENT", "provider_item_id": SHORTS}, "Red Ant Pants Epic": {"mapping_status": "DIRECT_CURRENT", "provider_item_id": PANTS}}, "provider_item_conflicts": []}
 
+def config(groups=None):
+    return {"schema_version": 1, "purpose": PURPOSE, "rename_groups": groups if groups is not None else {"red_ant_shorts": {"canonical_provider_item_id": SHORTS, "member_provider_item_ids": [SHORTS, PANTS], "strategy": "sum_raw_supply", "reason": "reviewed"}}}
 
-def test_red_ant_presentation_config_keeps_raw_ids_and_sums_supply():
-    data = snapshot()
-    index = build_v3_supply_presentation_index(data)
-    shorts = "cmmv915bi02pzw0omjj2dpp19"
-    pants = "cmmv8jles00jbw0omw3xc16j4"
-    assert index["canonical_by_member_provider_id"][pants] == shorts
-    assert pants in index["suppressed_provider_ids"]
-    assert len(index["effective_supply_by_canonical_provider_id"]) == len(data["provider_items"]) - 1
-    assert data["provider_items"][shorts]["raw_active_mints"] + data["provider_items"][pants]["raw_active_mints"] == index["effective_supply_by_canonical_provider_id"][shorts]
+def test_config_is_strict_and_missing_or_malformed_fails_safe(tmp_path):
+    assert supply._validate_supply_presentation_config(config())["red_ant_shorts"]["strategy"] == "sum_raw_supply"
+    for groups in [{"g": {**config()["rename_groups"]["red_ant_shorts"], "canonical_provider_item_id": "z"}}, {"g": {**config()["rename_groups"]["red_ant_shorts"], "member_provider_item_ids": [SHORTS]}}, {"g": {**config()["rename_groups"]["red_ant_shorts"], "member_provider_item_ids": [SHORTS, SHORTS]}}, {"g": {**config()["rename_groups"]["red_ant_shorts"], "strategy": "merge"}}]:
+        with pytest.raises(ValueError): supply._validate_supply_presentation_config(config(groups))
+    assert supply.load_supply_presentation_config(str(tmp_path / "missing")) == {}
+    bad = tmp_path / "bad"; bad.write_text("{", encoding="utf-8"); assert supply.load_supply_presentation_config(str(bad)) == {}
 
+def test_presentation_index_explicit_nonmutating_and_asset_safe():
+    data = snap(); before = copy.deepcopy(data["provider_items"]); idx = supply.build_v3_supply_presentation_index(data, config())
+    assert idx["canonical_by_member_provider_id"][PANTS] == SHORTS and PANTS in idx["suppressed_provider_ids"] and SHORTS not in idx["suppressed_provider_ids"]
+    assert idx["effective_supply_by_canonical_provider_id"][SHORTS] == 50 and data["provider_items"] == before
+    raw = supply.build_v3_supply_presentation_index(data, config({})); assert len(raw["effective_supply_by_canonical_provider_id"]) == 5
 
-def test_red_ant_market_rows_share_canonical_supply_rank():
-    data = snapshot()
-    rows = pd.DataFrame([{"item_key": "Red Ant Pants Epic", "item_name": "Red Ant Pants", "rarity": "Epic", "_provider_item_id": "cmmv8jles00jbw0omw3xc16j4"}])
-    result = _attach_supply_metadata(rows, data)
-    assert result.loc[0, "_supply"] == 3363
-    assert pd.notna(result.loc[0, "_supply_rank"])
-    assert get_item_supply_with_rank("Red Ant Pants Epic", data)[1] == result.loc[0, "_supply_rank"]
+def test_presentation_rank_is_raw_distinct_and_dense(monkeypatch):
+    data = snap(); monkeypatch.setattr(supply, "read_supply_presentation_config", lambda: config()["rename_groups"])
+    raw = {k: r["raw_active_mints"] for k, r in data["provider_items"].items()}; raw_rank = {v: i + 1 for i, v in enumerate(sorted(set(raw.values())))}
+    assert raw_rank[20] == 2 and raw_rank[30] == 3
+    assert supply.dense_supply_ranks(data) == {"a": 1, "b": 2, SHORTS: 3, "c": 4} and PANTS not in supply.dense_supply_ranks(data)
 
+def test_item_analytics_aliases_share_effective_value_and_rank(monkeypatch):
+    data = snap(); monkeypatch.setattr(supply, "read_supply_presentation_config", lambda: config()["rename_groups"])
+    shorts = supply.get_item_supply_with_rank("Red Ant Shorts Epic", data); pants = supply.get_item_supply_with_rank("Red Ant Pants Epic", data)
+    assert shorts[0]["supply"] == pants[0]["supply"] == 50 and shorts[1] == pants[1] == 3
 
-def test_red_ant_pants_is_not_a_total_supply_row(monkeypatch):
-    data = snapshot()
-    monkeypatch.setattr("ui.top_items_overview.selected_supply_source", lambda: "v3")
-    monkeypatch.setattr("ui.top_items_overview.read_snapshot_v3", lambda: data)
-    rows = _load_global_total_supply_candidates()
-    assert rows[rows["_provider_item_id"] == "cmmv8jles00jbw0omw3xc16j4"].empty
+def test_market_rows_keep_history_but_share_current_supply_metadata(monkeypatch):
+    data = snap(); monkeypatch.setattr(top, "build_v3_supply_presentation_index", lambda d: supply.build_v3_supply_presentation_index(d, config()))
+    rows = pd.DataFrame([{"item_key": "Red Ant Shorts Epic", "item_name": "Red Ant Shorts", "rarity": "Epic", "_provider_item_id": SHORTS, "volume": 11}, {"item_key": "Red Ant Pants Epic", "item_name": "Red Ant Pants", "rarity": "Epic", "_provider_item_id": PANTS, "volume": 22}])
+    result = top._attach_supply_metadata(rows, data)
+    assert result["volume"].tolist() == [11, 22] and result["_supply"].tolist() == [50, 50] and result["_supply_rank"].tolist() == [3, 3]
+
+def test_total_supply_suppresses_only_configured_alias(monkeypatch):
+    data = snap(); monkeypatch.setattr(top, "selected_supply_source", lambda: "v3"); monkeypatch.setattr(top, "read_snapshot_v3", lambda: data); monkeypatch.setattr(top, "load_items_index", lambda: ({}, type("D", (), {"success": True})())); monkeypatch.setattr(top, "build_v3_supply_presentation_index", lambda d: supply.build_v3_supply_presentation_index(d, config()))
+    rows = top._load_global_total_supply_candidates()
+    assert len(rows) == 4 and (rows["_provider_item_id"] == SHORTS).sum() == 1 and not (rows["_provider_item_id"] == PANTS).any()
