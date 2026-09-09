@@ -390,7 +390,6 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
         dict: technical diagnostic text technical diagnostic text show_usd, show_token_price
     """
     st.sidebar.header("Display Options")
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     
     if 'market_show_usd' not in st.session_state:
         st.session_state.market_show_usd = True
@@ -646,7 +645,6 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
     """)
 
     st.sidebar.header("Display Options")
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
     st.sidebar.markdown(
         '<div class="otg-sidebar-label">VALUE DISPLAY</div>',
@@ -831,7 +829,6 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
     st.sidebar.header("Display Options")
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
     show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)

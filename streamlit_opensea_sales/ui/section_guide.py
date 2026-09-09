@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import html
 import streamlit as st
 
 
 def render_section_guide_panel(content: str) -> None:
     """Render the shared main-content shell for a section guide."""
     st.markdown(
-        f'<div class="trader-metric-guide"><p>{content}</p></div>',
+        """<style>
+        .otg-section-guide-panel, .trader-metric-guide { background:#080808; border:1px solid #FF003A; padding:12px 14px; margin:0 0 16px; color:#FFF; font-size:12px; line-height:1.45; }
+        .otg-section-guide-panel p, .trader-metric-guide p { margin:5px 0; }
+        .otg-section-guide-panel b, .trader-metric-guide b { color:#FF003A; }
+        .otg-section-guide-panel .trader-guide-note, .trader-metric-guide .trader-guide-note { color:var(--otg-text-secondary); }
+        </style>""" + f'<div class="otg-section-guide-panel"><p>{html.escape(content)}</p></div>',
         unsafe_allow_html=True,
     )
 

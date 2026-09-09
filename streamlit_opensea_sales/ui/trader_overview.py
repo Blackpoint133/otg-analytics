@@ -188,10 +188,6 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         }}
         .trader-ranking-subtitle {{ font-size:13px; color:var(--otg-text-secondary); text-transform:uppercase; letter-spacing:.5px; margin:4px 0; }}
         .trader-ranking-context {{ font-size:11px; color:var(--otg-text-secondary); text-transform:uppercase; letter-spacing:.4px; margin:4px 0 12px; }}
-        .trader-metric-guide {{ background:#080808; border:1px solid #FF003A; padding:12px 14px; margin:0 0 16px; color:#FFF; font-size:12px; line-height:1.45; }}
-        .trader-metric-guide p {{ margin:5px 0; }}
-        .trader-metric-guide b {{ color:#FF003A; }}
-        .trader-guide-note {{ color:var(--otg-text-secondary); }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] {{ display:grid!important; grid-template-columns:110px minmax(0,1fr) 110px!important; column-gap:0!important; width:100%!important; align-items:start!important; }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{ width:100%!important; min-width:0!important; max-width:none!important; padding:0!important; flex:none!important; }}
         .st-key-trader_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child {{ display:flex!important; justify-content:flex-start!important; }}
