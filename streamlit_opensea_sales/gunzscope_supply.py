@@ -123,9 +123,13 @@ def validate_snapshot_v3(payload):
             raise ValueError("invalid v3 provider identity")
         if not isinstance(record.get("provider_item_name"), str) or not record["provider_item_name"].strip() or not isinstance(record.get("provider_rarity"), str) or not record["provider_rarity"].strip():
             raise ValueError("invalid v3 provider fields")
-        if not isinstance(record.get("ranking_eligible"), bool):
+        if record.get("status") not in {"ok", "catalog_only"} or not isinstance(record.get("ranking_eligible"), bool):
             raise ValueError("invalid v3 ranking eligibility")
-        if record["ranking_eligible"] and not valid_supply(record.get("raw_active_mints")):
+        if (record["ranking_eligible"] and record.get("status") != "ok") or (not record["ranking_eligible"] and record.get("status") != "catalog_only"):
+            raise ValueError("inconsistent v3 provider status")
+        if not record["ranking_eligible"] and record.get("scope_reason") != "catalog_only_outside_current_rankings":
+            raise ValueError("invalid v3 catalog-only scope reason")
+        if not valid_supply(record.get("raw_active_mints")):
             raise ValueError("invalid v3 supply")
     statuses = {"DIRECT_CURRENT", "RETIRED_RARITY_RESOLVED", "AMBIGUOUS_CURRENT", "UNAVAILABLE", "INVALID"}
     for mapping in mappings.values():
@@ -157,6 +161,8 @@ def selected_supply_source():
     requested = os.getenv("GUNZSCOPE_SUPPLY_SOURCE", "").strip().lower()
     if requested == "v3" and read_snapshot_v3():
         return "v3"
+    if requested == "v3" and read_shadow_v2():
+        return "v2"
     if requested == "v2" and read_shadow_v2():
         return "v2"
     return "v1"
@@ -178,7 +184,7 @@ def get_item_supply(item_key: str, snapshot=None):
     data = snapshot if snapshot is not None else read_serving_snapshot()
     if data and data.get("schema_version") in {2, 3}:
         record = _v2_provider_for_item(item_key, data)
-        return {"supply": record["raw_active_mints"], "status": "ok", "provider_item_id": record["provider_item_id"]} if record and (data.get("schema_version") == 2 or record.get("status") == "ok") and valid_supply(record.get("raw_active_mints")) else None
+        return {"supply": record["raw_active_mints"], "status": record.get("status", "ok"), "provider_item_id": record["provider_item_id"]} if record and (data.get("schema_version") == 2 or record.get("status") in {"ok", "catalog_only"}) and valid_supply(record.get("raw_active_mints")) else None
     record = data.get("items", {}).get(item_key) if data else None
     if isinstance(record, dict) and record.get("status") in {"ok", "stale"} and valid_supply(record.get("supply")):
         return record
