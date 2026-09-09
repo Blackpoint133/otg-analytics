@@ -6,6 +6,7 @@ APP = Path(__file__).parents[1] / "streamlit_opensea_sales"
 sys.path.insert(0, str(APP)); sys.path.insert(0, str(APP.parent / "scripts"))
 import gunzscope_client as client
 import refresh_gunzscope_supply_v2_shadow as v2
+import gunzscope_supply as supply
 
 
 def test_client_resolve_retired_is_opt_in():
@@ -52,3 +53,14 @@ def test_validator_rejects_dangling_mapping_and_conflicts():
     out = v2.build_shadow(records, [[{"itemName":"A","rarity":"Epic","itemId":"id","assetKey":"a","activeMints":1}],[{"itemName":"B","rarity":"Epic","itemId":"id","assetKey":"b","activeMints":1}]])
     assert out["catalog_mappings"]["A"]["mapping_status"] == "PROVIDER_ITEM_CONFLICT"
     assert not out["provider_items"]
+
+
+def test_v2_item_alias_lookup_does_not_sum():
+    snap = {"schema_version": 2, "provider_items": {"id": {"provider_item_id":"id", "raw_active_mints":25}}, "catalog_mappings": {"current": {"mapping_status":"DIRECT_CURRENT", "provider_item_id":"id"}, "old": {"mapping_status":"RETIRED_RARITY_RESOLVED", "provider_item_id":"id"}}}
+    assert supply.get_item_supply("current", snap)["supply"] == 25
+    assert supply.get_item_supply("old", snap)["supply"] == 25
+
+
+def test_invalid_source_defaults_to_v1(monkeypatch):
+    monkeypatch.setenv("GUNZSCOPE_SUPPLY_SOURCE", "unknown")
+    assert supply.selected_supply_source() == "v1"
