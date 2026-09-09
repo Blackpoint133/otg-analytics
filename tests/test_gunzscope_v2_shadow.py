@@ -35,3 +35,20 @@ def test_same_asset_different_itemids_stay_separate():
     def c(name, item): return {"itemName":name,"rarity":"Epic","itemId":item,"assetKey":"shared","activeMints":25}
     out = v2.build_shadow(records, [[c("Red Ant Shorts","shorts")],[c("Red Ant Pants","pants")]])
     assert len(out["provider_items"]) == 2
+
+
+def test_invalid_supply_types_are_not_valid_provider_records():
+    record = {"item_key":"A","display_name":"A","rarity":"Epic"}
+    for value in (-1, True, "7", 7.0, None):
+        out = v2.build_shadow([record], [[{"itemName":"A","rarity":"Epic","itemId":"id","assetKey":"a","activeMints":value}]])
+        assert not out["provider_items"]
+        assert out["catalog_mappings"]["A"]["mapping_status"] == "INVALID_PROVIDER_DATA"
+
+
+def test_validator_rejects_dangling_mapping_and_conflicts():
+    with __import__('pytest').raises(ValueError):
+        v2.validate_shadow_v2({"schema_version":2,"source":"gunzscope","provider_items":{},"catalog_mappings":{"A":{"mapping_status":"DIRECT_CURRENT","provider_item_id":"missing"}}})
+    records = [{"item_key":"A","display_name":"A","rarity":"Epic"},{"item_key":"B","display_name":"B","rarity":"Epic"}]
+    out = v2.build_shadow(records, [[{"itemName":"A","rarity":"Epic","itemId":"id","assetKey":"a","activeMints":1}],[{"itemName":"B","rarity":"Epic","itemId":"id","assetKey":"b","activeMints":1}]])
+    assert out["catalog_mappings"]["A"]["mapping_status"] == "PROVIDER_ITEM_CONFLICT"
+    assert not out["provider_items"]
