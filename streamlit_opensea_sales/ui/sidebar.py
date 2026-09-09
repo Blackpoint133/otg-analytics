@@ -310,11 +310,11 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     if current_wallet != "ALL WALLETS" and current_wallet not in wallet_options:
         current_wallet = "ALL WALLETS"
         st.session_state[wallet_key] = current_wallet
-    st.sidebar.markdown('<div class="otg-sidebar-label">HIGHLIGHT WALLET</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
     highlight_wallet = st.sidebar.selectbox(
         "Highlight Wallet",
         options=["ALL WALLETS", *wallet_options],
-        format_func=lambda value: value if value == "ALL WALLETS" else _short_wallet_label(value),
+        format_func=lambda value: "All Wallets" if value == "ALL WALLETS" else _short_wallet_label(value),
         key=wallet_key,
         label_visibility="collapsed",
     )

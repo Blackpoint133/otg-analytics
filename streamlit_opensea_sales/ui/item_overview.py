@@ -676,8 +676,7 @@ def _render_item_sales_table(
     show_usd: bool,
     current_gun_price: float,
     items_per_page: int,
-    highlight_wallet: Optional[str] = None,
-    guide_open: bool = False
+    highlight_wallet: Optional[str] = None
 ):
     if not filtered_df.empty:
         wallet_filter = _wallet_filter_identity(highlight_wallet)
@@ -768,7 +767,8 @@ def render_item_overview(
     show_trend_line: bool,
     item_view_mode: str = "chart",
     items_per_page: int = 50,
-    highlight_wallet: Optional[str] = None
+    highlight_wallet: Optional[str] = None,
+    guide_open: bool = False
 ):
     """
     Ð“Ð»Ð°Ð²Ð½Ð°Ñ Ñ„ÑƒÐ½ÐºÑ†Ð¸Ñ Ñ€ÐµÐ½Ð´ÐµÑ€Ð° Item Analytics Ñ Ð½Ð¾Ð²Ð¾Ð¹ layout.

@@ -36,9 +36,10 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
         'item', 'market' technical diagnostic text 'top_items' technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text
     """
     # Get current mode from query params
-    current_mode = st.query_params.get('mode', 'item')
-    if isinstance(current_mode, list):
-        current_mode = current_mode[0]
+    raw_mode = st.query_params.get('mode', 'item')
+    if isinstance(raw_mode, list):
+        raw_mode = raw_mode[0]
+    current_mode = 'trader' if raw_mode in ('trader', 'top_traders') else raw_mode
     
     # Ensure valid mode (whitelist)
     if current_mode not in ['item', 'market', 'top_items', 'trader']:
@@ -126,7 +127,7 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
             <a class="otg-mode-link {item_class}" href="?mode=item" target="_self">ITEM</a>
             <a class="otg-mode-link {market_class}" href="?mode=market" target="_self">MARKET</a>
             <a class="otg-mode-link {top_items_class}" href="?mode=top_items" target="_self">TOP ITEMS</a>
-            <a class="otg-mode-link {trader_class}" href="?mode=trader" target="_self">TOP TRADERS</a>
+            <a class="otg-mode-link {trader_class}" href="?mode=top_traders" target="_self">TOP TRADERS</a>
             <a class="otg-mode-link otg-mode-roadmap" href="/?mode=roadmap" target="_self">ROADMAP</a>
         </div>
     """, unsafe_allow_html=True)
