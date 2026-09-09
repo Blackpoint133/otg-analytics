@@ -198,8 +198,11 @@ def _filter_expansion_series(expansion: Optional[dict], start_date, end_date, is
     return daily, monthly
 
 
-def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.03, show_token_price: bool = False, show_unique_wallets: bool = False):
+def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.03, show_token_price: bool = False, show_unique_wallets: bool = False, guide_open: bool = False):
     """technical documentation technical documentation technical documentation Market Overview technical documentation."""
+    if guide_open:
+        from ui.section_guide import render_section_guide_panel
+        render_section_guide_panel("Coming soon")
     
     # technical implementation note technical implementation note data
     status = mda.get_market_data_status()

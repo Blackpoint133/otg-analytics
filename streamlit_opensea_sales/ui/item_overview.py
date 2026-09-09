@@ -676,7 +676,8 @@ def _render_item_sales_table(
     show_usd: bool,
     current_gun_price: float,
     items_per_page: int,
-    highlight_wallet: Optional[str] = None
+    highlight_wallet: Optional[str] = None,
+    guide_open: bool = False
 ):
     if not filtered_df.empty:
         wallet_filter = _wallet_filter_identity(highlight_wallet)
@@ -788,6 +789,9 @@ def render_item_overview(
         item_view_mode: "chart" Ð¸Ð»Ð¸ "table" - from sidebar
         items_per_page: Rows per table page
     """
+    if guide_open:
+        from ui.section_guide import render_section_guide_panel
+        render_section_guide_panel("Coming soon")
     
     # Extract item details
     item_name = df['name'].iloc[0] if 'name' in df.columns and not df.empty else current_selected_item.rsplit(' ', 1)[0]

@@ -5,6 +5,14 @@ from __future__ import annotations
 import streamlit as st
 
 
+def render_section_guide_panel(content: str) -> None:
+    """Render the shared main-content shell for a section guide."""
+    st.markdown(
+        f'<div class="trader-metric-guide"><p>{content}</p></div>',
+        unsafe_allow_html=True,
+    )
+
+
 def render_section_guide_button(section_key: str, *, label: str = "GUIDE") -> bool:
     """Render a section-scoped sidebar guide toggle and return its open state."""
     state_key = f"{section_key}_guide_open"

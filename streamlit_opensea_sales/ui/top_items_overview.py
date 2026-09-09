@@ -269,7 +269,7 @@ def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None, limit: Op
     return display_data
 
 
-def render_top_items_overview(show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', top_items_view: str = 'cards', item_class: str = 'ALL CLASSES'):
+def render_top_items_overview(show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', top_items_view: str = 'cards', item_class: str = 'ALL CLASSES', guide_open: bool = False):
     """
     technical diagnostic text technical diagnostic text technical diagnostic text Top Items Analytics technical diagnostic text.
     
@@ -281,6 +281,10 @@ def render_top_items_overview(show_usd: bool = False, current_gun_price: float =
         top_items_view: technical diagnostic text technical diagnostic text ('cards' technical diagnostic text 'chart')
     """
     
+    if guide_open:
+        from ui.section_guide import render_section_guide_panel
+        render_section_guide_panel("Coming soon")
+
     # technical implementation note technical implementation note data
     status = mda.get_market_data_status()
     if status['status'] != 'OK':

@@ -157,6 +157,7 @@ def main():
                 current_gun_price=current_gun_price,
                 show_token_price=market_controls['show_token_price'],
                 show_unique_wallets=market_controls['show_unique_wallets']
+                , guide_open=market_controls['guide_open']
             )
         render_sidebar_footer()
         return
@@ -175,6 +176,7 @@ def main():
                 period=top_items_controls['period'],
                 top_items_view=top_items_controls['top_items_view'],
                 item_class=top_items_controls['item_class'],
+                guide_open=top_items_controls['guide_open'],
             )
         render_sidebar_footer()
         return
@@ -223,6 +225,7 @@ def main():
     
     # technical implementation note technical implementation note technical implementation note
     current_selected_item = filter_state['selected_item']
+    guide_open = sidebar_options.get('guide_open', False)
     item_record = filter_state['item_record']
     show_volume = filter_state['show_volume']
     show_usd = filter_state['show_usd']
@@ -270,8 +273,9 @@ def main():
         current_gun_price=current_gun_price,
         show_trend_line=show_trend_line,
         item_view_mode=item_view_mode,
-        highlight_wallet=highlight_wallet,
-        items_per_page=ITEMS_PER_PAGE
+                highlight_wallet=highlight_wallet,
+                guide_open=guide_open,
+                items_per_page=ITEMS_PER_PAGE
     )
 
     # ════════════════════════════════════════════════════════════════

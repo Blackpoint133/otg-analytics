@@ -123,10 +123,10 @@ def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
         </style>
 
         <div class="otg-mode-switch">
-            <a class="otg-mode-link {item_class}" href="?mode=item" target="_self">ITEM ANALYTICS</a>
-            <a class="otg-mode-link {market_class}" href="?mode=market" target="_self">MARKET ANALYTICS</a>
-            <a class="otg-mode-link {top_items_class}" href="?mode=top_items" target="_self">TOP ITEMS ANALYTICS</a>
-            <a class="otg-mode-link {trader_class}" href="?mode=trader" target="_self">TOP TRADERS ANALYTICS</a>
+            <a class="otg-mode-link {item_class}" href="?mode=item" target="_self">ITEM</a>
+            <a class="otg-mode-link {market_class}" href="?mode=market" target="_self">MARKET</a>
+            <a class="otg-mode-link {top_items_class}" href="?mode=top_items" target="_self">TOP ITEMS</a>
+            <a class="otg-mode-link {trader_class}" href="?mode=trader" target="_self">TOP TRADERS</a>
             <a class="otg-mode-link otg-mode-roadmap" href="/?mode=roadmap" target="_self">ROADMAP</a>
         </div>
     """, unsafe_allow_html=True)

@@ -26,9 +26,11 @@ def test_old_main_metric_trigger_is_removed_and_content_is_main_area():
 
 def test_helper_is_per_section_and_no_unimplemented_section_buttons_exist():
     assert "def render_section_guide_button" in GUIDE
-    assert 'render_section_guide_button("item")' not in SIDEBAR
-    assert 'render_section_guide_button("market")' not in SIDEBAR
-    assert 'render_section_guide_button("top_items")' not in SIDEBAR
+    for section in ("item", "market", "top_items", "trader"):
+        assert f'render_section_guide_button("{section}")' in SIDEBAR
+    assert "Coming soon" in (ROOT / "streamlit_opensea_sales" / "ui" / "item_overview.py").read_text(encoding="utf-8")
+    assert "Coming soon" in (ROOT / "streamlit_opensea_sales" / "ui" / "market_overview.py").read_text(encoding="utf-8")
+    assert "Coming soon" in (ROOT / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
 
 
 def test_trader_sort_controls_remain_before_guide():
@@ -46,3 +48,11 @@ def test_sidebar_filter_labels_and_guide_reference_style():
     assert "margin-bottom:3px!important" in SIDEBAR
     assert "color:#FFFFFF!important" in GUIDE
     assert "color:#000!important" not in GUIDE
+
+
+def test_all_sections_have_isolated_guides_and_short_navigation_labels():
+    for section in ("item", "market", "top_items", "trader"):
+        assert f'render_section_guide_button("{section}")' in SIDEBAR
+    mode_switch = (ROOT / "streamlit_opensea_sales" / "ui" / "mode_switch.py").read_text(encoding="utf-8")
+    for label in ("ITEM", "MARKET", "TOP ITEMS", "TOP TRADERS", "ROADMAP"):
+        assert label in mode_switch

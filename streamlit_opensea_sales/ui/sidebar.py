@@ -364,6 +364,10 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
                 st.session_state.item_view_mode = 'table'
                 st.rerun()
     
+    from ui.section_guide import render_section_guide_button
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
+    guide_open = render_section_guide_button("item")
     return {
         'selected_item': current_selected_item,
         'item_record': item_record,
@@ -372,7 +376,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         'show_trend_line': show_trend_line,
         'item_view_mode': current_item_view,
         'is_mobile_viewport': is_mobile_viewport
-        , 'highlight_wallet': effective_wallet
+        , 'highlight_wallet': effective_wallet, 'guide_open': guide_open
     }
 
 
@@ -386,6 +390,7 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
         dict: technical diagnostic text technical diagnostic text show_usd, show_token_price
     """
     st.sidebar.header("Display Options")
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     
     if 'market_show_usd' not in st.session_state:
         st.session_state.market_show_usd = True
@@ -515,12 +520,16 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
             st.session_state.market_time_range = '3m'
             st.rerun()
     
+    from ui.section_guide import render_section_guide_button
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
+    guide_open = render_section_guide_button("market")
     info(f"Market sidebar: show_usd={show_usd}, show_token_price={show_token_price}, show_unique_wallets={show_unique_wallets}, time_range={current_period}")
     
     return {
         'show_usd': show_usd,
         'show_token_price': show_token_price
-        , 'show_unique_wallets': show_unique_wallets
+        , 'show_unique_wallets': show_unique_wallets, 'guide_open': guide_open
     }
 
 
@@ -637,6 +646,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
     """)
 
     st.sidebar.header("Display Options")
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
     st.sidebar.markdown(
         '<div class="otg-sidebar-label">VALUE DISPLAY</div>',
@@ -799,6 +809,10 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
                 st.session_state.top_items_view = 'table'
                 st.rerun()
     
+    from ui.section_guide import render_section_guide_button
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
+    guide_open = render_section_guide_button("top_items")
     info(f"Top Items sidebar: show_usd={show_usd}, ranking_mode={current_mode}, period={current_period}, view={current_view}")
     
     return {
@@ -806,7 +820,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         'ranking_mode': current_mode,
         'period': current_period,
         'top_items_view': current_view,
-        'item_class': selected_class,
+        'item_class': selected_class, 'guide_open': guide_open,
     }
 
 
@@ -816,7 +830,8 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     rows = payload.get('wallets', []) if payload else []
     wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
-    st.sidebar.header("Top Traders Analytics Options")
+    st.sidebar.header("Display Options")
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
     show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
@@ -841,7 +856,7 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
         selected = st.selectbox(
             "Trader",
             ["ALL TRADERS", *wallets],
-            format_func=lambda value: value if value == "ALL TRADERS" else _short_wallet_label(value),
+            format_func=lambda value: "All Traders" if value == "ALL TRADERS" else _short_wallet_label(value),
             key="trader_selected_wallet",
             label_visibility="collapsed",
             placeholder="Search or enter wallet address",
