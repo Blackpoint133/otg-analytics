@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 import gunzscope_supply as supply
@@ -29,6 +27,22 @@ def test_v3_failover_to_v2(monkeypatch):
     assert supply.selected_supply_source() == "v2"
 
 
+@pytest.mark.parametrize(("requested", "v3", "v2", "expected"), [
+    ("v3", {"schema_version": 3}, {"schema_version": 2}, "v3"),
+    ("v3", None, {"schema_version": 2}, "v2"),
+    ("v3", None, None, "v1"),
+    ("v2", {"schema_version": 3}, {"schema_version": 2}, "v2"),
+    ("v2", {"schema_version": 3}, None, "v1"),
+    ("", {"schema_version": 3}, {"schema_version": 2}, "v1"),
+    ("unknown", {"schema_version": 3}, {"schema_version": 2}, "v1"),
+])
+def test_source_selector_contract(monkeypatch, requested, v3, v2, expected):
+    monkeypatch.setenv("GUNZSCOPE_SUPPLY_SOURCE", requested)
+    monkeypatch.setattr(supply, "read_snapshot_v3", lambda: v3)
+    monkeypatch.setattr(supply, "read_shadow_v2", lambda: v2)
+    assert supply.selected_supply_source() == expected
+
+
 def test_v3_catalog_only_supply_and_no_rank():
     payload = v3_payload(v3_record(eligible=False, status="catalog_only"))
     supply.validate_snapshot_v3(payload)
@@ -51,6 +65,8 @@ def test_v3_status_and_scope_invariants_rejected():
         supply.validate_snapshot_v3(v3_payload(v3_record(eligible=True, status="catalog_only")))
     with pytest.raises(ValueError):
         supply.validate_snapshot_v3(v3_payload(v3_record(eligible=False, status="catalog_only", supply_value=1)) | {"provider_items": {"x": {**v3_record(eligible=False), "scope_reason": "wrong"}}})
+    with pytest.raises(ValueError):
+        bad = v3_payload(); bad["catalog_mappings"]["Item Epic"]["provider_item_id"] = "missing"; supply.validate_snapshot_v3(bad)
 
 
 def test_v3_normal_dense_rank_and_v2_unchanged():
@@ -65,3 +81,24 @@ def test_missing_v3_requested_falls_back_v1(monkeypatch):
     monkeypatch.setattr(supply, "read_snapshot_v3", lambda: None)
     monkeypatch.setattr(supply, "read_shadow_v2", lambda: None)
     assert supply.selected_supply_source() == "v1"
+
+
+def test_provider_only_total_supply_candidate_survives(monkeypatch):
+    from ui import top_items_overview as top
+    payload = v3_payload()
+    payload["provider_items"]["x"]["provider_image_url"] = "https://example.test/item.png"
+    monkeypatch.setenv("GUNZSCOPE_SUPPLY_SOURCE", "v3")
+    monkeypatch.setattr(top, "read_snapshot_v3", lambda: payload)
+    monkeypatch.setattr(top, "load_items_index", lambda: ({}, type("D", (), {"success": True})()))
+    rows = top._load_global_total_supply_candidates()
+    assert len(rows) == 1 and rows.loc[0, "_provider_item_id"] == "x"
+    assert rows.loc[0, "image_url"] == "https://example.test/item.png"
+
+
+def test_same_asset_key_different_item_ids_are_not_merged():
+    payload = v3_payload()
+    payload["provider_items"]["y"] = {**v3_record("y", 3338), "provider_asset_key": "shared"}
+    payload["provider_items"]["x"]["provider_asset_key"] = "shared"
+    payload["catalog_mappings"]["Other Epic"] = {"mapping_status": "DIRECT_CURRENT", "provider_item_id": "y"}
+    supply.validate_snapshot_v3(payload)
+    assert len(supply.dense_supply_ranks(payload)) == 2
