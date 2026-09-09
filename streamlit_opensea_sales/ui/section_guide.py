@@ -6,15 +6,16 @@ import html
 import streamlit as st
 
 
-def render_section_guide_panel(content: str) -> None:
+def render_section_guide_panel(content: str, *, trusted_html: bool = False) -> None:
     """Render the shared main-content shell for a section guide."""
+    rendered_content = content if trusted_html else html.escape(content)
     st.markdown(
         """<style>
         .otg-section-guide-panel, .trader-metric-guide { background:#080808; border:1px solid #FF003A; padding:12px 14px; margin:0 0 16px; color:#FFF; font-size:12px; line-height:1.45; }
         .otg-section-guide-panel p, .trader-metric-guide p { margin:5px 0; }
         .otg-section-guide-panel b, .trader-metric-guide b { color:#FF003A; }
         .otg-section-guide-panel .trader-guide-note, .trader-metric-guide .trader-guide-note { color:var(--otg-text-secondary); }
-        </style>""" + f'<div class="otg-section-guide-panel"><p>{html.escape(content)}</p></div>',
+        </style>""" + f'<div class="otg-section-guide-panel"><p>{rendered_content}</p></div>',
         unsafe_allow_html=True,
     )
 

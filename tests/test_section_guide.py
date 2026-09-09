@@ -56,3 +56,11 @@ def test_all_sections_have_isolated_guides_and_short_navigation_labels():
     mode_switch = (ROOT / "streamlit_opensea_sales" / "ui" / "mode_switch.py").read_text(encoding="utf-8")
     for label in ("ITEM", "MARKET", "TOP ITEMS", "TOP TRADERS", "ROADMAP"):
         assert label in mode_switch
+
+def test_trader_guide_uses_shared_panel_and_css_is_not_local():
+    trader = TRADER
+    assert "render_section_guide_panel" in trader
+    assert "trusted_html=True" in trader
+    assert ".trader-metric-guide {{" not in trader
+    assert "otg-section-guide-panel" in GUIDE
+    assert "trusted_html" in GUIDE
