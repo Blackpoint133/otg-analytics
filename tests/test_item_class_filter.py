@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 sys.path.insert(0, str(Path(__file__).parents[1] / "streamlit_opensea_sales"))
 
 from scripts.refresh_item_class_snapshot import build_snapshot, publish_snapshot
-from item_class_data import UNCLASSIFIED, class_options, class_mapping
+from item_class_data import UNCLASSIFIED, class_options, class_mapping, source_class_mapping
 from ui.top_items_overview import attach_item_classes, filter_item_class, paginate_top_items
 
 
@@ -24,7 +24,7 @@ def test_snapshot_uses_class_only_and_writer_schema(tmp_path):
 def test_class_options_and_unclassified_are_snapshot_derived():
     snapshot = {"items": {"A": {"class": "Weapon"}, "B": {"class": "Profile"}}}
     assert class_options(["A", "B", "C"], snapshot) == ["ALL CLASSES", "Profile", "UNCLASSIFIED", "Weapon"]
-    assert class_mapping(snapshot) == {"A": "Weapon", "B": "Profile"}
+    assert source_class_mapping(snapshot) == {"A": "Weapon", "B": "Profile"}
 
 
 def test_filter_precedes_pagination_and_preserves_global_rank():

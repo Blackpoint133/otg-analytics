@@ -7,6 +7,24 @@ APP = Path(__file__).parents[1] / "streamlit_opensea_sales"
 sys.path.insert(0, str(APP))
 import item_class_data as classes
 
+EXPECTED_NAMES = {
+    "Neckbraker", "Welcome to the Circle", "Move To Live", "Tagged for Death", "Dead Pilot",
+    "GlykoBitz - Carol of the Damned", "GlykoBitz - Maul Cop", "GlykoBitz - Sleigh Bitch, Big Band Edition",
+    "GlykoBitz - It's Beginning to Look a Lot Like Teardrop", "GlykoBitz - Santa Pay Me", "GlykoBitz - North Pole P***y",
+    "Snakes in the Sky", "Pulse", "Arp Machine", "The Last Dance", "Respawn Wheel", "No Country For Cheaters",
+    "Taste of Freedom", "I'll Fly Before You Die", "Do or Die", "Fried ass", "Face of Death", "Ballgag Beat",
+    "Big Top Beat", "First Spin", "Meatport - Enter the Grid", "Bargain Beat", "Meth Made", "Cybernetic Dreams",
+    "Cyber Grinder", "Population Control", "One-Way Ticket to the Fight", "Spreading the Hurt", "Love My Limbs",
+}
+
+
+def test_committed_config_contains_exact_music_set():
+    payload = __import__('json').loads((APP / 'config' / 'item_class_overrides.json').read_text(encoding='utf-8'))
+    assert payload['schema_version'] == 1
+    assert set(payload['overrides']) == EXPECTED_NAMES
+    assert len(payload['overrides']) == 34
+    assert all(entry == {'class': 'Music', 'reason': 'In-game music NFT'} for entry in payload['overrides'].values())
+
 
 def test_source_and_effective_mappings_are_separate(monkeypatch):
     snapshot = {"items": {"Track Alpha": {"class": "Customization Item"}, "Helmet Beta": {"class": "Customization Item"}}}
