@@ -135,15 +135,39 @@ def get_item_supply(item_key: str, snapshot=None):
 
 
 def dense_supply_ranks(snapshot):
-    if not snapshot or not isinstance(snapshot.get("items"), Mapping):
+    if not snapshot:
         return {}
     if snapshot.get("schema_version") == 2:
-        valid = [(key, record["raw_active_mints"]) for key, record in snapshot.get("provider_items", {}).items() if isinstance(record, Mapping) and record.get("status") == "ok" and valid_supply(record.get("raw_active_mints"))]
+        providers = snapshot.get("provider_items")
+        if not isinstance(providers, Mapping):
+            return {}
+        valid = [(key, record["raw_active_mints"]) for key, record in providers.items() if isinstance(record, Mapping) and record.get("status") == "ok" and valid_supply(record.get("raw_active_mints"))]
         rank_by_value = {value: index + 1 for index, value in enumerate(sorted({value for _, value in valid}))}
         return {key: rank_by_value[value] for key, value in valid}
     valid = [(key, record["supply"]) for key, record in snapshot["items"].items() if isinstance(record, Mapping) and record.get("status") in {"ok", "stale"} and valid_supply(record.get("supply"))]
     rank_by_value = {value: index + 1 for index, value in enumerate(sorted({value for _, value in valid}))}
     return {key: rank_by_value[value] for key, value in valid}
+
+
+def build_v2_canonical_index(snapshot):
+    """Return canonical catalog rows, aliases, and fail-safe ambiguities."""
+    if not snapshot or snapshot.get("schema_version") != 2:
+        return {"canonical_by_provider_id": {}, "aliases": {}, "ambiguous_provider_ids": set()}
+    groups = {}
+    for item_key, mapping in snapshot.get("catalog_mappings", {}).items():
+        if not isinstance(mapping, Mapping) or mapping.get("mapping_status") not in {"DIRECT_CURRENT", "RETIRED_RARITY_RESOLVED"}:
+            continue
+        groups.setdefault(mapping.get("provider_item_id"), []).append((item_key, mapping))
+    canonical, aliases, ambiguous = {}, {}, set()
+    for provider_id, entries in groups.items():
+        directs = [item_key for item_key, mapping in entries if mapping.get("mapping_status") == "DIRECT_CURRENT"]
+        if len(directs) > 1 or (not directs and len(entries) != 1):
+            ambiguous.add(provider_id)
+            continue
+        chosen = directs[0] if directs else entries[0][0]
+        canonical[provider_id] = chosen
+        aliases[provider_id] = [item_key for item_key, _ in entries if item_key != chosen]
+    return {"canonical_by_provider_id": canonical, "aliases": aliases, "ambiguous_provider_ids": ambiguous}
 
 
 def get_item_supply_with_rank(item_key: str, snapshot=None):

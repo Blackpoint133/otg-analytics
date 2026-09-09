@@ -64,3 +64,13 @@ def test_v2_item_alias_lookup_does_not_sum():
 def test_invalid_source_defaults_to_v1(monkeypatch):
     monkeypatch.setenv("GUNZSCOPE_SUPPLY_SOURCE", "unknown")
     assert supply.selected_supply_source() == "v1"
+
+
+def test_v2_dense_ranks_and_canonical_fail_safe():
+    snap = {"schema_version":2,"provider_items":{k:{"provider_item_id":k,"status":"ok","raw_active_mints":v} for k,v in {"a":25,"b":25,"c":100,"d":3338}.items()},"catalog_mappings":{}}
+    assert supply.dense_supply_ranks(snap) == {"a":1,"b":1,"c":2,"d":3}
+    snap["catalog_mappings"] = {"direct":{"mapping_status":"DIRECT_CURRENT","provider_item_id":"a"},"old":{"mapping_status":"RETIRED_RARITY_RESOLVED","provider_item_id":"a"},"x":{"mapping_status":"DIRECT_CURRENT","provider_item_id":"c"},"y":{"mapping_status":"DIRECT_CURRENT","provider_item_id":"c"}}
+    index = supply.build_v2_canonical_index(snap)
+    assert index["canonical_by_provider_id"]["a"] == "direct"
+    assert index["aliases"]["a"] == ["old"]
+    assert "c" in index["ambiguous_provider_ids"] and "c" not in index["canonical_by_provider_id"]

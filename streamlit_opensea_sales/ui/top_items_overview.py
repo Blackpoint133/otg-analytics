@@ -24,7 +24,7 @@ import textwrap
 import market_data_access as mda
 from data_access import load_items_index
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
-from gunzscope_supply import dense_supply_ranks, read_current_snapshot, read_serving_snapshot, selected_supply_source, valid_supply
+from gunzscope_supply import build_v2_canonical_index, dense_supply_ranks, read_current_snapshot, read_serving_snapshot, selected_supply_source, valid_supply
 from item_class_data import UNCLASSIFIED, class_mapping, read_item_class_snapshot
 
 
@@ -245,17 +245,12 @@ def _attach_supply_metadata(top_items: pd.DataFrame, snapshot=None) -> pd.DataFr
 
     if data and data.get('schema_version') == 2:
         mappings = data.get('catalog_mappings', {})
-        canonical = {}
-        for item_key, mapping in mappings.items():
-            pid = mapping.get('provider_item_id')
-            if mapping.get('mapping_status') == 'DIRECT_CURRENT':
-                canonical[pid] = item_key
-            elif pid not in canonical:
-                canonical.setdefault(pid, item_key)
+        canonical = build_v2_canonical_index(data)['canonical_by_provider_id']
+        ambiguous = build_v2_canonical_index(data)['ambiguous_provider_ids']
         def provider_for(key):
             mapping = mappings.get(key, {})
             pid = mapping.get('provider_item_id')
-            return pid if canonical.get(pid) == key else None
+            return pid if pid not in ambiguous and canonical.get(pid) == key else None
         provider_keys = [provider_for(key) for key in keys]
         result['_supply'] = [data.get('provider_items', {}).get(pid, {}).get('raw_active_mints', pd.NA) if pid else pd.NA for pid in provider_keys]
         result['_supply_rank'] = [ranks.get(pid, pd.NA) if pid else pd.NA for pid in provider_keys]
