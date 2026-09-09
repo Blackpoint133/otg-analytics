@@ -828,20 +828,9 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
     }
 
 
-def render_trader_sidebar_controls() -> Dict[str, Any]:
-    """Render Trader controls, including one editable wallet combobox."""
-    payload = load_current_snapshot()
-    rows = payload.get('wallets', []) if payload else []
-    wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
-    from ui.section_guide import section_guide_button_css
-    st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS + section_guide_button_css("trader"))
-    st.sidebar.header("Display Options")
-    st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
-    show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
-    with st.sidebar.container(key="trader_wallet_controls"):
-        st.markdown("""<style>
+
+TRADER_CONTROLS_CSS = r"""<style>
+
         .st-key-trader_wallet_controls [data-testid="stSelectbox"] [data-baseweb="select"] > div,
         .st-key-trader_wallet_controls [data-baseweb="popover"] [data-baseweb="select"] > div {
             background:#080808!important;color:#FFF!important;border:1px solid var(--otg-border)!important;
@@ -856,7 +845,28 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
         .st-key-trader_wallet_controls [role="option"] {background:#080808!important;color:#FFF!important;}
         .st-key-trader_wallet_controls [role="option"]:hover,
         .st-key-trader_wallet_controls [aria-selected="true"] {background:#181D27!important;color:#FFF!important;}
-        </style>""", unsafe_allow_html=True)
+        
+        .st-key-trader_sort_controls { padding: 0; }
+        .st-key-trader_sort_controls button { width:100%!important; min-height:28px!important; height:28px!important; padding:4px 10px!important; margin-bottom:3px!important; font-family:'PP Supply Sans','Space Mono',monospace,sans-serif!important; font-size:10px!important; font-weight:700!important; text-transform:uppercase!important; letter-spacing:.5px!important; border-radius:1px!important; }
+        .st-key-trader_sort_controls button[data-testid="stBaseButton-primary"] { background:#FF003A!important; border:1px solid #FF003A!important; color:#FFFFFF!important; font-weight:800!important; }
+        .st-key-trader_sort_controls button[data-testid="stBaseButton-primary"]:hover { background:#E60033!important; border-color:#FF003A!important; color:#FFFFFF!important; }
+        .st-key-trader_sort_controls button[data-testid="stBaseButton-secondary"] { background:#0a0a0a!important; border:1px solid #333!important; color:#666!important; }
+        .st-key-trader_sort_controls button[data-testid="stBaseButton-secondary"]:hover { background:#0f0f0f!important; border-color:#444!important; color:#888!important; }
+        </style>"""
+
+def render_trader_sidebar_controls() -> Dict[str, Any]:
+    """Render Trader controls, including one editable wallet combobox."""
+    payload = load_current_snapshot()
+    rows = payload.get('wallets', []) if payload else []
+    wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
+    from ui.section_guide import section_guide_button_css
+    st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS + section_guide_button_css("trader") + TRADER_CONTROLS_CSS)
+    st.sidebar.header("Display Options")
+    st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
+    show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
+    with st.sidebar.container(key="trader_wallet_controls"):
         selected = st.selectbox(
             "Trader",
             ["ALL TRADERS", *wallets],
@@ -871,14 +881,6 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">SORT BY</div>', unsafe_allow_html=True)
     with st.sidebar.container(key="trader_sort_controls"):
-        st.markdown("""<style>
-        .st-key-trader_sort_controls { padding: 0; }
-        .st-key-trader_sort_controls button { width:100%!important; min-height:28px!important; height:28px!important; padding:4px 10px!important; margin-bottom:3px!important; font-family:'PP Supply Sans','Space Mono',monospace,sans-serif!important; font-size:10px!important; font-weight:700!important; text-transform:uppercase!important; letter-spacing:.5px!important; border-radius:1px!important; }
-        .st-key-trader_sort_controls button[data-testid="stBaseButton-primary"] { background:#FF003A!important; border:1px solid #FF003A!important; color:#FFFFFF!important; font-weight:800!important; }
-        .st-key-trader_sort_controls button[data-testid="stBaseButton-primary"]:hover { background:#E60033!important; border-color:#FF003A!important; color:#FFFFFF!important; }
-        .st-key-trader_sort_controls button[data-testid="stBaseButton-secondary"] { background:#0a0a0a!important; border:1px solid #333!important; color:#666!important; }
-        .st-key-trader_sort_controls button[data-testid="stBaseButton-secondary"]:hover { background:#0f0f0f!important; border-color:#444!important; color:#888!important; }
-        </style>""", unsafe_allow_html=True)
         for option in ["EARNED", "INVESTED", "SOLD", "TRADES", "ROI", "WIN RATE"]:
             if st.button(option, key=f"trader_sort_{option.lower().replace(' ', '_')}", use_container_width=True, type="primary" if st.session_state.trader_sort_by == option else "secondary"):
                 st.session_state.trader_sort_by = option
