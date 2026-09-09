@@ -34,3 +34,15 @@ def test_helper_is_per_section_and_no_unimplemented_section_buttons_exist():
 def test_trader_sort_controls_remain_before_guide():
     assert SIDEBAR.index('key="trader_sort_controls"') < SIDEBAR.index('render_section_guide_button("trader")')
     assert '"sort_by": st.session_state.trader_sort_by' in SIDEBAR
+
+
+def test_sidebar_filter_labels_and_guide_reference_style():
+    assert '<div class="otg-sidebar-label">FILTERS</div>' in SIDEBAR
+    assert '<div class="otg-sidebar-label">TRADER</div>' not in SIDEBAR
+    assert "format_func=lambda value: 'All Classes' if value == 'ALL CLASSES' else value" in SIDEBAR
+    assert "label_visibility='collapsed'" in SIDEBAR
+    assert "height:28px!important" in SIDEBAR
+    assert "padding:4px 10px!important" in SIDEBAR
+    assert "margin-bottom:3px!important" in SIDEBAR
+    assert "color:#FFFFFF!important" in GUIDE
+    assert "color:#000!important" not in GUIDE

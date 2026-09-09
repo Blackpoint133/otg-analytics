@@ -13,12 +13,17 @@ def render_section_guide_button(section_key: str, *, label: str = "GUIDE") -> bo
     st.sidebar.markdown(
         f"""<style>
         .st-key-{control_key} button {{
-            width:100%!important;background:#000!important;color:#FFF!important;
-            border:1px solid #333!important;border-radius:0!important;
-            font-size:10px!important;letter-spacing:.08em!important;
+            width:100%!important;min-height:28px!important;height:28px!important;
+            padding:4px 10px!important;margin-bottom:3px!important;
+            font-family:'PP Supply Sans','Space Mono',monospace,sans-serif!important;
+            background:#0a0a0a!important;color:#666!important;
+            border:1px solid #333!important;border-radius:1px!important;
+            font-size:10px!important;font-weight:700!important;
+            text-transform:uppercase!important;letter-spacing:.5px!important;
         }}
-        .st-key-{control_key} button:hover {{background:#181D27!important;border-color:#FF003A!important;}}
-        .st-key-{control_key} button[data-testid="stBaseButton-primary"] {{background:#FF003A!important;color:#000!important;border-color:#FF003A!important;}}
+        .st-key-{control_key} button:hover {{background:#0f0f0f!important;border-color:#444!important;color:#888!important;}}
+        .st-key-{control_key} button[data-testid="stBaseButton-primary"] {{background:#FF003A!important;color:#FFFFFF!important;border-color:#FF003A!important;}}
+        .st-key-{control_key} button[data-testid="stBaseButton-primary"]:hover {{background:#E60033!important;color:#FFFFFF!important;border-color:#FF003A!important;}}
         </style>""",
         unsafe_allow_html=True,
     )

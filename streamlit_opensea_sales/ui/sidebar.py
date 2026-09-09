@@ -649,6 +649,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         value=True,
         key='top_items_show_usd'
     )
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
 
     catalog_names = []
     try:
@@ -663,6 +665,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         'ITEM CLASS',
         options=class_choices,
         key='top_items_class',
+        format_func=lambda value: 'All Classes' if value == 'ALL CLASSES' else value,
+        label_visibility='collapsed',
     )
     
     st.sidebar.markdown(
@@ -815,7 +819,8 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     st.sidebar.header("Top Traders Analytics Options")
     st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
     show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
-    st.sidebar.markdown('<div class="otg-sidebar-label">TRADER</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
     with st.sidebar.container(key="trader_wallet_controls"):
         st.markdown("""<style>
         .st-key-trader_wallet_controls [data-testid="stSelectbox"] [data-baseweb="select"] > div,
@@ -844,15 +849,24 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
         )
     if "trader_sort_by" not in st.session_state:
         st.session_state.trader_sort_by = "EARNED"
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">SORT BY</div>', unsafe_allow_html=True)
     with st.sidebar.container(key="trader_sort_controls"):
-        st.markdown("""<style>.st-key-trader_sort_controls button{width:100%!important;min-height:28px!important}.st-key-trader_sort_controls button[data-testid="stBaseButton-primary"]{background:#FF003A!important;border:1px solid #FF003A!important}.st-key-trader_sort_controls button[data-testid="stBaseButton-secondary"]{background:#0a0a0a!important;border:1px solid #333!important;color:#FFF!important}</style>""", unsafe_allow_html=True)
+        st.markdown("""<style>
+        .st-key-trader_sort_controls { padding: 0; }
+        .st-key-trader_sort_controls button { width:100%!important; min-height:28px!important; height:28px!important; padding:4px 10px!important; margin-bottom:3px!important; font-family:'PP Supply Sans','Space Mono',monospace,sans-serif!important; font-size:10px!important; font-weight:700!important; text-transform:uppercase!important; letter-spacing:.5px!important; border-radius:1px!important; }
+        .st-key-trader_sort_controls button[data-testid="stBaseButton-primary"] { background:#FF003A!important; border:1px solid #FF003A!important; color:#FFFFFF!important; font-weight:800!important; }
+        .st-key-trader_sort_controls button[data-testid="stBaseButton-primary"]:hover { background:#E60033!important; border-color:#FF003A!important; color:#FFFFFF!important; }
+        .st-key-trader_sort_controls button[data-testid="stBaseButton-secondary"] { background:#0a0a0a!important; border:1px solid #333!important; color:#666!important; }
+        .st-key-trader_sort_controls button[data-testid="stBaseButton-secondary"]:hover { background:#0f0f0f!important; border-color:#444!important; color:#888!important; }
+        </style>""", unsafe_allow_html=True)
         for option in ["EARNED", "INVESTED", "SOLD", "TRADES", "ROI", "WIN RATE"]:
             if st.button(option, key=f"trader_sort_{option.lower().replace(' ', '_')}", use_container_width=True, type="primary" if st.session_state.trader_sort_by == option else "secondary"):
                 st.session_state.trader_sort_by = option
                 st.session_state.trader_page = 1
                 st.rerun()
     from ui.section_guide import render_section_guide_button
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
     guide_open = render_section_guide_button("trader")
     selected_value = "" if selected is None else str(selected).strip()
