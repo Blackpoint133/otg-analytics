@@ -797,11 +797,14 @@ def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False,
 
         supply_value = row.get('_supply')
         supply_text = f"{int(supply_value):,}" if pd.notna(supply_value) and valid_supply(supply_value) else 'N/A'
+        if ranking_mode != 'market_strength':
+            metrics_html += (
+                '<div class="top-items-card-metric-row">'
+                '<span class="top-items-card-metric-label">TOTAL SUPPLY</span>'
+                f'<span class="top-items-card-metric-value">{supply_text}</span>'
+                '</div>'
+            )
         metrics_html += (
-            '<div class="top-items-card-metric-row">'
-            '<span class="top-items-card-metric-label">TOTAL SUPPLY</span>'
-            f'<span class="top-items-card-metric-value">{supply_text}</span>'
-            '</div>'
             '<div class="top-items-card-metric-row">'
             '<span class="top-items-card-metric-label">SUPPLY RANK</span>'
             f'<span class="top-items-card-metric-value">{_format_rank(row.get("_supply_rank"))}</span>'
