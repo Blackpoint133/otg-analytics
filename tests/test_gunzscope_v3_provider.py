@@ -14,7 +14,7 @@ def v3_record(pid="x", supply_value=10, eligible=True, status=None):
 
 def v3_payload(record=None):
     return {"schema_version": 3, "source": "gunzscope",
-            "provider_scope": {"exclude_zero": True, "exclude_base": True, "sort": "activeMints", "order": "asc"},
+            "provider_scope": {"exclude_zero": True, "exclude_base": False, "sort": "activeMints", "order": "asc"},
             "provider_items": {"x": record or v3_record()},
             "catalog_mappings": {"Item Epic": {"mapping_status": "DIRECT_CURRENT", "provider_item_id": "x"}},
             "provider_item_conflicts": []}
@@ -88,6 +88,7 @@ def test_provider_only_total_supply_candidate_survives(monkeypatch):
     payload = v3_payload()
     payload["provider_items"]["x"]["provider_image_url"] = "https://example.test/item.png"
     monkeypatch.setenv("GUNZSCOPE_SUPPLY_SOURCE", "v3")
+    monkeypatch.setattr(top, "selected_supply_source", lambda: "v3")
     monkeypatch.setattr(top, "read_snapshot_v3", lambda: payload)
     monkeypatch.setattr(top, "load_items_index", lambda: ({}, type("D", (), {"success": True})()))
     rows = top._load_global_total_supply_candidates()

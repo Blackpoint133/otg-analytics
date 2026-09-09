@@ -113,7 +113,7 @@ def validate_snapshot_v3(payload):
     if not isinstance(payload, dict) or payload.get("schema_version") != 3 or payload.get("source") != "gunzscope":
         raise ValueError("invalid v3 header")
     scope = payload.get("provider_scope")
-    if not isinstance(scope, Mapping) or scope.get("exclude_zero") is not True or scope.get("exclude_base") is not True or scope.get("sort") != "activeMints" or scope.get("order") != "asc":
+    if not isinstance(scope, Mapping) or scope.get("exclude_zero") is not True or scope.get("exclude_base") is not False or scope.get("sort") != "activeMints" or scope.get("order") != "asc":
         raise ValueError("invalid v3 provider scope")
     providers, mappings = payload.get("provider_items"), payload.get("catalog_mappings")
     if not isinstance(providers, dict) or not isinstance(mappings, dict) or not isinstance(payload.get("provider_item_conflicts", []), list):

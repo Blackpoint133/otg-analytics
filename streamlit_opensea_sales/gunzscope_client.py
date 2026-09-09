@@ -93,7 +93,7 @@ def fetch_item(name: str, rarity: str | None = None, *, session=None, timeout=DE
     return payload
 
 
-def fetch_rankings(*, session=None, timeout=DEFAULT_TIMEOUT, max_attempts=3, sleep=time.sleep):
+def fetch_rankings(*, exclude_zero=True, exclude_base=False, session=None, timeout=DEFAULT_TIMEOUT, max_attempts=3, sleep=time.sleep):
     """Fetch the complete current nonzero, non-base provider universe."""
     api_key = os.getenv("API_GUNZSCOPE", "").strip()
     if not api_key:
@@ -106,7 +106,8 @@ def fetch_rankings(*, session=None, timeout=DEFAULT_TIMEOUT, max_attempts=3, sle
             raise GunzscopeError("GUNZscope rankings pagination loop")
         seen_offsets.add(offset)
         params = {"sort": "activeMints", "order": "asc", "limit": 500,
-                  "offset": offset, "excludeZero": "true", "excludeBase": "true"}
+                  "offset": offset, "excludeZero": str(exclude_zero).lower(),
+                  "excludeBase": str(exclude_base).lower()}
         last_error = None
         for attempt in range(1, max_attempts + 1):
             try:

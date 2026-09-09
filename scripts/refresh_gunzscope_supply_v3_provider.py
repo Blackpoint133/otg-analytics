@@ -84,7 +84,7 @@ def build_payload(catalog, ranking_items, resolved):
             old_record = old.get("provider_items", {}).get(pid)
             if isinstance(old_record, dict):
                 providers[pid] = {"provider_item_id": pid, "provider_item_name": old_record.get("provider_item_name"), "provider_rarity": old_record.get("provider_rarity"), "provider_asset_key": old_record.get("provider_asset_key"), "provider_image_url": None, "raw_active_mints": old_record.get("raw_active_mints"), "ranking_eligible": False, "fetched_at": now(), "status": "catalog_only", "scope_reason": "catalog_only_outside_current_rankings"}
-    return {"schema_version": 3, "source": "gunzscope", "snapshot_fetched_at": now(), "provider_scope": {"exclude_zero": True, "exclude_base": True, "sort": "activeMints", "order": "asc"}, "provider_items": providers, "catalog_mappings": mappings, "provider_item_conflicts": conflicts}
+    return {"schema_version": 3, "source": "gunzscope", "snapshot_fetched_at": now(), "provider_scope": {"exclude_zero": True, "exclude_base": False, "sort": "activeMints", "order": "asc"}, "provider_items": providers, "catalog_mappings": mappings, "provider_item_conflicts": conflicts}
 
 def publish(payload):
     DATA.mkdir(parents=True, exist_ok=True); fd, path = tempfile.mkstemp(prefix="gunzscope_v3_", suffix=".tmp", dir=DATA)
@@ -99,7 +99,7 @@ def main():
     catalog=list(json.loads(CATALOG.read_text(encoding="utf-8"))["items"].values())
     if a.dry_run:
         print(f"V3_PROVIDER_DRY_RUN PASS CATALOG_ROWS={len(catalog)} HTTP_REQUESTS=0 SNAPSHOT_WRITES=0"); return 0
-    rankings=fetch_rankings()["items"]; payload=build_payload(catalog, rankings, None)
+    rankings=fetch_rankings(exclude_zero=True, exclude_base=False)["items"]; payload=build_payload(catalog, rankings, None)
     from gunzscope_supply import validate_snapshot_v3
     validate_snapshot_v3(payload); publish(payload)
     print(f"V3_PROVIDER_REFRESH PASS PROVIDER_ITEMS={len(payload['provider_items'])} CATALOG_ROWS={len(catalog)}")
