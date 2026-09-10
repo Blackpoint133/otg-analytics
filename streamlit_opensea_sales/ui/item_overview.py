@@ -25,6 +25,7 @@ from ui.gunzscope_attribution import inline_logo
 
 # Image URL normalization
 IMAGE_CDN_BASE = "https://cdne-g01-livepc-wu-itemsthumbnails.azureedge.net"
+ITEM_ANALYTICS_DESKTOP_PANEL_HEIGHT = 720
 
 
 def _normalize_item_image_url(image_url):
@@ -297,7 +298,8 @@ def _render_item_card(
     st.markdown("""
         <style>
         .item-analytics-card-shell {
-            min-height: 600px;
+            height: 720px;
+            min-height: 720px;
             display: flex;
             flex-direction: column;
         }
@@ -309,7 +311,9 @@ def _render_item_card(
             display: flex;
             flex-direction: column;
             gap: 6px;
-            min-height: 600px;
+            box-sizing: border-box;
+            height: 720px;
+            min-height: 720px;
         }
         
         .item-card-header {
@@ -660,6 +664,8 @@ def _render_item_chart(
         compact_vertical_margins=not mobile_layout
         , highlight_wallet=highlight_wallet
     )
+    if not mobile_layout:
+        fig.update_layout(height=ITEM_ANALYTICS_DESKTOP_PANEL_HEIGHT)
     if mobile_layout:
         fig.update_layout(showlegend=False)
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})

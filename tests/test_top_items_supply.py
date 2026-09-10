@@ -137,6 +137,16 @@ def test_total_supply_header_is_period_independent_and_table_columns_are_reachab
     assert "_render_top_items_table_view(page_data" in source
 
 
+def test_no_class_state_uses_otg_markup_not_streamlit_info():
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert "top-items-empty-class-state" in source
+    assert "SELECT AT LEAST ONE ITEM CLASS" in source
+    branch = source.split("if display_data.empty:", 1)[1].split("return", 1)[0]
+    assert "st.info(\"SELECT AT LEAST ONE ITEM CLASS\")" not in branch
+    assert "background: #000" in source
+    assert "border-top: 2px solid var(--otg-accent)" in source
+
+
 def test_market_period_loader_and_usd_resort_remain_in_source():
     source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
     assert "ranking_mode=ranking_mode" in source

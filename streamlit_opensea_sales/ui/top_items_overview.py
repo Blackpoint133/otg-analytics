@@ -451,6 +451,19 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
             margin-top: 4px;
             margin-bottom: 12px;
         }}
+        .top-items-empty-class-state {{
+            background: #000;
+            border: 1px solid #1a1a1a;
+            border-top: 2px solid var(--otg-accent);
+            border-radius: 0;
+            padding: 10px 14px;
+            color: var(--otg-text-secondary);
+            font-family: 'PP Supply Sans', 'Space Mono', monospace, sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .7px;
+            text-transform: uppercase;
+        }}
         .gunzscope-attribution-link {{ color:inherit; text-decoration:none; line-height:1; }}
         .gunzscope-inline-logo {{ width:1em; height:1em; object-fit:contain; vertical-align:middle; margin-left:4px; }}
         .gunzscope-table-logo {{ width:1em; height:1em; object-fit:contain; vertical-align:middle; margin-left:4px; }}
@@ -506,7 +519,13 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     if not legacy_all_classes:
         display_data = filter_item_classes(display_data, item_classes)
     if display_data.empty:
-        st.info("SELECT AT LEAST ONE ITEM CLASS" if not item_classes else "NO TOP ITEMS FOUND FOR SELECTED ITEM CLASSES")
+        if not item_classes:
+            st.markdown(
+                '<div class="top-items-empty-class-state">SELECT AT LEAST ONE ITEM CLASS</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.info("NO TOP ITEMS FOUND FOR SELECTED ITEM CLASSES")
         return
 
     context = (ranking_mode, period, bool(show_usd and ranking_mode == 'volume'), tuple(item_classes) if not legacy_all_classes else "LEGACY_ALL")
