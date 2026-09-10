@@ -119,7 +119,10 @@ def safe_avatar_css(profile: dict[str, Any] | None) -> str:
 
 def avatar_style_attribute(profile: dict[str, Any] | None, wallet: str) -> str:
     """Build one safely escaped style attribute for the trader avatar markup."""
-    remote_value = safe_avatar_css(profile) or "none"
-    fallback_uri = fallback_avatar_data_uri(wallet)
-    style_value = f"--trader-remote-avatar:{remote_value};--trader-fallback-avatar:url('{fallback_uri}');"
+    remote_value = safe_avatar_css(profile)
+    if remote_value:
+        style_value = f"--trader-remote-avatar:{remote_value};--trader-fallback-avatar:none;"
+    else:
+        fallback_uri = fallback_avatar_data_uri(wallet)
+        style_value = f"--trader-remote-avatar:none;--trader-fallback-avatar:url('{fallback_uri}');"
     return f'style="{html.escape(style_value, quote=True)}"'

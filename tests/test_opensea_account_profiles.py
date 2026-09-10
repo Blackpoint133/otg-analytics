@@ -48,6 +48,8 @@ def test_avatar_style_attribute_escapes_complete_style_value():
     assert "--trader-fallback-avatar:url(&#x27;data:image/png;base64," in fallback
     assert "--trader-remote-avatar:none;" in fallback
     assert "--trader-remote-avatar:url(&quot;https://example.com/avatar.png&quot;);" in remote
+    assert "--trader-fallback-avatar:none;" in remote
+    assert "data:image/png;base64" not in remote
     assert remote.index("--trader-remote-avatar") < remote.index("--trader-fallback-avatar")
 
 

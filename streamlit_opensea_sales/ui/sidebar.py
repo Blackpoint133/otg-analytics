@@ -24,6 +24,8 @@ from item_class_data import USER_FACING_CLASSES, read_item_class_snapshot
 SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytics.log"
 SIDEBAR_LOGGER = get_module_logger("sidebar", log_file=SIDEBAR_LOG_PATH, module_tag="sidebar")
 
+TRADER_VISIBLE_SORT_OPTIONS = ("EARNED", "INVESTED", "SOLD", "TRADES")
+
 
 def _log_item_ui(marker: str, **fields: Any) -> None:
     """Emit redacted item-widget diagnostics without affecting the public UI."""
@@ -876,12 +878,13 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
             placeholder="Search or enter wallet address",
             accept_new_options=True,
         )
-    if "trader_sort_by" not in st.session_state:
+    if st.session_state.get("trader_sort_by") not in TRADER_VISIBLE_SORT_OPTIONS:
         st.session_state.trader_sort_by = "EARNED"
+        st.session_state.trader_page = 1
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">SORT BY</div>', unsafe_allow_html=True)
     with st.sidebar.container(key="trader_sort_controls"):
-        for option in ["EARNED", "INVESTED", "SOLD", "TRADES", "ROI", "WIN RATE"]:
+        for option in TRADER_VISIBLE_SORT_OPTIONS:
             if st.button(option, key=f"trader_sort_{option.lower().replace(' ', '_')}", use_container_width=True, type="primary" if st.session_state.trader_sort_by == option else "secondary"):
                 st.session_state.trader_sort_by = option
                 st.session_state.trader_page = 1
