@@ -10,6 +10,10 @@ import streamlit as st
 
 
 UNCLASSIFIED = "UNCLASSIFIED"
+USER_FACING_CLASSES = (
+    "Customization Item", "Weapon", "Weapon Attachment", "Weapon Skin",
+    "Body Part", "Profile Customization", "Music",
+)
 
 
 def snapshot_path() -> Path:

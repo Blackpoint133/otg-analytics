@@ -175,7 +175,7 @@ def main():
                 ranking_mode=top_items_controls['ranking_mode'],
                 period=top_items_controls['period'],
                 top_items_view=top_items_controls['top_items_view'],
-                item_class=top_items_controls['item_class'],
+                item_classes=top_items_controls['item_classes'],
                 guide_open=top_items_controls['guide_open'],
             )
         render_sidebar_footer()

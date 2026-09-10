@@ -18,7 +18,7 @@ from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
 from data_access import load_item_data
 from item_paths import resolve_item_path
 from trader_analytics import load_current_snapshot, normalize_wallet
-from item_class_data import class_options, read_item_class_snapshot
+from item_class_data import USER_FACING_CLASSES, read_item_class_snapshot
 
 
 SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytics.log"
@@ -674,14 +674,14 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             catalog_names = sorted({str(record.get('display_name', '')).strip() for record in catalog.values() if isinstance(record, dict) and str(record.get('display_name', '')).strip()})
     except Exception:
         catalog_names = []
-    class_choices = class_options(catalog_names, read_item_class_snapshot())
-    selected_class = st.sidebar.selectbox(
-        'ITEM CLASS',
-        options=class_choices,
-        key='top_items_class',
-        format_func=lambda value: 'All Classes' if value == 'ALL CLASSES' else value,
-        label_visibility='collapsed',
-    )
+    defaults = {name: name in {"Customization Item", "Weapon"} for name in USER_FACING_CLASSES}
+    selected_classes = []
+    for name in USER_FACING_CLASSES:
+        key = "top_items_class_" + name.lower().replace(" ", "_")
+        if key not in st.session_state:
+            st.session_state[key] = defaults[name]
+        if st.sidebar.checkbox(name, key=key):
+            selected_classes.append(name)
     
     st.sidebar.markdown(
         '<div class="otg-sidebar-section-gap"></div>',
@@ -824,7 +824,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         'ranking_mode': current_mode,
         'period': current_period,
         'top_items_view': current_view,
-        'item_class': selected_class, 'guide_open': guide_open,
+        'item_classes': tuple(selected_classes), 'guide_open': guide_open,
     }
 
 

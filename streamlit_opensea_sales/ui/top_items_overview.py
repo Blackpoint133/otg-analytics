@@ -25,7 +25,7 @@ import market_data_access as mda
 from data_access import load_items_index
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
 from gunzscope_supply import build_v2_canonical_index, build_v3_canonical_index, build_v3_supply_presentation_index, dense_supply_ranks, read_current_snapshot, read_serving_snapshot, read_snapshot_v3, selected_supply_source, valid_supply
-from item_class_data import UNCLASSIFIED, class_mapping, read_item_class_snapshot
+from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, class_mapping, read_item_class_snapshot
 
 
 # Image URL normalization
@@ -49,6 +49,11 @@ def filter_item_class(data: pd.DataFrame, selected_class: str) -> pd.DataFrame:
     if selected_class == 'ALL CLASSES':
         return data.copy()
     return data[data['_item_class'] == selected_class].copy()
+
+
+def filter_item_classes(data: pd.DataFrame, selected_classes) -> pd.DataFrame:
+    """Visibility-only OR filter preserving global ranks and input order."""
+    return data[data['_item_class'].isin(tuple(selected_classes))].copy()
 
 
 def page_count(total_rows: int, page_size: int = TOP_ITEMS_PAGE_SIZE) -> int:
@@ -310,7 +315,7 @@ def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None, limit: Op
     return display_data
 
 
-def render_top_items_overview(show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', top_items_view: str = 'cards', item_class: str = 'ALL CLASSES', guide_open: bool = False):
+def render_top_items_overview(show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', top_items_view: str = 'cards', item_class: str = 'ALL CLASSES', item_classes=None, guide_open: bool = False):
     """
     technical diagnostic text technical diagnostic text technical diagnostic text Top Items Analytics technical diagnostic text.
     
@@ -336,7 +341,9 @@ def render_top_items_overview(show_usd: bool = False, current_gun_price: float =
     cache_buster = mda._get_cache_buster()
     
     # Render top items section with current ranking mode and period
-    _render_top_items_section(cache_buster=cache_buster, show_usd=show_usd, current_gun_price=current_gun_price, ranking_mode=ranking_mode, period=period, top_items_view=top_items_view, item_class=item_class)
+    if item_classes is None:
+        item_classes = tuple(USER_FACING_CLASSES) if item_class == 'ALL CLASSES' else (item_class,)
+    _render_top_items_section(cache_buster=cache_buster, show_usd=show_usd, current_gun_price=current_gun_price, ranking_mode=ranking_mode, period=period, top_items_view=top_items_view, item_classes=tuple(item_classes))
     
     st.markdown("---")
     
@@ -371,7 +378,7 @@ def _render_top_items_footer():
     pass
 
 
-def _render_top_items_section(cache_buster: str, show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', top_items_view: str = 'cards', item_class: str = 'ALL CLASSES'):
+def _render_top_items_section(cache_buster: str, show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', top_items_view: str = 'cards', item_classes=None):
     """
     technical diagnostic text Top Items section technical diagnostic text technical diagnostic text content renderer.
     
@@ -489,13 +496,14 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         display_data['display_rank'] = display_data['rank']
     
     display_data = attach_item_classes(display_data, class_mapping(read_item_class_snapshot()))
-    if item_class != 'ALL CLASSES':
-        display_data = filter_item_class(display_data, item_class)
-        if display_data.empty:
-            st.info(f"NO TOP ITEMS FOUND FOR ITEM CLASS: {item_class}")
-            return
+    legacy_all_classes = item_classes is None
+    if not legacy_all_classes:
+        display_data = filter_item_classes(display_data, item_classes)
+    if display_data.empty:
+        st.info("SELECT AT LEAST ONE ITEM CLASS" if not item_classes else "NO TOP ITEMS FOUND FOR SELECTED ITEM CLASSES")
+        return
 
-    context = (ranking_mode, period, bool(show_usd and ranking_mode == 'volume'), item_class)
+    context = (ranking_mode, period, bool(show_usd and ranking_mode == 'volume'), tuple(item_classes) if not legacy_all_classes else "LEGACY_ALL")
     if st.session_state.get('top_items_page_context') != context:
         st.session_state.top_items_page_context = context
         st.session_state.top_items_page = 1
