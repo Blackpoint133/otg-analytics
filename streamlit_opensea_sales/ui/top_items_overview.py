@@ -26,6 +26,7 @@ from data_access import load_items_index
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
 from gunzscope_supply import build_v2_canonical_index, build_v3_canonical_index, build_v3_supply_presentation_index, dense_supply_ranks, read_current_snapshot, read_serving_snapshot, read_snapshot_v3, selected_supply_source, valid_supply
 from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, class_mapping, read_item_class_snapshot
+from ui.gunzscope_attribution import inline_logo
 
 
 # Image URL normalization
@@ -413,7 +414,9 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         '7d': 'ROLLING 7-DAY RANKING',
         '1d': 'ROLLING 24-HOUR RANKING'
     }
-    period_label = 'GLOBAL CURRENT SUPPLY' if ranking_mode == 'total_supply' else period_labels.get(period, 'ALL-TIME RANKING')
+    period_label = period_labels.get(period, 'ALL-TIME RANKING')
+    if ranking_mode == 'total_supply' and top_items_view != 'table':
+        period_label = f'Current supply data provided by GUNZscope {inline_logo()}'
     
     # Section heading with title and subtitle
     st.markdown(f"""
@@ -448,6 +451,7 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
             margin-top: 4px;
             margin-bottom: 12px;
         }}
+        .gunzscope-inline-logo {{ width:16px; height:16px; object-fit:contain; vertical-align:middle; margin-left:5px; }}
         </style>
         <div class="top-items-ranking-header">
             <h3>{ranking_title}</h3>
@@ -1270,7 +1274,7 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 <th>Active Days</th>
 <th>Avg Price (GUN)</th>
 <th>Avg Price (USD)</th>
-<th>Total Supply</th>
+<th>Total Supply {inline_logo("gunzscope-table-logo")}</th>
 <th>Supply Rank</th>
 </tr></thead>
 <tbody>

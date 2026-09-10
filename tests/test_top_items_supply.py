@@ -130,8 +130,8 @@ def test_total_supply_path_is_global_and_has_no_live_client_import():
 
 def test_total_supply_header_is_period_independent_and_table_columns_are_reachable():
     source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
-    assert "GLOBAL CURRENT SUPPLY" in source
-    assert "<th>Total Supply</th>" in source
+    assert "Current supply data provided by GUNZscope" in source
+    assert "<th>Total Supply {inline_logo(\"gunzscope-table-logo\")}</th>" in source
     assert "<th>Supply Rank</th>" in source
     assert "_render_top_items_table_view(page_data" in source
 

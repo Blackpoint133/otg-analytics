@@ -20,6 +20,7 @@ from charts import build_sales_chart
 from ui.tables import render_sales_table, paginate_dataframe, get_current_page
 from gunzscope_supply import ATTRIBUTION, get_item_supply_with_rank
 from item_paths import resolve_item_path
+from ui.gunzscope_attribution import inline_logo
 
 
 # Image URL normalization
@@ -479,7 +480,7 @@ def _render_item_card(
     rank_text = f"#{supply_rank}" if isinstance(supply_rank, int) else 'N/A'
     if supply_record and supply_record.get('status') == 'stale':
         supply_text += ' (STALE)'
-    card_html += f'<div class="item-card-metric-row"><span class="item-card-metric-label">SUPPLY</span><span class="item-card-metric-value item-card-accent-value">{supply_text}</span></div>'
+    card_html += f'<div class="item-card-metric-row"><span class="item-card-metric-label">SUPPLY</span><span class="item-card-metric-value item-card-accent-value">{supply_text} {inline_logo()}</span></div>'
     card_html += f'<div class="item-card-metric-row"><span class="item-card-metric-label">SUPPLY RANK</span><span class="item-card-metric-value item-card-accent-value">{rank_text}</span></div>'
     card_html += (
         f'<div style="font-size:10px;margin-top:4px;text-align:right;">'
