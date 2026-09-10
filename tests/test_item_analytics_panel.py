@@ -8,7 +8,7 @@ def test_item_analytics_uses_shared_desktop_panel_height_without_changing_generi
     item_source = (APP / "ui" / "item_overview.py").read_text(encoding="utf-8")
     chart_source = (APP / "charts.py").read_text(encoding="utf-8")
     assert "ITEM_ANALYTICS_DESKTOP_CARD_HEIGHT = 720" in item_source
-    assert "ITEM_ANALYTICS_DESKTOP_CHART_HEIGHT = 760" in item_source
+    assert "ITEM_ANALYTICS_DESKTOP_CHART_HEIGHT = 750" in item_source
     assert "height: 720px" in item_source
     assert "min-height: 720px" in item_source
     assert "box-sizing: border-box" in item_source

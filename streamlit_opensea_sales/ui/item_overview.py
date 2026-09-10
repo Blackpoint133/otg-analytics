@@ -26,7 +26,7 @@ from ui.gunzscope_attribution import inline_logo
 # Image URL normalization
 IMAGE_CDN_BASE = "https://cdne-g01-livepc-wu-itemsthumbnails.azureedge.net"
 ITEM_ANALYTICS_DESKTOP_CARD_HEIGHT = 720
-ITEM_ANALYTICS_DESKTOP_CHART_HEIGHT = 760
+ITEM_ANALYTICS_DESKTOP_CHART_HEIGHT = 750
 
 
 def _normalize_item_image_url(image_url):
