@@ -28,5 +28,5 @@ def inline_logo(class_name: str = "gunzscope-inline-logo") -> str:
         f'target="_blank" rel="noopener noreferrer" title="{TOOLTIP}" '
         f'aria-label="{TOOLTIP}"><img class="{class_name}" src="{src}" '
         'alt="GUNZscope" style="display:inline-block;width:1em;height:1em;'
-        'object-fit:contain;vertical-align:middle;margin-left:4px;"></a>'
+        'object-fit:contain;vertical-align:-0.12em;margin-left:0;"></a>'
     )
