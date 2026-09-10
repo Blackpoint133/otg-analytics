@@ -24,13 +24,14 @@ def test_old_main_metric_trigger_is_removed_and_content_is_main_area():
     assert TRADER.index("if guide_open:") < TRADER.index("render_trader_table(consolidated_table_rows")
 
 
-def test_helper_is_per_section_and_no_unimplemented_section_buttons_exist():
+def test_helper_is_per_section_and_all_guides_are_implemented():
     assert "def render_section_guide_button" in GUIDE
     for section in ("item", "market", "top_items", "trader"):
         assert f'render_section_guide_button("{section}")' in SIDEBAR
-    assert "Coming soon" in (ROOT / "streamlit_opensea_sales" / "ui" / "item_overview.py").read_text(encoding="utf-8")
-    assert "Coming soon" in (ROOT / "streamlit_opensea_sales" / "ui" / "market_overview.py").read_text(encoding="utf-8")
-    assert "Coming soon" in (ROOT / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    for page in ("item_overview.py", "market_overview.py", "top_items_overview.py"):
+        source = (ROOT / "streamlit_opensea_sales" / "ui" / page).read_text(encoding="utf-8")
+        assert "Coming soon" not in source
+        assert "render_section_guide_panel" in source
 
 
 def test_trader_sort_controls_remain_before_guide():
@@ -41,8 +42,8 @@ def test_trader_sort_controls_remain_before_guide():
 def test_sidebar_filter_labels_and_guide_reference_style():
     assert '<div class="otg-sidebar-label">FILTERS</div>' in SIDEBAR
     assert '<div class="otg-sidebar-label">TRADER</div>' not in SIDEBAR
-    assert "format_func=lambda value: 'All Classes' if value == 'ALL CLASSES' else value" in SIDEBAR
-    assert "label_visibility='collapsed'" in SIDEBAR
+    assert 'render_section_guide_button("item")' in SIDEBAR
+    assert 'label_visibility="collapsed"' in SIDEBAR
     assert "height:28px!important" in SIDEBAR
     assert "padding:4px 10px!important" in SIDEBAR
     assert "margin-bottom:3px!important" in SIDEBAR
