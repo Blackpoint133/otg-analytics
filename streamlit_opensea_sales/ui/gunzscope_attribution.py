@@ -6,6 +6,8 @@ from pathlib import Path
 
 
 LOGO_PATH = Path(__file__).resolve().parents[2] / "img" / "gunz_scope" / "logo_1.png"
+SUPPLY_URL = "https://gunzscope.xyz/supply/"
+TOOLTIP = "Data by GUNZscope"
 
 
 @lru_cache(maxsize=1)
@@ -21,4 +23,10 @@ def inline_logo(class_name: str = "gunzscope-inline-logo") -> str:
     src = logo_data_uri()
     if not src:
         return ""
-    return f'<img class="{class_name}" src="{src}" alt="GUNZscope" width="16" height="16">'
+    return (
+        f'<a class="gunzscope-attribution-link" href="{SUPPLY_URL}" '
+        f'target="_blank" rel="noopener noreferrer" title="{TOOLTIP}" '
+        f'aria-label="{TOOLTIP}"><img class="{class_name}" src="{src}" '
+        'alt="GUNZscope" style="display:inline-block;width:1em;height:1em;'
+        'object-fit:contain;vertical-align:middle;margin-left:4px;"></a>'
+    )

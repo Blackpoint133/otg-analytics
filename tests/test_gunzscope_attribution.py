@@ -16,4 +16,7 @@ def test_inline_logo_is_compact_and_reusable():
     markup = inline_logo("test-logo")
     assert 'class="test-logo"' in markup
     assert 'alt="GUNZscope"' in markup
-    assert 'width="16" height="16"' in markup
+    assert 'href="https://gunzscope.xyz/supply/"' in markup
+    assert 'title="Data by GUNZscope"' in markup
+    assert 'aria-label="Data by GUNZscope"' in markup
+    assert 'width:1em;height:1em' in markup

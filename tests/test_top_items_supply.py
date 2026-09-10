@@ -132,6 +132,7 @@ def test_total_supply_header_is_period_independent_and_table_columns_are_reachab
     source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
     assert "Current supply data provided by GUNZscope" in source
     assert "<th>Total Supply {inline_logo(\"gunzscope-table-logo\")}</th>" in source
+    assert "width:1em" in source
     assert "<th>Supply Rank</th>" in source
     assert "_render_top_items_table_view(page_data" in source
 

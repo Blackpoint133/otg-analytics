@@ -18,7 +18,7 @@ from pathlib import Path
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
 from charts import build_sales_chart
 from ui.tables import render_sales_table, paginate_dataframe, get_current_page
-from gunzscope_supply import ATTRIBUTION, get_item_supply_with_rank
+from gunzscope_supply import get_item_supply_with_rank
 from item_paths import resolve_item_path
 from ui.gunzscope_attribution import inline_logo
 
@@ -482,13 +482,6 @@ def _render_item_card(
         supply_text += ' (STALE)'
     card_html += f'<div class="item-card-metric-row"><span class="item-card-metric-label">SUPPLY</span><span class="item-card-metric-value item-card-accent-value">{supply_text} {inline_logo()}</span></div>'
     card_html += f'<div class="item-card-metric-row"><span class="item-card-metric-label">SUPPLY RANK</span><span class="item-card-metric-value item-card-accent-value">{rank_text}</span></div>'
-    card_html += (
-        f'<div style="font-size:10px;margin-top:4px;text-align:right;">'
-        f'<a href="{ATTRIBUTION["url"]}" target="_blank" rel="noopener noreferrer" '
-        f'style="color:var(--otg-text-secondary);text-decoration:none;">'
-        f'<img src="{ATTRIBUTION["logoUrl"]}" alt="GUNZscope" width="18" height="18" '
-        f'style="vertical-align:middle;margin-right:4px;">{ATTRIBUTION["text"]}</a></div>'
-    )
     card_html += '</div>'
     
     # ====== MARKET POSITION (Ranks) ======
