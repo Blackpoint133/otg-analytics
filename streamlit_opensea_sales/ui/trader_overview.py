@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import math
 import base64
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
@@ -23,6 +24,19 @@ INVESTED_COLOR = "#D8C3A5"
 SOLD_COLOR = "#FFD400"
 PERFORMANCE_SORTS = {"WIN RATE"}
 SORT_OPTIONS = ["EARNED", "INVESTED", "SOLD", "TRADES", "ROI", "WIN RATE"]
+METRIC_ICON_FILES = {"EARNED": "earned.png", "INVESTED": "invested.png", "SOLD": "sold.png", "TRADES": "trades.png", "ROI": "roi.png", "WIN RATE": "win_rate.png"}
+
+
+@lru_cache(maxsize=1)
+def metric_icon_data_uris() -> dict[str, str | None]:
+    icon_root = Path(__file__).resolve().parents[2] / "img" / "icon_metrics"
+    result = {}
+    for metric, filename in METRIC_ICON_FILES.items():
+        try:
+            result[metric] = "data:image/png;base64," + base64.b64encode((icon_root / filename).read_bytes()).decode("ascii")
+        except (OSError, ValueError):
+            result[metric] = None
+    return result
 
 
 def short_wallet(wallet: str) -> str:
@@ -136,6 +150,7 @@ def consolidated_table_rows(rows: Iterable[dict[str, Any]], show_usd: bool = Tru
 
 def render_trader_table(rows: list[dict[str, Any]]) -> None:
     columns = ["Rank", "Profile", "Earned", "Invested", "Sold", "Trades", "Purchases", "Sales", "ROI", "Win Rate", "Coverage", "Matched Sales"]
+    metric_icons = metric_icon_data_uris()
     body = []
     for row_number, row in enumerate(rows, 1):
         cells = []
@@ -155,16 +170,12 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
                 verified = " ✓" if profile.get("is_verified") is True else ""
                 ranks = row.get("_ranks", {})
                 rank_lines = []
-                metric_icon_names = {"EARNED": "earned", "INVESTED": "invested", "SOLD": "sold", "TRADES": "trades", "ROI": "roi", "WIN RATE": "win_rate"}
                 for metric in SORT_OPTIONS:
                     entry = ranks.get(metric, {})
                     rank = entry.get("rank") or ""
                     label = {"EARNED": "Earned", "INVESTED": "Invested", "SOLD": "Sold", "TRADES": "Trades", "ROI": "ROI", "WIN RATE": "Win Rate"}[metric]
-                    icon_path = Path(__file__).resolve().parents[2] / "img" / "icon_metrics" / f"{metric_icon_names[metric]}.png"
-                    icon_src = ""
-                    if icon_path.exists():
-                        icon_src = "data:image/png;base64," + base64.b64encode(icon_path.read_bytes()).decode("ascii")
-                    icon_html = f'<img class="trader-profile-stat-icon" src="{icon_src}" alt="">' if icon_src else '<span class="trader-profile-stat-icon trader-profile-stat-icon-fallback">//</span>'
+                    icon_class = metric.lower().replace(" ", "-")
+                    icon_html = f'<span class="trader-profile-stat-icon trader-profile-stat-icon--{icon_class}"></span>' if metric_icons.get(metric) else '<span class="trader-profile-stat-icon trader-profile-stat-icon-fallback">//</span>'
                     rank_lines.append(f'<div>{icon_html}<span>{label}</span><b>{html.escape("#" + str(rank) if rank else "—")}</b><em>{html.escape(entry.get("value", "N/A"))}</em></div>')
                 ens = str(profile.get("ens_name") or "").strip()
                 ens_html = f'<div class="trader-profile-muted">ENS: {html.escape(ens)}</div>' if ens else ""
@@ -181,6 +192,13 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
         body.append(f'<tr class="{selected_class.strip()}">' + "".join(cells) + "</tr>")
     css = f"""<style>.trader-table-scroll{{overflow-x:auto;width:100%;margin:16px 0}}.trader-table{{width:100%;min-width:1120px;border-collapse:collapse;background:#000;border:1px solid #FF003A;font-family:'Space Mono',monospace;font-size:11px}}.trader-table thead{{background:#0a0a0a;border-bottom:2px solid #FF003A}}.trader-table th{{color:#FF003A;padding:10px 8px;text-align:left;text-transform:uppercase;letter-spacing:1px;font-size:10px;white-space:nowrap}}.trader-table td{{color:#FFF;padding:8px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}}.trader-table tbody tr:hover{{background:#0a0a0a}}.trader-table tbody tr.trader-row-selected{{background:rgba(255,0,58,.07);box-shadow:inset 3px 0 0 #FF003A}}.trader-table .earned-value{{color:{EARNED_COLOR};font-weight:700}}.trader-table .invested-value{{color:{INVESTED_COLOR};font-weight:700}}.trader-table .sold-value{{color:{SOLD_COLOR};font-weight:700}}.trader-profile-trigger{{display:inline-flex;align-items:center;gap:8px;position:relative;cursor:default}}.trader-avatar{{display:inline-block;flex:0 0 auto;background-image:var(--trader-remote-avatar,none),var(--trader-fallback-avatar);background-size:cover;background-position:center;background-repeat:no-repeat;border-radius:50%;background-color:#111;border:1px solid #FF003A}}.trader-avatar-small{{width:28px;height:28px}}.trader-avatar-large{{width:44px;height:44px}}.trader-profile-secondary{{display:block;color:#C8C8CD;font-size:10px;font-weight:400}}.trader-profile-card{{--trader-profile-square:390px;display:none;position:absolute;z-index:1000;left:0;bottom:calc(100% + 8px);top:auto;width:min(980px,calc(100vw - 40px));white-space:normal;background:#050505;clip-path:polygon(0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px));padding:22px;color:#FFF;line-height:1.35;box-shadow:0 8px 24px #000}}.trader-profile-card::after{{content:"";position:absolute;inset:5px;z-index:-1;border:1px solid #2f2f35;pointer-events:none}}.trader-profile-card::before{{content:"";position:absolute;left:0;right:0;height:8px;bottom:-8px}}.trader-table tbody tr:nth-child(-n+8) .trader-profile-card{{top:calc(100% + 8px);bottom:auto}}.trader-table tbody tr:nth-child(-n+8) .trader-profile-card::before{{top:-8px;bottom:auto}}.trader-profile-trigger:hover .trader-profile-card{{display:block}}.trader-profile-card-grid{{display:grid;grid-template-columns:var(--trader-profile-square) minmax(0,1fr);height:var(--trader-profile-square);gap:24px;align-items:stretch}}.trader-profile-avatar{{width:var(--trader-profile-square);height:var(--trader-profile-square);aspect-ratio:1/1;background:#080808;position:relative;overflow:hidden;border:1px solid #303035;box-sizing:border-box}}.trader-profile-card .trader-avatar-large{{display:block;width:100%;height:100%;aspect-ratio:1/1;border-radius:0;border:0;background-size:contain;background-position:center;background-repeat:no-repeat}}.trader-profile-avatar::before{{content:"OFF\\A THE\\A GRID";white-space:pre;color:#7b7b82;font-size:9px;line-height:1.05;letter-spacing:2px;position:absolute;left:10px;top:10px;z-index:1;pointer-events:none}}.trader-profile-avatar::after{{content:"TRADERS\\A BUILD\\A DIFFERENT";white-space:pre;color:#7b7b82;font-size:8px;line-height:1.05;letter-spacing:1px;position:absolute;right:10px;bottom:10px;text-align:right;z-index:1;pointer-events:none}}.trader-profile-content{{min-width:0;height:var(--trader-profile-square);max-height:var(--trader-profile-square);position:relative}}.trader-profile-content::before{{content:"TRADER\\A PROFILE";white-space:pre;position:absolute;right:0;top:-2px;color:#77777d;font-size:9px;line-height:1.1;letter-spacing:2px;text-align:right}}.trader-profile-identity{{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-right:92px}}.trader-profile-identity strong{{display:block;color:#FFF;font-size:32px;line-height:1.05;overflow-wrap:anywhere}}.trader-profile-card a{{color:#FF003A;margin:4px 0;text-decoration:none}}.trader-opensea-link{{display:inline-block;font-size:13px}}.trader-profile-muted{{color:#C8C8CD;font-size:10px;overflow-wrap:anywhere}}.trader-profile-label{{color:#C8C8CD;font-size:9px;font-weight:700;letter-spacing:1.5px;margin-top:6px}}.trader-wallet-row{{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border:1px solid #3a3a40;border-left:2px solid #FF003A;background:#090909}}.trader-wallet-copy{{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;background:transparent;border:0;color:#FFF;padding:2px;font:inherit;cursor:pointer;text-align:left}}.trader-wallet-copy:hover{{color:#FFF}}.trader-wallet-copy span{{color:#FF003A;margin-left:0}}.trader-wallet-short{{white-space:nowrap;overflow:visible;font-size:10px;letter-spacing:0}}.trader-profile-stats-title{{display:flex;justify-content:space-between;color:#FF003A;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-top:10px;border:1px solid #FF003A;border-bottom:0;padding:6px 8px}}.trader-profile-stats-title::after{{content:"ONCHAIN PERFORMANCE";color:#77777d;font-weight:400}}.trader-profile-ranks{{border:1px solid #FF003A;margin-top:0;padding:4px 6px;font-size:10px;background:#080808}}.trader-profile-ranks div{{display:grid;grid-template-columns:12px minmax(70px,1fr) 44px minmax(100px,1fr);gap:6px;align-items:center;border:1px solid #303035;border-left:2px solid #FF003A;background:#0b0b0b;padding:4px 6px;margin:2px 0;min-height:18px}}.trader-profile-ranks div::before{{content:"//";color:#FF003A}}.trader-profile-ranks b{{color:#FFF;border-right:1px solid #FF003A;padding-right:6px}}.trader-profile-ranks em{{color:#C8C8CD;font-style:normal;text-align:right;overflow-wrap:anywhere}}@media (max-width:768px){{.trader-profile-card{{--trader-profile-square:auto;width:min(560px,calc(100vw - 24px));left:0}}.trader-profile-card-grid{{grid-template-columns:1fr;height:auto}}.trader-profile-avatar{{width:min(100%,300px);height:auto;aspect-ratio:1/1}}.trader-profile-content{{height:auto;max-height:none}}.trader-profile-identity strong{{font-size:24px}}.trader-profile-content::before{{font-size:8px}}}}</style><div class="trader-table-scroll"><table class="trader-table"><thead><tr>{''.join(f'<th>{c}</th>' for c in columns)}</tr></thead><tbody>{''.join(body)}</tbody></table></div>"""
     st.markdown(css, unsafe_allow_html=True)
+    icon_rules = []
+    for metric in SORT_OPTIONS:
+        icon_class = metric.lower().replace(" ", "-")
+        icon_src = metric_icons.get(metric)
+        if icon_src:
+            icon_rules.append(f'.trader-profile-stat-icon--{icon_class}{{background-image:url("{icon_src}")}}')
+    icon_css = "".join(icon_rules)
     st.markdown("""<style>
     .trader-profile-ranks div { grid-template-columns: 22px minmax(70px,1fr) 44px minmax(100px,1fr); }
     .trader-profile-ranks div::before { display:none; }
@@ -188,6 +206,8 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
     .trader-profile-stat-icon-fallback { color:#FF003A; font-size:9px; line-height:18px; }
     .trader-profile-label { margin-top:10px; margin-bottom:5px; }
     .trader-wallet-row { margin-top:0; }
+    .trader-profile-stat-icon { background-size:contain; background-position:center; background-repeat:no-repeat; }
+    """ + icon_css + """
     </style>""", unsafe_allow_html=True)
     components.html("""
 <script>

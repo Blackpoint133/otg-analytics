@@ -35,7 +35,7 @@ def test_expanded_card_is_square_and_structured(monkeypatch):
     assert 'trader-avatar-large" style=' in card
     assert "WALLET ADDRESS" in rendered
     assert "TRADING STATS" in rendered
-    assert rendered.count('class="trader-profile-stat-icon"') == 6
+    assert rendered.count("trader-profile-stat-icon trader-profile-stat-icon--") == 6
     assert "earned.png" not in rendered
 
 
@@ -96,3 +96,25 @@ def test_small_trigger_remains_circular_but_large_card_override_is_square():
     assert ".trader-profile-card .trader-avatar-large" in source
     assert "width:min(980px,calc(100vw - 40px))" in source
     assert "@media (max-width:768px)" in source
+
+
+def test_metric_icon_mapping_and_cached_sources_are_complete():
+    assert overview.METRIC_ICON_FILES == {
+        "EARNED": "earned.png", "INVESTED": "invested.png", "SOLD": "sold.png",
+        "TRADES": "trades.png", "ROI": "roi.png", "WIN RATE": "win_rate.png",
+    }
+    sources = overview.metric_icon_data_uris()
+    assert all(value.startswith("data:image/png;base64,") for value in sources.values())
+    assert overview.metric_icon_data_uris() is sources
+
+
+def test_render_reuses_six_icon_definitions_for_many_rows(monkeypatch):
+    captured = []
+    monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
+    rows = []
+    for index in range(25):
+        rows.append({"wallet": f"0x{index:040x}", "_profile": {}, "_ranks": {}})
+    overview.render_trader_table(overview.consolidated_table_rows(rows))
+    rendered = "".join(captured)
+    assert captured[1].count("data:image/png;base64,") == 6
+    assert rendered.count("trader-profile-stat-icon--earned") == 26
