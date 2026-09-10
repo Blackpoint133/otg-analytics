@@ -118,3 +118,14 @@ def test_render_reuses_six_icon_definitions_for_many_rows(monkeypatch):
     rendered = "".join(captured)
     assert captured[1].count("data:image/png;base64,") == 6
     assert rendered.count("trader-profile-stat-icon--earned") == 26
+
+
+def test_desktop_profile_content_bottom_anchor_contract_is_preserved():
+    source = Path(overview.__file__).read_text(encoding="utf-8")
+    assert "--trader-profile-square:350px" in source
+    assert ".trader-profile-content { display:flex; flex-direction:column; }" in source
+    assert ".trader-profile-stats-title { margin-top:auto; }" in source
+    assert "grid-template-columns:var(--trader-profile-square) minmax(0,1fr)" in source
+    assert "height:var(--trader-profile-square)" in source
+    assert "@media (max-width:768px)" in source
+    assert ".trader-profile-content { display:block; height:auto; max-height:none; }" in source

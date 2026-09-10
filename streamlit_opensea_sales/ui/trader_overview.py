@@ -206,6 +206,13 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
     .trader-profile-stat-icon-fallback { color:#FF003A; font-size:9px; line-height:18px; }
     .trader-profile-label { margin-top:10px; margin-bottom:5px; }
     .trader-wallet-row { margin-top:0; }
+    .trader-profile-card { --trader-profile-square:350px; }
+    .trader-profile-content { display:flex; flex-direction:column; }
+    .trader-profile-stats-title { margin-top:auto; }
+    @media (max-width:768px) {
+        .trader-profile-card { --trader-profile-square:auto; }
+        .trader-profile-content { display:block; height:auto; max-height:none; }
+    }
     .trader-profile-stat-icon { background-size:contain; background-position:center; background-repeat:no-repeat; }
     """ + icon_css + """
     </style>""", unsafe_allow_html=True)
