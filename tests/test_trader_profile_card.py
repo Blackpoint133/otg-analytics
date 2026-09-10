@@ -35,7 +35,8 @@ def test_expanded_card_is_square_and_structured(monkeypatch):
     assert 'trader-avatar-large" style=' in card
     assert "WALLET ADDRESS" in rendered
     assert "TRADING STATS" in rendered
-    assert rendered.count('<div><span>') == 6
+    assert rendered.count('class="trader-profile-stat-icon"') == 6
+    assert "earned.png" not in rendered
 
 
 def test_profile_card_copies_full_wallet_and_escapes_wallet(monkeypatch):
