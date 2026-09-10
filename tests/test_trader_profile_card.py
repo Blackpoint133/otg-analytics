@@ -52,11 +52,13 @@ def test_profile_card_escapes_content_and_copies_full_wallet(monkeypatch):
     assert "&lt;img" in rendered and "&lt;script&gt;" in rendered
     assert f'data-wallet="{wallet}"' in rendered
     assert overview.short_wallet(wallet) in rendered
-    assert "navigator.clipboard.writeText(button.dataset.wallet)" in rendered
-    assert "const button=this" in rendered
-    assert "querySelector('.trader-wallet-copy-label')" in rendered
-    assert "button.textContent" not in rendered
-    assert "COPIED" in rendered and "OpenSea profile" in rendered
+    source = Path(overview.__file__).read_text(encoding="utf-8")
+    assert "navigator.clipboard.writeText(button.dataset.wallet)" in source
+    assert "const button=this" not in rendered
+    assert "querySelector('.trader-wallet-copy-label')" in source
+    assert "button.textContent" not in source
+    assert "OpenSea profile" in rendered
+    assert "COPIED" in source
 
 
 def test_avatar_source_is_attached_to_expanded_avatar(monkeypatch):
@@ -86,5 +88,5 @@ def test_small_trigger_remains_circular_but_large_card_override_is_square():
     source = Path(overview.__file__).read_text(encoding="utf-8")
     assert ".trader-avatar-small" in source
     assert ".trader-profile-card .trader-avatar-large" in source
-    assert "width:min(760px,calc(100vw - 32px))" in source
+    assert "width:min(980px,calc(100vw - 40px))" in source
     assert "@media (max-width:768px)" in source
