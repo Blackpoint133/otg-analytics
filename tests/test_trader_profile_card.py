@@ -29,6 +29,8 @@ def test_expanded_card_is_square_and_structured(monkeypatch):
     assert ".trader-profile-card .trader-avatar-large" in rendered
     assert "aspect-ratio:1/1" in rendered
     assert "border-radius:0" in rendered
+    card = rendered.split('<div class="trader-profile-card">', 1)[1].split('</div></div></div>', 1)[0]
+    assert 'trader-avatar-large" style=' in card
     assert "PROFILE DESCRIPTION" in rendered
     assert "WALLET ADDRESS" in rendered
     assert "TRADING STATS" in rendered
@@ -50,8 +52,28 @@ def test_profile_card_escapes_content_and_copies_full_wallet(monkeypatch):
     assert "&lt;img" in rendered and "&lt;script&gt;" in rendered
     assert f'data-wallet="{wallet}"' in rendered
     assert overview.short_wallet(wallet) in rendered
-    assert "navigator.clipboard.writeText(this.dataset.wallet)" in rendered
+    assert "navigator.clipboard.writeText(button.dataset.wallet)" in rendered
+    assert "const button=this" in rendered
+    assert "querySelector('.trader-wallet-copy-label')" in rendered
+    assert "button.textContent" not in rendered
     assert "COPIED" in rendered and "OpenSea profile" in rendered
+
+
+def test_avatar_source_is_attached_to_expanded_avatar(monkeypatch):
+    rendered = _rendered(monkeypatch)
+    card = rendered.split('<div class="trader-profile-card">', 1)[1]
+    large = card.split('class="trader-avatar trader-avatar-large"', 1)[1].split('></span>', 1)[0]
+    small = rendered.split('class="trader-avatar trader-avatar-small"', 1)[1].split('></span>', 1)[0]
+    assert "--trader-fallback-avatar" in large
+    assert "--trader-fallback-avatar" in small
+
+
+def test_opensea_link_is_under_identity_not_wallet(monkeypatch):
+    rendered = _rendered(monkeypatch)
+    identity = rendered.split('class="trader-profile-identity"', 1)[1]
+    wallet = rendered.split('class="trader-wallet-row"', 1)[1]
+    assert "OpenSea profile" in identity
+    assert "OpenSea profile" not in wallet
 
 
 def test_missing_bio_has_explicit_fallback(monkeypatch):

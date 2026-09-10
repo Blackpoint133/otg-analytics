@@ -166,11 +166,11 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
                 short = html.escape(short_wallet(wallet))
                 copy_html = ('<button class="trader-wallet-copy" type="button" '
                              f'data-wallet="{wallet_html}" '
-                             'onclick="navigator.clipboard.writeText(this.dataset.wallet).then(function(){'
-                             'this.textContent=\'COPIED\';setTimeout(function(){this.textContent=\'COPY\'},1200)'
-                             '}).catch(function(){this.textContent=\'COPY\'})">'
-                             f'{short}<span>COPY</span></button>')
-                card = f'<div class="trader-profile-card"><div class="trader-profile-card-grid"><div class="trader-profile-avatar"><span class="trader-avatar trader-avatar-large"></span></div><div class="trader-profile-content"><div class="trader-profile-identity"><div><strong>{display}{verified}</strong>{secondary}</div></div><div class="trader-profile-label">PROFILE DESCRIPTION</div><div class="trader-profile-bio">{html.escape(bio) if bio else "NO DESCRIPTION"}</div><div class="trader-profile-label">WALLET ADDRESS</div><div class="trader-wallet-row">{copy_html}<a class="trader-opensea-link" href="https://opensea.io/{wallet_html}" target="_blank" rel="noopener noreferrer">OpenSea profile ↗</a></div>{ens_html}<div class="trader-profile-stats-title">TRADING STATS</div><div class="trader-profile-ranks">{rank_html}</div></div></div></div>'
+                             'onclick="const button=this;const label=button.querySelector(\'.trader-wallet-copy-label\');'
+                             'navigator.clipboard.writeText(button.dataset.wallet).then(function(){label.textContent=\'COPIED\';'
+                             'setTimeout(function(){label.textContent=\'COPY\'},1200)}).catch(function(){label.textContent=\'COPY\'})">'
+                             f'<span class="trader-wallet-short">{short}</span><span class="trader-wallet-copy-label">COPY</span></button>')
+                card = f'<div class="trader-profile-card"><div class="trader-profile-card-grid"><div class="trader-profile-avatar"><span class="trader-avatar trader-avatar-large"{avatar_style}></span></div><div class="trader-profile-content"><div class="trader-profile-identity"><div><strong>{display}{verified}</strong>{secondary}<a class="trader-opensea-link" href="https://opensea.io/{wallet_html}" target="_blank" rel="noopener noreferrer">OpenSea profile ↗</a></div></div><div class="trader-profile-label">PROFILE DESCRIPTION</div><div class="trader-profile-bio">{html.escape(bio) if bio else "NO DESCRIPTION"}</div><div class="trader-profile-label">WALLET ADDRESS</div><div class="trader-wallet-row">{copy_html}</div>{ens_html}<div class="trader-profile-stats-title">TRADING STATS</div><div class="trader-profile-ranks">{rank_html}</div></div></div></div>'
                 value = f'<span class="trader-profile-trigger"><span class="trader-avatar trader-avatar-small"{avatar_style}></span><span>{display}{verified}{secondary}</span>{card}</span>'
             cells.append(f'<td class="{cls}">{value}</td>')
         selected_class = " trader-row-selected" if row.get("_selected") else ""
