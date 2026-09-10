@@ -193,7 +193,8 @@ def test_profile_table_contract_and_escaping(monkeypatch):
     rendered = captured[0]
     assert "Profile" in rendered and "Wallet" not in rendered.split("<thead>", 1)[1].split("</thead>", 1)[0]
     assert "&lt;Name&gt;" in rendered
-    assert "&lt;b&gt;bio&lt;/b&gt;" not in rendered or "bio" in rendered
+    assert "PROFILE DESCRIPTION" not in rendered
+    assert "trader-profile-bio" not in rendered
 
 
 def test_profile_fallback_avatar_is_embedded_once_for_25_rows(monkeypatch):
