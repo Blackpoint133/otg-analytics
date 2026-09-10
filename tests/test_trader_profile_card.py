@@ -53,9 +53,12 @@ def test_profile_card_copies_full_wallet_and_escapes_wallet(monkeypatch):
     assert "&lt;img" in rendered
     assert "&lt;script&gt;" not in rendered
     assert f'data-wallet="{wallet}"' in rendered
-    assert overview.short_wallet(wallet) in rendered
+    assert wallet in rendered
+    assert overview.short_wallet(wallet) != wallet
     source = Path(overview.__file__).read_text(encoding="utf-8")
-    assert "navigator.clipboard.writeText(button.dataset.wallet)" in source
+    assert "parentWindow.navigator" in source
+    assert "button.dataset.wallet" in source
+    assert "execCommand('copy')" in source
     assert "const button=this" not in rendered
     assert "querySelector('.trader-wallet-copy-label')" in source
     assert "button.textContent" not in source
