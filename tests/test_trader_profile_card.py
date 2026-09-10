@@ -29,15 +29,16 @@ def test_expanded_card_is_square_and_structured(monkeypatch):
     assert ".trader-profile-card .trader-avatar-large" in rendered
     assert "aspect-ratio:1/1" in rendered
     assert "border-radius:0" in rendered
+    assert "background-size:contain" in rendered
+    assert "background-repeat:no-repeat" in rendered
     card = rendered.split('<div class="trader-profile-card">', 1)[1].split('</div></div></div>', 1)[0]
     assert 'trader-avatar-large" style=' in card
-    assert "PROFILE DESCRIPTION" in rendered
     assert "WALLET ADDRESS" in rendered
     assert "TRADING STATS" in rendered
     assert rendered.count('<div><span>') == 6
 
 
-def test_profile_card_escapes_content_and_copies_full_wallet(monkeypatch):
+def test_profile_card_copies_full_wallet_and_escapes_wallet(monkeypatch):
     wallet = "0x" + "b" * 40
     captured = []
     monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
@@ -49,7 +50,8 @@ def test_profile_card_escapes_content_and_copies_full_wallet(monkeypatch):
     rows[0]["Profile"] = "<img src=x onerror=alert(1)>"
     overview.render_trader_table(rows)
     rendered = captured[0]
-    assert "&lt;img" in rendered and "&lt;script&gt;" in rendered
+    assert "&lt;img" in rendered
+    assert "&lt;script&gt;" not in rendered
     assert f'data-wallet="{wallet}"' in rendered
     assert overview.short_wallet(wallet) in rendered
     source = Path(overview.__file__).read_text(encoding="utf-8")
@@ -78,10 +80,10 @@ def test_opensea_link_is_under_identity_not_wallet(monkeypatch):
     assert "OpenSea profile" not in wallet
 
 
-def test_missing_bio_has_explicit_fallback(monkeypatch):
+def test_profile_description_is_removed_from_expanded_card(monkeypatch):
     rendered = _rendered(monkeypatch, {})
-    assert "PROFILE DESCRIPTION" in rendered
-    assert "NO DESCRIPTION" in rendered
+    assert "PROFILE DESCRIPTION" not in rendered
+    assert "trader-profile-bio" not in rendered
 
 
 def test_small_trigger_remains_circular_but_large_card_override_is_square():
