@@ -14,8 +14,9 @@ def row(**overrides):
 
 def test_card_contains_complete_identity_and_metric_contract():
     html = build_item_profile_card_html(row(volume_gun=1, volume_usd=2, avg_price_gun=3, avg_price_usd=4, weighted_volume_gun=5, period_events=6, active_trading_days=7, market_strength_score=8, liquidity_score=9), "standalone")
-    for text in ("Cyrix", "Epic", "Customization Item", "#8", "Market Strength", "Liquidity Score", "Volume GUN", "Volume USD", "Weighted Volume GUN", "Events", "Active Days", "Avg Price GUN", "Avg Price USD", "TOTAL SUPPLY", "SUPPLY RANK", "Data by GUNZscope"):
+    for text in ("Cyrix", "Epic", "Customization Item", "#8", "Market Strength", "Liquidity Score", "Volume GUN", "Volume USD", "Events", "Active Days", "Avg Price GUN", "Avg Price USD", "TOTAL SUPPLY", "SUPPLY RANK", "Data by GUNZscope"):
         assert text in html
+    assert "Weighted Volume GUN" not in html
 
 
 def test_missing_values_and_anomaly_rank_are_safe():
@@ -30,6 +31,8 @@ def test_standalone_and_overlay_share_metric_content():
     overlay = build_item_profile_card_html(row(volume_gun=12), "overlay")
     for text in ("Cyrix", "Volume GUN", "TOTAL SUPPLY", "SUPPLY RANK"):
         assert text in standalone and text in overlay
+    assert "Weighted Volume GUN" not in standalone
+    assert "Weighted Volume GUN" not in overlay
 
 
 def test_image_is_contained_and_long_name_can_wrap():

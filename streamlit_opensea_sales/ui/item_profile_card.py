@@ -12,7 +12,6 @@ _METRICS = (
     ("Liquidity Score", "liquidity_score", ".2f"),
     ("Volume GUN", "volume_gun", ",.2f"),
     ("Volume USD", "volume_usd", ",.2f"),
-    ("Weighted Volume GUN", "weighted_volume_gun", ",.2f"),
     ("Events", "period_events", ",.0f"),
     ("Active Days", "active_trading_days", ".0f"),
     ("Avg Price GUN", "avg_price_gun", ",.2f"),
