@@ -105,8 +105,9 @@ def load_asset_key_fallbacks(path_string: str, mtime_ns: int) -> dict[str, str]:
     allowed = set(USER_FACING_CLASSES) - {"Music", "Anomalies"}
     result = {}
     for family, class_name in payload["families"].items():
-        if isinstance(family, str) and family.strip() == family and family and "_" not in family and isinstance(class_name, str) and class_name in allowed:
-            result[family] = class_name
+        if not isinstance(family, str) or family.strip() != family or not family or "_" in family or not isinstance(class_name, str) or class_name not in allowed:
+            return {}
+        result[family] = class_name
     return result
 
 
@@ -133,18 +134,6 @@ def class_for_provider_item(item_name: str, provider_asset_key: str | None, snap
 
 def effective_class_mapping(snapshot: dict[str, Any] | None = None) -> dict[str, str]:
     result = dict(source_class_mapping(snapshot))
-    fallbacks = read_asset_key_fallbacks()
-    try:
-        provider = json.loads(provider_supply_snapshot_path().read_text(encoding="utf-8")).get("provider_items", {})
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        provider = {}
-    for record in provider.values():
-        if isinstance(record, dict) and record.get("provider_item_name") not in result:
-            name = record.get("provider_item_name")
-            asset_key = record.get("provider_asset_key")
-            family = asset_key.strip().split("_", 1)[0] if isinstance(asset_key, str) else ""
-            if family in fallbacks:
-                result[name] = fallbacks[family]
     for name, entry in read_item_class_overrides().items():
         result[name] = entry["class"]
     return result
