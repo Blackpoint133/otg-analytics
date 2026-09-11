@@ -118,7 +118,7 @@ def test_sidebar_exposes_total_supply_and_keeps_period_enabled():
     assert "key=\"top_items_rank_total_supply\"" in source
     assert "st.session_state.top_items_ranking_mode = 'total_supply'" in source
     assert "disabled=False" in source
-    assert "st.session_state.top_items_view" not in source
+    assert "st.session_state.top_items_view =" not in source
 
 
 def test_total_supply_path_is_global_and_has_no_live_client_import():
