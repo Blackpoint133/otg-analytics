@@ -27,6 +27,7 @@ from formatters import format_number, format_metric_value, format_historical_met
 from gunzscope_supply import build_v2_canonical_index, build_v3_canonical_index, build_v3_supply_presentation_index, dense_supply_ranks, read_current_snapshot, read_serving_snapshot, read_snapshot_v3, selected_supply_source, valid_supply
 from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, class_for_provider_item, class_mapping, read_item_class_snapshot
 from ui.gunzscope_attribution import inline_logo
+from ui.item_profile_card import build_item_profile_card_html, item_profile_card_styles
 
 
 # Image URL normalization
@@ -557,6 +558,13 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
 
 def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume'):
     """Render Top 20 Items as one compact HTML grid with clickable cards."""
+    # Temporary preview surface for the reusable Item Profile Card foundation.
+    cards_html = item_profile_card_styles() + '<div class="top-items-card-grid">'
+    for _, row in top_items.iterrows():
+        item_url = _build_item_mode_url(str(row['item_name']), str(row['rarity'])) if pd.notna(row.get('item_key')) else None
+        cards_html += build_item_profile_card_html(row, presentation="standalone", item_url=item_url)
+    st.markdown(cards_html + '</div>', unsafe_allow_html=True)
+    return
     
     # CSS for card grid
     st.markdown("""
