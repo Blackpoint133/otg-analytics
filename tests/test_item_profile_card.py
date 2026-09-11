@@ -47,6 +47,13 @@ def test_provider_only_row_has_no_item_analytics_link():
     assert 'class="top-item-profile-name" href=' not in html
 
 
+def test_desktop_table_injects_shared_card_styles_before_overlay_markup():
+    source = (Path(__file__).resolve().parents[1] / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert "table_html = item_profile_card_styles() +" in source
+    assert "top-items-image-profile-overlay" in source
+    assert "item_profile_card_styles()" in source
+
+
 def test_rarity_uses_existing_site_color_mapping():
     expected = {"Epic": "#a335ee", "Rare": "#0070dd", "Uncommon": "#1eff00", "Common": "#ffffff"}
     for rarity, color in expected.items():

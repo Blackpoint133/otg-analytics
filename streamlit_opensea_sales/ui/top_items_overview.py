@@ -1242,7 +1242,7 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         table_rows.append(row_html)
     
     # Build complete table HTML with the standard columns plus Supply columns in Supply mode
-    table_html = textwrap.dedent(f"""
+    table_html = item_profile_card_styles() + textwrap.dedent(f"""
 <style>
 .top-items-table {{
     width: 100%;
