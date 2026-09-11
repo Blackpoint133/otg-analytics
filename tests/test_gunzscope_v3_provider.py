@@ -3,6 +3,19 @@ import pytest
 import gunzscope_supply as supply
 
 
+def test_supply_rank_exclusions_validate_identity_and_preserve_supply(monkeypatch):
+    payload = {"schema_version": 3, "provider_items": {
+        "a": {"provider_item_name": "Anomaly", "provider_rarity": "Uncommon", "raw_active_mints": 1, "ranking_eligible": True, "status": "ok"},
+        "b": {"provider_item_name": "Normal", "provider_rarity": "Uncommon", "raw_active_mints": 7, "ranking_eligible": True, "status": "ok"},
+    }, "catalog_mappings": {}, "provider_item_conflicts": []}
+    config = {"schema_version": 1, "purpose": "opensea_sales presentation-only Supply rank exclusions", "excluded_provider_items": {"a": {"item_name": "Anomaly", "rarity": "Uncommon"}}}
+    assert supply._validate_supply_rank_exclusions(config)["a"]["item_name"] == "Anomaly"
+    monkeypatch.setattr(supply, "read_supply_rank_exclusions", lambda: config["excluded_provider_items"])
+    ranks = supply.dense_supply_ranks(payload)
+    assert ranks == {"b": 1}
+    assert payload["provider_items"]["a"]["raw_active_mints"] == 1
+
+
 def v3_record(pid="x", supply_value=10, eligible=True, status=None):
     return {
         "provider_item_id": pid, "provider_item_name": "Item", "provider_rarity": "Epic",

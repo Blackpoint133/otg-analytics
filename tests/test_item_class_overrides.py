@@ -21,9 +21,11 @@ EXPECTED_NAMES = {
 def test_committed_config_contains_exact_music_set():
     payload = __import__('json').loads((APP / 'config' / 'item_class_overrides.json').read_text(encoding='utf-8'))
     assert payload['schema_version'] == 1
-    assert set(payload['overrides']) == EXPECTED_NAMES
-    assert len(payload['overrides']) == 34
-    assert all(entry == {'class': 'Music', 'reason': 'In-game music NFT'} for entry in payload['overrides'].values())
+    assert {name for name, entry in payload['overrides'].items() if entry['class'] == 'Music'} == EXPECTED_NAMES
+    assert len(EXPECTED_NAMES) == 34
+    assert all(entry == {'class': 'Music', 'reason': 'In-game music NFT'} for name, entry in payload['overrides'].items() if name in EXPECTED_NAMES)
+    assert payload['overrides']['Pierser Red Dot Compact Sight']['class'] == 'Anomalies'
+    assert payload['overrides']['Pierser Holographic Sight']['class'] == 'Anomalies'
 
 
 def test_source_and_effective_mappings_are_separate(monkeypatch):

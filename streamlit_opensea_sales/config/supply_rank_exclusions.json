@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "purpose": "opensea_sales presentation-only Supply rank exclusions",
+  "excluded_provider_items": {
+    "cmngwd9reawrskmx3ono5vacc": {
+      "item_name": "Pierser Red Dot Compact Sight",
+      "rarity": "Uncommon",
+      "reason": "Known provider anomaly absent from the current game catalog"
+    },
+    "cmngwdh56awt4kmx3y3985pt1": {
+      "item_name": "Pierser Holographic Sight",
+      "rarity": "Uncommon",
+      "reason": "Known provider anomaly absent from the current game catalog"
+    }
+  }
+}

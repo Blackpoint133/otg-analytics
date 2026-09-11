@@ -12,7 +12,7 @@ import streamlit as st
 UNCLASSIFIED = "UNCLASSIFIED"
 USER_FACING_CLASSES = (
     "Customization Item", "Weapon", "Weapon Attachment", "Weapon Skin",
-    "Body Part", "Profile Customization", "Music",
+    "Body Part", "Profile Customization", "Music", "Anomalies",
 )
 
 

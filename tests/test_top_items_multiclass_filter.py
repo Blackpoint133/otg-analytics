@@ -11,7 +11,7 @@ from ui.top_items_overview import filter_item_classes
 
 
 def test_user_facing_classes_are_stable_and_exclude_technical_values():
-    assert USER_FACING_CLASSES == ("Customization Item", "Weapon", "Weapon Attachment", "Weapon Skin", "Body Part", "Profile Customization", "Music")
+    assert USER_FACING_CLASSES == ("Customization Item", "Weapon", "Weapon Attachment", "Weapon Skin", "Body Part", "Profile Customization", "Music", "Anomalies")
     assert "UNCLASSIFIED" not in USER_FACING_CLASSES
     assert "ALL CLASSES" not in USER_FACING_CLASSES
 

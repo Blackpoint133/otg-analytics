@@ -16,6 +16,8 @@ technical diagnostic text:
 
 import streamlit as st
 import pandas as pd
+import json
+from pathlib import Path
 from typing import Optional
 from html import escape
 from urllib.parse import quote_plus
@@ -38,6 +40,29 @@ _MARKET_METRIC_COLUMNS = (
     'avg_price_gun', 'avg_price_usd', 'transactions', 'image_url',
 )
 TOP_ITEMS_PAGE_SIZE = 20
+SUPPLY_RANK_EXCLUSIONS_PATH = Path(__file__).resolve().parents[1] / "config" / "supply_rank_exclusions.json"
+
+
+def _supply_rank_excluded_provider_ids() -> set[str]:
+    try:
+        payload = json.loads(SUPPLY_RANK_EXCLUSIONS_PATH.read_text(encoding="utf-8"))
+        if payload.get("schema_version") != 1 or not isinstance(payload.get("excluded_provider_items"), dict):
+            return set()
+        return {str(provider_id) for provider_id in payload["excluded_provider_items"]}
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return set()
+
+
+def _total_supply_rank_snapshot(snapshot):
+    excluded = _supply_rank_excluded_provider_ids()
+    if not excluded or not isinstance(snapshot, dict) or snapshot.get("schema_version") != 3:
+        return snapshot
+    filtered = dict(snapshot)
+    filtered["provider_items"] = {
+        provider_id: record for provider_id, record in snapshot.get("provider_items", {}).items()
+        if provider_id not in excluded
+    }
+    return filtered
 
 
 def attach_item_classes(data: pd.DataFrame, mapping: dict[str, str]) -> pd.DataFrame:
@@ -255,11 +280,11 @@ def _attach_canonical_item_keys(top_items: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def _attach_supply_metadata(top_items: pd.DataFrame, snapshot=None) -> pd.DataFrame:
+def _attach_supply_metadata(top_items: pd.DataFrame, snapshot=None, exclude_rank_exclusions: bool = False) -> pd.DataFrame:
     """Attach local Supply and global dense rank without changing row order."""
     result = top_items.copy()
     data = snapshot if snapshot is not None else (read_current_snapshot() if selected_supply_source() == 'v1' else read_serving_snapshot())
-    ranks = dense_supply_ranks(data)
+    ranks = dense_supply_ranks(_total_supply_rank_snapshot(data) if exclude_rank_exclusions else data)
     records = data.get('items', {}) if isinstance(data, dict) else {}
     keys = result.get('_canonical_item_key', result.get('item_key', pd.Series(pd.NA, index=result.index)))
 
@@ -302,7 +327,7 @@ def _attach_supply_metadata(top_items: pd.DataFrame, snapshot=None) -> pd.DataFr
 
 def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None, limit: Optional[int] = None) -> pd.DataFrame:
     """Attach local Supply values and apply deterministic scarcity ordering."""
-    display_data = _attach_supply_metadata(top_items, snapshot)
+    display_data = _attach_supply_metadata(top_items, snapshot, exclude_rank_exclusions=True)
     display_data['_supply_missing'] = display_data['_supply'].isna()
     display_data = display_data.sort_values(
         ['_supply_missing', '_supply', 'item_key'],

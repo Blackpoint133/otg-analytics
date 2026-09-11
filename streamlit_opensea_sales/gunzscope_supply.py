@@ -13,6 +13,7 @@ SNAPSHOT_PATH = DATA_DIR / "gunzscope_supply_snapshot.json"
 V2_SHADOW_PATH = DATA_DIR / "gunzscope_supply_snapshot_v2_shadow.json"
 V3_PROVIDER_PATH = DATA_DIR / "gunzscope_supply_snapshot_v3_provider.json"
 SUPPLY_PRESENTATION_OVERRIDES_PATH = Path(__file__).resolve().parent / "config" / "supply_presentation_overrides.json"
+SUPPLY_RANK_EXCLUSIONS_PATH = Path(__file__).resolve().parent / "config" / "supply_rank_exclusions.json"
 ATTRIBUTION = {"text": "Data by GUNZscope", "url": "https://gunzscope.xyz", "logoUrl": "https://gunzscope.xyz/brand/gunzscope-mark-mono.svg"}
 VALID_STATUSES = {"ok", "stale", "unavailable", "unmapped"}
 
@@ -65,6 +66,51 @@ def read_supply_presentation_config():
     except OSError:
         return {}
     return load_supply_presentation_config(str(SUPPLY_PRESENTATION_OVERRIDES_PATH), mtime)
+
+
+def _validate_supply_rank_exclusions(payload):
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1 or payload.get("purpose") != "opensea_sales presentation-only Supply rank exclusions":
+        raise ValueError("invalid Supply rank exclusions config")
+    entries = payload.get("excluded_provider_items")
+    if not isinstance(entries, dict):
+        raise ValueError("invalid Supply rank exclusions")
+    result = {}
+    for provider_id, entry in entries.items():
+        if not isinstance(provider_id, str) or not provider_id.strip() or not isinstance(entry, dict):
+            raise ValueError("invalid Supply rank exclusion entry")
+        if not isinstance(entry.get("item_name"), str) or not entry["item_name"].strip() or not isinstance(entry.get("rarity"), str) or not entry["rarity"].strip():
+            raise ValueError("invalid Supply rank exclusion identity")
+        if "reason" in entry and not isinstance(entry["reason"], str):
+            raise ValueError("invalid Supply rank exclusion reason")
+        result[provider_id] = {"item_name": entry["item_name"].strip(), "rarity": entry["rarity"].strip(), "reason": entry.get("reason", "")}
+    return result
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_supply_rank_exclusions(path: str = str(SUPPLY_RANK_EXCLUSIONS_PATH), mtime: float | None = None):
+    del mtime
+    try:
+        return _validate_supply_rank_exclusions(json.loads(Path(path).read_text(encoding="utf-8")))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return {}
+
+
+def read_supply_rank_exclusions():
+    try:
+        mtime = SUPPLY_RANK_EXCLUSIONS_PATH.stat().st_mtime
+    except OSError:
+        return {}
+    return load_supply_rank_exclusions(str(SUPPLY_RANK_EXCLUSIONS_PATH), mtime)
+
+
+def validated_supply_rank_exclusion_ids(snapshot):
+    providers = snapshot.get("provider_items", {}) if isinstance(snapshot, dict) else {}
+    valid = set()
+    for provider_id, expected in read_supply_rank_exclusions().items():
+        current = providers.get(provider_id)
+        if isinstance(current, Mapping) and current.get("provider_item_name") == expected["item_name"] and current.get("provider_rarity") == expected["rarity"]:
+            valid.add(provider_id)
+    return valid
 
 
 def build_v3_supply_presentation_index(snapshot, overrides=None):
@@ -265,7 +311,9 @@ def dense_supply_ranks(snapshot):
         if not isinstance(providers, Mapping):
             return {}
         idx = build_v3_supply_presentation_index(snapshot)
-        valid = [(key, value) for key, value in idx["effective_supply_by_canonical_provider_id"].items() if valid_supply(value)]
+        excluded = validated_supply_rank_exclusion_ids(snapshot)
+        excluded_canonical = {idx["canonical_by_member_provider_id"].get(provider_id, provider_id) for provider_id in excluded}
+        valid = [(key, value) for key, value in idx["effective_supply_by_canonical_provider_id"].items() if key not in excluded_canonical and valid_supply(value)]
         rank_by_value = {value: index + 1 for index, value in enumerate(sorted({value for _, value in valid}))}
         return {key: rank_by_value[value] for key, value in valid}
     valid = [(key, record["supply"]) for key, record in snapshot["items"].items() if isinstance(record, Mapping) and record.get("status") in {"ok", "stale"} and valid_supply(record.get("supply"))]
