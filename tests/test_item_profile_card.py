@@ -56,8 +56,9 @@ def test_desktop_table_injects_shared_card_styles_before_overlay_markup():
 
 def test_desktop_overlay_media_is_square_and_wide():
     source = (Path(__file__).resolve().parents[1] / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
-    assert "grid-template-columns: 300px minmax(0, 1fr)" in source
-    assert "width: 300px; height: 300px; aspect-ratio: 1 / 1" in source
+    assert "grid-template-columns: minmax(0, auto) minmax(0, 1fr)" in source
+    assert "width: auto; height: 100%; min-height: 0; aspect-ratio: 1 / 1" in source
+    assert "grid-template-columns: 300px" not in source
 
 
 def test_rarity_uses_existing_site_color_mapping():
