@@ -1,4 +1,5 @@
 import copy
+from pathlib import Path
 import pandas as pd
 import pytest
 import gunzscope_supply as supply
@@ -51,3 +52,27 @@ def test_total_supply_suppresses_only_configured_alias(monkeypatch):
     data = snap(); monkeypatch.setattr(top, "selected_supply_source", lambda: "v3"); monkeypatch.setattr(top, "read_snapshot_v3", lambda: data); monkeypatch.setattr(top, "load_items_index", lambda: ({}, type("D", (), {"success": True})())); monkeypatch.setattr(top, "build_v3_supply_presentation_index", lambda d: supply.build_v3_supply_presentation_index(d, config()))
     rows = top._load_global_total_supply_candidates()
     assert len(rows) == 4 and (rows["_provider_item_id"] == SHORTS).sum() == 1 and not (rows["_provider_item_id"] == PANTS).any()
+
+
+def test_top_items_uses_central_identity_guards_for_rank_exclusions(monkeypatch):
+    data = {"schema_version": 3, "provider_items": {
+        "a": rec("a", "Anomaly", 1), "b": rec("b", "Normal", 7)
+    }, "catalog_mappings": {}, "provider_item_conflicts": []}
+    rows = pd.DataFrame([{"item_key": pd.NA, "item_name": "Anomaly", "rarity": "Epic", "_provider_item_id": "a"},
+                         {"item_key": pd.NA, "item_name": "Normal", "rarity": "Epic", "_provider_item_id": "b"}])
+    monkeypatch.setattr(supply, "read_supply_rank_exclusions", lambda: {"a": {"item_name": "Different", "rarity": "Epic"}})
+    mismatch = top._prepare_total_supply_data(rows, data)
+    assert mismatch.loc[mismatch["item_name"] == "Anomaly", "_supply_rank"].iloc[0] == 1
+    monkeypatch.setattr(supply, "read_supply_rank_exclusions", lambda: {"a": {"item_name": "Anomaly", "rarity": "Epic"}})
+    exact = top._prepare_total_supply_data(rows, data)
+    assert pd.isna(exact.loc[exact["item_name"] == "Anomaly", "_supply_rank"].iloc[0])
+    assert exact.loc[exact["item_name"] == "Anomaly", "_supply"].iloc[0] == 1
+
+
+def test_top_items_does_not_read_rank_exclusion_policy():
+    source = Path(__file__).parents[1] / "streamlit_opensea_sales" / "ui" / "top_items_overview.py"
+    text = source.read_text(encoding="utf-8")
+    assert "SUPPLY_RANK_EXCLUSIONS_PATH" not in text
+    assert "_supply_rank_excluded_provider_ids" not in text
+    assert "_total_supply_rank_snapshot" not in text
+    assert "dense_supply_ranks(data)" in text
