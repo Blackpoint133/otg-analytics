@@ -147,6 +147,21 @@ def test_no_class_state_uses_otg_markup_not_streamlit_info():
     assert "border-top: 2px solid var(--otg-accent)" in source
 
 
+def test_selected_class_empty_state_uses_same_otg_markup_and_copy():
+    source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    branch = source.split("if display_data.empty:", 1)[1].split("return", 1)[0]
+    assert "NO ITEMS FOUND FOR SELECTED ITEM CLASSES" in branch
+    assert "top-items-empty-class-state" in branch
+    assert "st.info" not in branch
+    assert "SELECT AT LEAST ONE ITEM CLASS" in branch
+
+
+def test_only_unclassified_with_no_matching_rows_is_empty():
+    from ui.top_items_overview import filter_item_classes
+    frame = pd.DataFrame({"_item_class": ["Weapon", "Music"]})
+    assert filter_item_classes(frame, ("UNCLASSIFIED",)).empty
+
+
 def test_market_period_loader_and_usd_resort_remain_in_source():
     source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
     assert "ranking_mode=ranking_mode" in source

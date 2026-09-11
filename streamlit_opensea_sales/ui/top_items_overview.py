@@ -519,13 +519,15 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     if not legacy_all_classes:
         display_data = filter_item_classes(display_data, item_classes)
     if display_data.empty:
-        if not item_classes:
-            st.markdown(
-                '<div class="top-items-empty-class-state">SELECT AT LEAST ONE ITEM CLASS</div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.info("NO TOP ITEMS FOUND FOR SELECTED ITEM CLASSES")
+        empty_message = (
+            "SELECT AT LEAST ONE ITEM CLASS"
+            if not item_classes
+            else "NO ITEMS FOUND FOR SELECTED ITEM CLASSES"
+        )
+        st.markdown(
+            f'<div class="top-items-empty-class-state">{empty_message}</div>',
+            unsafe_allow_html=True,
+        )
         return
 
     context = (ranking_mode, period, bool(show_usd and ranking_mode == 'volume'), tuple(item_classes) if not legacy_all_classes else "LEGACY_ALL")
