@@ -558,6 +558,43 @@ def load_top_items_ranking(
         return None
 
 
+_COMPLETE_ITEM_METRICS_FILENAMES = {
+    "all": "top_items_metrics_all.csv",
+    "30d": "top_items_metrics_30d.csv",
+    "7d": "top_items_metrics_7d.csv",
+    "1d": "top_items_metrics_1d.csv",
+}
+
+
+def get_complete_top_item_metrics_path(period: str = "all") -> Path:
+    """Return the complete, untruncated per-item metrics artifact for a period."""
+    if period not in _COMPLETE_ITEM_METRICS_FILENAMES:
+        raise ValueError(f"Invalid period: {period}")
+    return get_market_overview_dir() / _COMPLETE_ITEM_METRICS_FILENAMES[period]
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def load_complete_top_item_metrics(period: str = "all", cache_buster: str = "") -> Optional[pd.DataFrame]:
+    """Load complete per-item metrics without applying a Top-N limit.
+
+    The artifact is deliberately independent of Supply/provider rows.  It is
+    intended to be joined to the full provider-wide Supply universe later.
+    """
+    try:
+        path = get_complete_top_item_metrics_path(period)
+    except ValueError:
+        return None
+    if not path.exists():
+        return None
+    try:
+        frame = pd.read_csv(path)
+        if "item_key" not in frame.columns or frame["item_key"].duplicated().any():
+            return None
+        return frame
+    except (OSError, ValueError, TypeError, pd.errors.ParserError):
+        return None
+
+
 def verify_market_data_available() -> bool:
     """
     technical diagnostic text, technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text market data files.
