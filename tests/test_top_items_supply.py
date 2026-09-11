@@ -112,13 +112,13 @@ def test_supply_limit_is_applied_after_global_sort():
     assert result["item_key"].tolist() == ["b", "c"]
 
 
-def test_sidebar_has_fourth_button_and_disabled_period_policy():
+def test_sidebar_exposes_total_supply_and_keeps_period_enabled():
     source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
     assert '"TOTAL SUPPLY"' in source
     assert "key=\"top_items_rank_total_supply\"" in source
     assert "st.session_state.top_items_ranking_mode = 'total_supply'" in source
-    assert "disabled=current_mode == 'total_supply'" in source
-    assert "opacity: 0.42" in source
+    assert "disabled=False" in source
+    assert "st.session_state.top_items_view" not in source
 
 
 def test_total_supply_path_is_global_and_has_no_live_client_import():
@@ -130,7 +130,7 @@ def test_total_supply_path_is_global_and_has_no_live_client_import():
 
 def test_total_supply_header_is_period_independent_and_table_columns_are_reachable():
     source = (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
-    assert "Current supply data provided by GUNZscope" in source
+    assert "CURRENT SUPPLY" in source
     assert "<th>Total Supply {inline_logo(\"gunzscope-table-logo\")}</th>" in source
     assert "width:1em" in source
     assert "<th>Supply Rank</th>" in source
@@ -237,7 +237,7 @@ def test_total_supply_render_does_not_require_market_rank(monkeypatch):
         "_render_top_items_card_view",
         lambda frame, **kwargs: captured.setdefault("frame", frame.copy()),
     )
-    top_items_overview._render_top_items_section("test", ranking_mode="total_supply", top_items_view="cards")
+    top_items_overview._render_top_items_section("test", ranking_mode="total_supply", is_mobile_viewport=True)
     result = captured["frame"]
     assert result["display_rank"].tolist() == [1, 2]
 

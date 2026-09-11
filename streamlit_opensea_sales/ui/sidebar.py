@@ -555,10 +555,6 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
     if 'top_items_period' not in st.session_state:
         st.session_state.top_items_period = 'all'
 
-    # Initialize session state for top_items_view if not present
-    if 'top_items_view' not in st.session_state:
-        st.session_state.top_items_view = 'cards'
-
     # Resolve Top Items viewport before visible controls so the component slot
     # does not interrupt the VALUE DISPLAY -> SORT BY rhythm.
     if 'top_items_is_mobile_viewport' not in st.session_state:
@@ -576,14 +572,9 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
     viewport_resolved = bool(st.session_state.top_items_viewport_resolved)
     is_mobile = bool(st.session_state.top_items_is_mobile_viewport)
 
-    if viewport_resolved and not is_mobile and st.session_state.top_items_view == 'chart':
-        st.session_state.top_items_view = 'cards'
-    if viewport_resolved and is_mobile and st.session_state.top_items_view == 'table':
-        st.session_state.top_items_view = 'cards'
-
     current_mode = st.session_state.top_items_ranking_mode
     current_period = st.session_state.top_items_period
-    current_view = st.session_state.top_items_view if viewport_resolved else 'cards'
+    current_view = 'responsive'
 
     # Apply stable CSS scope targeting container before visible controls.
     st.sidebar.html("""
@@ -750,7 +741,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             key="top_items_period_all",
             use_container_width=True,
             type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == 'all' else "secondary"),
-            disabled=current_mode == 'total_supply'
+            disabled=False
         ):
             st.session_state.top_items_period = 'all'
             st.rerun()
@@ -760,7 +751,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             key="top_items_period_30d",
             use_container_width=True,
             type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == '30d' else "secondary"),
-            disabled=current_mode == 'total_supply'
+            disabled=False
         ):
             st.session_state.top_items_period = '30d'
             st.rerun()
@@ -770,7 +761,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             key="top_items_period_7d",
             use_container_width=True,
             type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == '7d' else "secondary"),
-            disabled=current_mode == 'total_supply'
+            disabled=False
         ):
             st.session_state.top_items_period = '7d'
             st.rerun()
@@ -780,7 +771,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             key="top_items_period_1d",
             use_container_width=True,
             type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == '1d' else "secondary"),
-            disabled=current_mode == 'total_supply'
+            disabled=False
         ):
             st.session_state.top_items_period = '1d'
             st.rerun()
@@ -789,38 +780,6 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             '<div class="otg-sidebar-section-gap"></div>',
             unsafe_allow_html=True,
         )
-        st.markdown('<div class="otg-sidebar-label">VIEW</div>', unsafe_allow_html=True)
-        
-        # View buttons using native type parameter
-        if st.button(
-            "CARDS",
-            key="top_items_view_cards",
-            use_container_width=True,
-            type="primary" if current_view == 'cards' else "secondary"
-        ):
-            st.session_state.top_items_view = 'cards'
-            st.rerun()
-        
-        if viewport_resolved and is_mobile:
-            if st.button(
-                "LEADERBOARD",
-                key="top_items_view_chart",
-                use_container_width=True,
-                type="primary" if current_view == 'chart' else "secondary"
-            ):
-                st.session_state.top_items_view = 'chart'
-                st.rerun()
-
-        if viewport_resolved and not is_mobile:
-            if st.button(
-                "TABLE",
-                key="top_items_view_table",
-                use_container_width=True,
-                type="primary" if current_view == 'table' else "secondary"
-            ):
-                st.session_state.top_items_view = 'table'
-                st.rerun()
-    
     from ui.section_guide import render_section_guide_button
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
@@ -831,7 +790,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         'show_usd': show_usd,
         'ranking_mode': current_mode,
         'period': current_period,
-        'top_items_view': current_view,
+        'is_mobile_viewport': is_mobile,
+        'viewport_resolved': viewport_resolved,
         'item_classes': tuple(selected_classes), 'guide_open': guide_open,
     }
 

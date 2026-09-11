@@ -322,7 +322,7 @@ def _prepare_total_supply_data(top_items: pd.DataFrame, snapshot=None, limit: Op
     return display_data
 
 
-def render_top_items_overview(show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', top_items_view: str = 'cards', item_class: str = 'ALL CLASSES', item_classes=None, guide_open: bool = False):
+def render_top_items_overview(show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', is_mobile_viewport: bool = False, item_class: str = 'ALL CLASSES', item_classes=None, guide_open: bool = False):
     """
     technical diagnostic text technical diagnostic text technical diagnostic text Top Items Analytics technical diagnostic text.
     
@@ -331,7 +331,6 @@ def render_top_items_overview(show_usd: bool = False, current_gun_price: float =
         current_gun_price: technical diagnostic text technical diagnostic text GUN technical diagnostic text technical diagnostic text
         ranking_mode: technical diagnostic text technical diagnostic text ('volume', 'liquidity', 'market_strength')
         period: technical diagnostic text technical diagnostic text ('all', '30d', '7d', '1d')
-        top_items_view: technical diagnostic text technical diagnostic text ('cards' technical diagnostic text 'chart')
     """
     
     if guide_open:
@@ -350,7 +349,7 @@ def render_top_items_overview(show_usd: bool = False, current_gun_price: float =
     # Render top items section with current ranking mode and period
     if item_classes is None:
         item_classes = tuple(USER_FACING_CLASSES) if item_class == 'ALL CLASSES' else (item_class,)
-    _render_top_items_section(cache_buster=cache_buster, show_usd=show_usd, current_gun_price=current_gun_price, ranking_mode=ranking_mode, period=period, top_items_view=top_items_view, item_classes=tuple(item_classes))
+    _render_top_items_section(cache_buster=cache_buster, show_usd=show_usd, current_gun_price=current_gun_price, ranking_mode=ranking_mode, period=period, is_mobile_viewport=is_mobile_viewport, item_classes=tuple(item_classes))
     
     st.markdown("---")
     
@@ -385,7 +384,7 @@ def _render_top_items_footer():
     pass
 
 
-def _render_top_items_section(cache_buster: str, show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', top_items_view: str = 'cards', item_classes=None):
+def _render_top_items_section(cache_buster: str, show_usd: bool = False, current_gun_price: float = 0.03, ranking_mode: str = 'volume', period: str = 'all', is_mobile_viewport: bool = False, item_classes=None):
     """
     technical diagnostic text Top Items section technical diagnostic text technical diagnostic text content renderer.
     
@@ -395,7 +394,6 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         current_gun_price: technical diagnostic text technical diagnostic text GUN
         ranking_mode: technical diagnostic text technical diagnostic text ('volume', 'liquidity', 'market_strength')
         period: technical diagnostic text technical diagnostic text ('all', '30d', '7d', '1d')
-        top_items_view: technical diagnostic text technical diagnostic text ('cards', 'chart', 'table')
     """
     
     # Determine title and subtitle based on ranking mode
@@ -421,8 +419,8 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
         '1d': 'ROLLING 24-HOUR RANKING'
     }
     period_label = period_labels.get(period, 'ALL-TIME RANKING')
-    if ranking_mode == 'total_supply' and top_items_view != 'table':
-        period_label = f'Current supply data provided by GUNZscope {inline_logo()}'
+    if ranking_mode == 'total_supply':
+        period_label = f"CURRENT SUPPLY · {period_label.replace('RANKING', 'MARKET METRICS')}"
     
     # Section heading with title and subtitle
     st.markdown(f"""
@@ -486,7 +484,7 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     if ranking_mode == 'total_supply':
         top_items = _load_global_total_supply_candidates()
         if top_items is not None:
-            top_items = _enrich_with_all_time_market_metrics(top_items, _load_all_time_market_metrics())
+            top_items = _enrich_with_all_time_market_metrics(top_items, mda.load_complete_top_item_metrics(period=period, cache_buster=cache_buster))
     else:
         top_items = mda.load_top_items_ranking(
             ranking_mode=ranking_mode,
@@ -546,13 +544,10 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     st.session_state.top_items_page = current_page
 
     # Render only the current page, after global ranking and rank assignment.
-    if top_items_view == 'chart':
-        _render_top_items_chart_view(page_data, ranking_mode=ranking_mode, show_usd=show_usd, current_gun_price=current_gun_price)
-    elif top_items_view == 'table':
-        _render_top_items_table_view(page_data, ranking_mode=ranking_mode, show_usd=show_usd, current_gun_price=current_gun_price)
-    else:
-        # Default to cards view
+    if is_mobile_viewport:
         _render_top_items_card_view(page_data, show_usd=show_usd, current_gun_price=current_gun_price, ranking_mode=ranking_mode)
+    else:
+        _render_top_items_table_view(page_data, ranking_mode=ranking_mode, show_usd=show_usd, current_gun_price=current_gun_price)
     _render_top_items_pager(current_page, total_pages)
 
 
@@ -1161,11 +1156,10 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
     6. Liquidity Score
     7. Volume (GUN)
     8. Volume (USD)
-    9. Weighted Volume (GUN)
-    10. Events
-    11. Active Days
-    12. Avg Price (GUN)
-    13. Avg Price (USD)
+    9. Events
+    10. Active Days
+    11. Avg Price (GUN)
+    12. Avg Price (USD)
     
     Args:
         top_items: DataFrame with top items data
@@ -1204,7 +1198,6 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         liquidity_score = row.get('liquidity_score', 0)
         volume_gun = row.get('volume_gun', 0)
         volume_usd = row.get('volume_usd', 0)
-        weighted_volume_gun = row.get('weighted_volume_gun', 0)
         period_events = row.get('period_events', 0)
         active_days = row.get('active_trading_days', 0)
         avg_price_gun = row.get('avg_price_gun', 0)
@@ -1220,7 +1213,6 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         liquidity_str = optional_number(liquidity_score, '.2f')
         volume_gun_str = optional_number(volume_gun, ',.0f')
         volume_usd_str = optional_number(volume_usd, ',.0f')
-        weighted_vol_str = optional_number(weighted_volume_gun, ',.0f')
         period_events_str = optional_number(period_events, ',.0f')
         active_days_str = optional_number(active_days, '.0f')
         avg_price_gun_str = optional_number(avg_price_gun, ',.2f')
@@ -1240,7 +1232,6 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 <td>{liquidity_str}</td>
 <td>{volume_gun_str}</td>
 <td>{volume_usd_str}</td>
-<td>{weighted_vol_str}</td>
 <td>{period_events_str}</td>
 <td>{active_days_str}</td>
 <td>{avg_price_gun_str}</td>
@@ -1305,7 +1296,6 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 <th>Liquidity Score</th>
 <th>Volume (GUN)</th>
 <th>Volume (USD)</th>
-<th>Weighted Vol (GUN)</th>
 <th>Events</th>
 <th>Active Days</th>
 <th>Avg Price (GUN)</th>
