@@ -18,7 +18,7 @@ from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
 from data_access import load_item_data
 from item_paths import resolve_item_path
 from trader_analytics import load_current_snapshot, normalize_wallet
-from item_class_data import USER_FACING_CLASSES, read_item_class_snapshot
+from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, read_item_class_snapshot
 
 
 SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytics.log"
@@ -676,13 +676,19 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             catalog_names = sorted({str(record.get('display_name', '')).strip() for record in catalog.values() if isinstance(record, dict) and str(record.get('display_name', '')).strip()})
     except Exception:
         catalog_names = []
+    display_classes = list(USER_FACING_CLASSES)
+    if current_mode == 'total_supply':
+        display_classes.append(UNCLASSIFIED)
+
     defaults = {name: name in {"Customization Item", "Weapon"} for name in USER_FACING_CLASSES}
+    defaults[UNCLASSIFIED] = True
     selected_classes = []
-    for name in USER_FACING_CLASSES:
+    for name in display_classes:
         key = "top_items_class_" + name.lower().replace(" ", "_")
         if key not in st.session_state:
             st.session_state[key] = defaults[name]
-        if st.sidebar.checkbox(name, key=key):
+        label = "Unclassified" if name == UNCLASSIFIED else name
+        if st.sidebar.checkbox(label, key=key):
             selected_classes.append(name)
     
     st.sidebar.markdown(

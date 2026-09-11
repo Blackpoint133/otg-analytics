@@ -1,4 +1,10 @@
+from pathlib import Path
+import sys
+
 import pandas as pd
+
+APP = Path(__file__).parents[1] / "streamlit_opensea_sales"
+sys.path.insert(0, str(APP))
 
 from item_class_data import USER_FACING_CLASSES
 from ui.top_items_overview import filter_item_classes
@@ -8,6 +14,14 @@ def test_user_facing_classes_are_stable_and_exclude_technical_values():
     assert USER_FACING_CLASSES == ("Customization Item", "Weapon", "Weapon Attachment", "Weapon Skin", "Body Part", "Profile Customization", "Music")
     assert "UNCLASSIFIED" not in USER_FACING_CLASSES
     assert "ALL CLASSES" not in USER_FACING_CLASSES
+
+
+def test_unclassified_is_total_supply_only_sidebar_bucket():
+    source = (Path(__file__).parents[1] / "streamlit_opensea_sales" / "ui" / "sidebar.py").read_text(encoding="utf-8")
+    assert "display_classes.append(UNCLASSIFIED)" in source
+    assert "if current_mode == 'total_supply':" in source
+    assert 'label = "Unclassified" if name == UNCLASSIFIED else name' in source
+    assert "defaults[UNCLASSIFIED] = True" in source
 
 
 def test_multiclass_filter_is_or_preserves_order_and_ranks():
