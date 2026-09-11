@@ -1189,7 +1189,8 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         # Build image cell
         if normalized_image_url:
             safe_image_url = escape(normalized_image_url, quote=True)
-            image_cell = f'<a href="{item_url_safe}" class="top-items-table-link"><img src="{safe_image_url}" alt="{item_name_safe}" style="max-width: 48px; max-height: 48px; object-fit: contain;"></a>' if item_url else f'<span class="top-items-table-link"><img src="{safe_image_url}" alt="{item_name_safe}" style="max-width: 48px; max-height: 48px; object-fit: contain;"></span>'
+            overlay_html = build_item_profile_card_html(row, presentation="overlay", item_url=item_url)
+            image_cell = f'<span class="top-items-image-profile-trigger" tabindex="0" role="button" aria-label="View details for {item_name_safe}"><img src="{safe_image_url}" alt="{item_name_safe}" style="max-width: 48px; max-height: 48px; object-fit: contain;"><span class="top-items-image-profile-overlay">{overlay_html}</span></span>'
         else:
             image_cell = ''
         
@@ -1285,6 +1286,12 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 .top-items-table-link:hover {{
     color: #FF003A !important;
 }}
+.top-items-image-profile-trigger {{ position: relative; display: inline-flex; cursor: pointer; outline: none; }}
+.top-items-image-profile-overlay {{ display: none; position: absolute; z-index: 1100; left: 56px; top: -22px; }}
+.top-items-image-profile-trigger:hover .top-items-image-profile-overlay,
+.top-items-image-profile-trigger:focus-within .top-items-image-profile-overlay {{ display: block; }}
+.top-items-image-profile-overlay .top-item-profile-card {{ width: min(760px, calc(100vw - 40px)); grid-template-columns: 220px minmax(0, 1fr); padding: 14px; gap: 16px; }}
+.top-items-image-profile-overlay .top-item-profile-name {{ font-size: 24px; }}
 </style>
 <table class="top-items-table">
 <thead><tr>
