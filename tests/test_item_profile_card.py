@@ -56,10 +56,22 @@ def test_desktop_table_injects_shared_card_styles_before_overlay_markup():
 
 def test_desktop_overlay_media_is_square_and_wide():
     source = (Path(__file__).resolve().parents[1] / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
-    assert "grid-template-columns: 300px minmax(0, 1fr)" in source
-    assert "width: 300px; height: 300px; aspect-ratio: 1 / 1" in source
+    assert "--item-profile-square: 350px" in source
+    assert "grid-template-columns: var(--item-profile-square) minmax(0, 1fr)" in source
+    assert "width: var(--item-profile-square); height: var(--item-profile-square)" in source
+    assert "height: var(--item-profile-square); max-height: var(--item-profile-square); min-height: 0" in source
+    assert "grid-template-columns: 300px" not in source
+    assert "width: 300px; height: 300px" not in source
     assert "grid-template-columns: minmax(0, auto) minmax(0, 1fr)" not in source
     assert "width: auto; height: 100%; min-height: 0" not in source
+    styles = item_profile_card_styles()
+    assert "width:100%;height:100%;object-fit:contain" in styles
+
+
+def test_item_profile_title_link_states_are_white_and_un_underlined():
+    styles = item_profile_card_styles()
+    assert "color:#FFFFFF !important" in styles
+    assert "text-decoration:none !important" in styles
 
 
 def test_rarity_uses_existing_site_color_mapping():
