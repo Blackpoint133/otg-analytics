@@ -54,6 +54,12 @@ def test_desktop_table_injects_shared_card_styles_before_overlay_markup():
     assert "item_profile_card_styles()" in source
 
 
+def test_desktop_overlay_media_is_square_and_wide():
+    source = (Path(__file__).resolve().parents[1] / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    assert "grid-template-columns: 300px minmax(0, 1fr)" in source
+    assert "width: 300px; height: 300px; aspect-ratio: 1 / 1" in source
+
+
 def test_rarity_uses_existing_site_color_mapping():
     expected = {"Epic": "#a335ee", "Rare": "#0070dd", "Uncommon": "#1eff00", "Common": "#ffffff"}
     for rarity, color in expected.items():
