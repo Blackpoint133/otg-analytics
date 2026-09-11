@@ -558,19 +558,9 @@ def load_top_items_ranking(
         return None
 
 
-_COMPLETE_ITEM_METRICS_FILENAMES = {
-    "all": "top_items_metrics_all.csv",
-    "30d": "top_items_metrics_30d.csv",
-    "7d": "top_items_metrics_7d.csv",
-    "1d": "top_items_metrics_1d.csv",
-}
-
-
 def get_complete_top_item_metrics_path(period: str = "all") -> Path:
     """Return the complete, untruncated per-item metrics artifact for a period."""
-    if period not in _COMPLETE_ITEM_METRICS_FILENAMES:
-        raise ValueError(f"Invalid period: {period}")
-    return get_market_overview_dir() / _COMPLETE_ITEM_METRICS_FILENAMES[period]
+    return _get_top_items_ranking_path("volume", period)
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -582,7 +572,7 @@ def load_complete_top_item_metrics(period: str = "all", cache_buster: str = "") 
     """
     try:
         path = get_complete_top_item_metrics_path(period)
-    except ValueError:
+    except (ValueError, KeyError):
         return None
     if not path.exists():
         return None
