@@ -1294,6 +1294,8 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 .top-items-image-profile-overlay .top-item-profile-card {{ --item-profile-square: 350px; width: min(980px, calc(100vw - 40px)); grid-template-columns: var(--item-profile-square) minmax(0, 1fr); padding: 14px; gap: 16px; align-items: stretch; }}
 .top-items-image-profile-overlay .top-item-profile-visual {{ width: var(--item-profile-square); height: var(--item-profile-square); min-width: var(--item-profile-square); max-width: var(--item-profile-square); min-height: var(--item-profile-square); max-height: var(--item-profile-square); aspect-ratio: 1 / 1; }}
 .top-items-image-profile-overlay .top-item-profile-content {{ height: var(--item-profile-square); max-height: var(--item-profile-square); min-height: 0; display: flex; flex-direction: column; }}
+.top-items-image-profile-overlay .top-item-profile-meta {{ margin: 8px 0 10px; }}
+.top-items-image-profile-overlay .top-item-profile-content .top-item-profile-section:not(:last-child) {{ margin-top: 9px; }}
 .top-items-image-profile-overlay .top-item-profile-content .top-item-profile-section:last-child {{ margin-top: auto; }}
 .top-items-image-profile-overlay .top-item-profile-name {{ font-size: 24px; }}
 </style>

@@ -61,7 +61,10 @@ def test_desktop_overlay_media_is_square_and_wide():
     assert "width: var(--item-profile-square); height: var(--item-profile-square)" in source
     assert "height: var(--item-profile-square); max-height: var(--item-profile-square); min-height: 0" in source
     assert "display: flex; flex-direction: column" in source
+    assert ".top-item-profile-meta {{ margin: 8px 0 10px; }}" in source
+    assert ".top-item-profile-section:not(:last-child) {{ margin-top: 9px; }}" in source
     assert ".top-item-profile-section:last-child {{ margin-top: auto; }}" in source
+    assert "overflow: hidden" not in source.split(".top-items-image-profile-overlay .top-item-profile-content", 1)[1].split("</style>", 1)[0]
     outer_rule = source.split(".top-items-image-profile-overlay .top-item-profile-card", 1)[1].split("\n", 1)[0]
     assert "height: var(--item-profile-square)" not in outer_rule
     assert "grid-template-columns: 300px" not in source
