@@ -24,6 +24,10 @@ def overrides_path() -> Path:
     return Path(__file__).resolve().parent / "config" / "item_class_overrides.json"
 
 
+def provider_supply_snapshot_path() -> Path:
+    return Path(__file__).resolve().parent / "data_opensea_sales" / "gunzscope_supply_snapshot_v3_provider.json"
+
+
 @st.cache_data(show_spinner=False)
 def load_item_class_snapshot(path_string: str, mtime_ns: int) -> dict[str, Any]:
     del mtime_ns
@@ -85,8 +89,41 @@ def read_item_class_overrides() -> dict[str, dict[str, str]]:
     return load_item_class_overrides(str(path), mtime_ns)
 
 
+def asset_key_family_mapping(snapshot: dict[str, Any] | None = None) -> dict[str, str]:
+    """Return only exact, source-proven provider assetKey-family classes."""
+    source = source_class_mapping(snapshot)
+    overrides = read_item_class_overrides()
+    try:
+        provider = json.loads(provider_supply_snapshot_path().read_text(encoding="utf-8")).get("provider_items", {})
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return {}
+    evidence: dict[str, set[str]] = {}
+    for record in provider.values():
+        if not isinstance(record, dict) or record.get("ranking_eligible") is not True:
+            continue
+        name = record.get("provider_item_name")
+        asset_key = record.get("provider_asset_key")
+        if not isinstance(name, str) or not isinstance(asset_key, str) or name in overrides:
+            continue
+        class_name = source.get(name)
+        if class_name:
+            evidence.setdefault(asset_key.split("_", 1)[0], set()).add(class_name)
+    return {family: next(iter(classes)) for family, classes in evidence.items() if len(classes) == 1}
+
+
 def effective_class_mapping(snapshot: dict[str, Any] | None = None) -> dict[str, str]:
     result = dict(source_class_mapping(snapshot))
+    family_classes = asset_key_family_mapping(snapshot)
+    try:
+        provider = json.loads(provider_supply_snapshot_path().read_text(encoding="utf-8")).get("provider_items", {})
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        provider = {}
+    for record in provider.values():
+        if isinstance(record, dict) and record.get("provider_item_name") not in result:
+            asset_key = record.get("provider_asset_key")
+            family = asset_key.split("_", 1)[0] if isinstance(asset_key, str) else ""
+            if family in family_classes:
+                result[record["provider_item_name"]] = family_classes[family]
     for name, entry in read_item_class_overrides().items():
         result[name] = entry["class"]
     return result
