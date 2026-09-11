@@ -4,6 +4,7 @@ from html import escape
 from typing import Any, Mapping
 
 from ui.gunzscope_attribution import inline_logo
+from formatters import get_rarity_style
 
 
 _METRICS = (
@@ -35,6 +36,7 @@ def build_item_profile_card_html(row: Mapping[str, Any], presentation: str = "st
         raise ValueError("presentation must be standalone or overlay")
     name = escape(str(row.get("item_name", "")).strip(), quote=True)
     rarity = escape(str(row.get("rarity", "")).strip(), quote=True)
+    rarity_color, _ = get_rarity_style(str(row.get("rarity", "")).strip())
     item_class = escape(str(row.get("_item_class", "Unclassified")), quote=True)
     image = str(row.get("image_url") or "").strip()
     image_html = f'<img class="top-item-profile-image" src="{escape(image, quote=True)}" alt="{name}">' if image else '<div class="top-item-profile-placeholder">NO IMAGE</div>'
@@ -46,7 +48,7 @@ def build_item_profile_card_html(row: Mapping[str, Any], presentation: str = "st
     return f'''<article class="top-item-profile-card top-item-profile-card--{presentation}">
 <div class="top-item-profile-visual">{image_html}</div>
 <div class="top-item-profile-content">
-<div class="top-item-profile-identity">{link_open}{name}{link_close}<div class="top-item-profile-meta"><span>{rarity}</span><span>{item_class}</span></div></div>
+<div class="top-item-profile-identity">{link_open}{name}{link_close}<div class="top-item-profile-meta"><span class="top-item-profile-rarity" style="color:{escape(rarity_color, quote=True)}">{rarity}</span><span>{item_class}</span></div></div>
 <section class="top-item-profile-section"><h3>RANKING</h3><div class="top-item-profile-rank"><span>GLOBAL RANK</span><b>{escape(str(row.get('display_rank', row.get('rank', '-'))))}</b></div></section>
 <section class="top-item-profile-section"><h3>MARKET STATS</h3><div class="top-item-profile-stats">{''.join(f'<div class="top-item-profile-metric"><span>{label}</span><b>{_value(row, key, spec)}</b></div>' for label, key, spec in _METRICS)}</div></section>
 <section class="top-item-profile-section"><h3>SUPPLY {inline_logo("top-item-profile-attribution")}</h3><div class="top-item-profile-stats"><div class="top-item-profile-metric"><span>TOTAL SUPPLY</span><b>{supply}</b></div><div class="top-item-profile-metric"><span>SUPPLY RANK</span><b>{escape(supply_rank_text)}</b></div></div></section>

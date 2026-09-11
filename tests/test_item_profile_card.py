@@ -42,3 +42,10 @@ def test_image_is_contained_and_long_name_can_wrap():
 def test_provider_only_row_has_no_item_analytics_link():
     html = build_item_profile_card_html(row(item_key=None), "standalone")
     assert 'class="top-item-profile-name" href=' not in html
+
+
+def test_rarity_uses_existing_site_color_mapping():
+    expected = {"Epic": "#a335ee", "Rare": "#0070dd", "Uncommon": "#1eff00", "Common": "#ffffff"}
+    for rarity, color in expected.items():
+        html = build_item_profile_card_html(row(rarity=rarity), "standalone")
+        assert f'style="color:{color}"' in html
