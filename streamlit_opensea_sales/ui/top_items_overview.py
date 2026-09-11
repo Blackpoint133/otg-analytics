@@ -25,7 +25,7 @@ import market_data_access as mda
 from data_access import load_items_index
 from formatters import format_number, format_metric_value, format_historical_metric_pair, get_rarity_style
 from gunzscope_supply import build_v2_canonical_index, build_v3_canonical_index, build_v3_supply_presentation_index, dense_supply_ranks, read_current_snapshot, read_serving_snapshot, read_snapshot_v3, selected_supply_source, valid_supply
-from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, class_mapping, read_item_class_snapshot
+from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, class_for_provider_item, class_mapping, read_item_class_snapshot
 from ui.gunzscope_attribution import inline_logo
 
 
@@ -41,6 +41,12 @@ TOP_ITEMS_PAGE_SIZE = 20
 def attach_item_classes(data: pd.DataFrame, mapping: dict[str, str]) -> pd.DataFrame:
     result = data.copy()
     result['_item_class'] = result['item_name'].map(mapping).fillna(UNCLASSIFIED)
+    if '_provider_asset_key' in result.columns:
+        result['_item_class'] = [
+            class_for_provider_item(name, asset_key, read_item_class_snapshot())
+            if isinstance(asset_key, str) else current
+            for name, asset_key, current in zip(result['item_name'], result['_provider_asset_key'], result['_item_class'])
+        ]
     return result
 
 
@@ -167,7 +173,8 @@ def _load_global_total_supply_candidates() -> Optional[pd.DataFrame]:
             rows.append({'item_key': item_key, 'item_name': record.get('provider_item_name', ''),
                          'rarity': record.get('provider_rarity', ''),
                          'image_url': local_record.get('image_url') or record.get('provider_image_url', ''),
-                         '_provider_item_id': canonical_pid})
+                         '_provider_item_id': canonical_pid,
+                         '_provider_asset_key': record.get('provider_asset_key')})
         return pd.DataFrame(rows)
     items_index, diagnostics = load_items_index()
     if not diagnostics.success or not items_index:

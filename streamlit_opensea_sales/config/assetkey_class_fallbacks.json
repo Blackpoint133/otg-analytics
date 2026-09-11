@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "purpose": "opensea_sales presentation-only assetKey class fallbacks",
+  "families": {
+    "CustomizationItemTemplate": "Customization Item",
+    "Weapon": "Weapon",
+    "WeaponAttachment": "Weapon Attachment",
+    "WeaponSkin": "Weapon Skin",
+    "ProfileCustomization": "Profile Customization",
+    "BodyPart": "Body Part",
+    "PartItem": "Weapon Skin"
+  }
+}

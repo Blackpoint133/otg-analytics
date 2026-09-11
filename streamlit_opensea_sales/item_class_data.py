@@ -28,6 +28,10 @@ def provider_supply_snapshot_path() -> Path:
     return Path(__file__).resolve().parent / "data_opensea_sales" / "gunzscope_supply_snapshot_v3_provider.json"
 
 
+def asset_key_fallbacks_path() -> Path:
+    return Path(__file__).resolve().parent / "config" / "assetkey_class_fallbacks.json"
+
+
 @st.cache_data(show_spinner=False)
 def load_item_class_snapshot(path_string: str, mtime_ns: int) -> dict[str, Any]:
     del mtime_ns
@@ -89,41 +93,58 @@ def read_item_class_overrides() -> dict[str, dict[str, str]]:
     return load_item_class_overrides(str(path), mtime_ns)
 
 
-def asset_key_family_mapping(snapshot: dict[str, Any] | None = None) -> dict[str, str]:
-    """Return only exact, source-proven provider assetKey-family classes."""
-    source = source_class_mapping(snapshot)
-    overrides = read_item_class_overrides()
+@st.cache_data(show_spinner=False)
+def load_asset_key_fallbacks(path_string: str, mtime_ns: int) -> dict[str, str]:
+    del mtime_ns
     try:
-        provider = json.loads(provider_supply_snapshot_path().read_text(encoding="utf-8")).get("provider_items", {})
+        payload = json.loads(Path(path_string).read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return {}
-    evidence: dict[str, set[str]] = {}
-    for record in provider.values():
-        if not isinstance(record, dict) or record.get("ranking_eligible") is not True:
-            continue
-        name = record.get("provider_item_name")
-        asset_key = record.get("provider_asset_key")
-        if not isinstance(name, str) or not isinstance(asset_key, str) or name in overrides:
-            continue
-        class_name = source.get(name)
-        if class_name:
-            evidence.setdefault(asset_key.split("_", 1)[0], set()).add(class_name)
-    return {family: next(iter(classes)) for family, classes in evidence.items() if len(classes) == 1}
+    if payload.get("schema_version") != 1 or payload.get("purpose") != "opensea_sales presentation-only assetKey class fallbacks" or not isinstance(payload.get("families"), dict):
+        return {}
+    allowed = set(USER_FACING_CLASSES) - {"Music", "Anomalies"}
+    result = {}
+    for family, class_name in payload["families"].items():
+        if isinstance(family, str) and family.strip() == family and family and "_" not in family and isinstance(class_name, str) and class_name in allowed:
+            result[family] = class_name
+    return result
+
+
+def read_asset_key_fallbacks() -> dict[str, str]:
+    path = asset_key_fallbacks_path()
+    try:
+        mtime_ns = path.stat().st_mtime_ns
+    except OSError:
+        mtime_ns = 0
+    return load_asset_key_fallbacks(str(path), mtime_ns)
+
+
+def class_for_provider_item(item_name: str, provider_asset_key: str | None, snapshot: dict[str, Any] | None = None) -> str:
+    """Resolve provider presentation class with override/source/family precedence."""
+    overrides = read_item_class_overrides()
+    if item_name in overrides:
+        return overrides[item_name]["class"]
+    source = source_class_mapping(snapshot)
+    if item_name in source:
+        return source[item_name]
+    key = provider_asset_key.strip() if isinstance(provider_asset_key, str) else ""
+    return read_asset_key_fallbacks().get(key.split("_", 1)[0], UNCLASSIFIED)
 
 
 def effective_class_mapping(snapshot: dict[str, Any] | None = None) -> dict[str, str]:
     result = dict(source_class_mapping(snapshot))
-    family_classes = asset_key_family_mapping(snapshot)
+    fallbacks = read_asset_key_fallbacks()
     try:
         provider = json.loads(provider_supply_snapshot_path().read_text(encoding="utf-8")).get("provider_items", {})
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         provider = {}
     for record in provider.values():
         if isinstance(record, dict) and record.get("provider_item_name") not in result:
+            name = record.get("provider_item_name")
             asset_key = record.get("provider_asset_key")
-            family = asset_key.split("_", 1)[0] if isinstance(asset_key, str) else ""
-            if family in family_classes:
-                result[record["provider_item_name"]] = family_classes[family]
+            family = asset_key.strip().split("_", 1)[0] if isinstance(asset_key, str) else ""
+            if family in fallbacks:
+                result[name] = fallbacks[family]
     for name, entry in read_item_class_overrides().items():
         result[name] = entry["class"]
     return result
