@@ -226,6 +226,8 @@ def _build_item_card_metrics(
         'unique_sellers': 0,
         'unique_wallets': 0,
         'last_sale': None,
+        'last_sale_price_gun': None,
+        'last_sale_price_usd': None,
         'liquidity_trade_per_day': 0.0,
         'historical_usd_available': False,
     }
@@ -260,8 +262,19 @@ def _build_item_card_metrics(
     
     if 'sale_date' in filtered_df.columns:
         try:
-            last_sale_date = pd.to_datetime(filtered_df['sale_date']).max()
-            metrics['last_sale'] = last_sale_date
+            parsed_dates = pd.to_datetime(filtered_df['sale_date'], errors='coerce')
+            valid_dates = parsed_dates.dropna()
+            if not valid_dates.empty:
+                latest_timestamp = valid_dates.max()
+                latest_rows = filtered_df.loc[valid_dates[valid_dates == latest_timestamp].index]
+                latest_row = latest_rows.iloc[-1]
+                metrics['last_sale'] = latest_timestamp
+                latest_gun = pd.to_numeric(latest_row.get('price_gun'), errors='coerce')
+                if pd.notna(latest_gun):
+                    metrics['last_sale_price_gun'] = float(latest_gun)
+                latest_usd = pd.to_numeric(latest_row.get('price_usd_at_sale'), errors='coerce')
+                if pd.notna(latest_usd):
+                    metrics['last_sale_price_usd'] = float(latest_usd)
         except Exception:
             metrics['last_sale'] = None
     
@@ -601,14 +614,19 @@ def _render_item_card(
         '</div>'
     )
     
-    if metrics['last_sale']:
-        last_sale_str = metrics['last_sale'].strftime('%Y-%m-%d %H:%M')
-        card_html += (
-            f'<div class="item-card-metric-row">'
-            '<span class="item-card-metric-label">LAST SALE</span>'
-            f'<span class="item-card-metric-value">{last_sale_str}</span>'
-            '</div>'
-        )
+    last_sale_value = (
+        format_number(metrics['last_sale_price_usd'], True, 1.0, currency='USD')
+        if show_usd and metrics.get('last_sale_price_usd') is not None
+        else format_number(metrics['last_sale_price_gun'], False, 1.0, currency='GUN')
+        if not show_usd and metrics.get('last_sale_price_gun') is not None
+        else 'N/A'
+    )
+    card_html += (
+        f'<div class="item-card-metric-row">'
+        '<span class="item-card-metric-label">LAST SALE PRICE</span>'
+        f'<span class="item-card-metric-value">{last_sale_value}</span>'
+        '</div>'
+    )
     
     card_html += '</div>'
     
@@ -792,7 +810,7 @@ def render_item_overview(
     """
     if guide_open:
         from ui.section_guide import render_section_guide_panel
-        render_section_guide_panel("""<p><b>ITEM ANALYTICS</b> Explore the full observed OpenSea trading history, current supply and market position of a single item.</p><p><b>SELECT ITEM</b> Choose any tracked item to load its sales history, market metrics, pricing data and participants.</p><p><b>WALLET FILTER</b> Select a wallet to focus on its activity. In CHART view, that wallet's BUY and SELL transactions are highlighted while other trades remain visible for context. In TABLE view, only transactions where the selected wallet was the buyer or seller are shown. Select ALL WALLETS to restore the full history.</p><p><b>USD PRICE</b> Switch monetary values between GUN and USD. Historical USD values use the GUN/USD price recorded at the time of each transaction where available. <b>TREND LINE</b> adds the prepared price trend for the selected item.</p><p><b>ITEM CARD</b> RANK is the item's Market Strength Rank. SUPPLY shows current on-chain supply, while SUPPLY RANK compares scarcity across the current tracked supply universe. MARKET POSITION shows Volume Rank and Liquidity Rank. MARKET METRICS summarize trading volume, average trading activity and transaction count. PRICING shows average, minimum, maximum and latest observed sale. PARTICIPANTS counts unique buyers, sellers and wallets.</p><p><b>CHART</b> Each point represents an observed GUN or WGUN transaction. Hover over a point for transaction date, price and currency details. <b>TABLE</b> shows the sales history from newest to oldest, with links to seller and buyer OpenSea profiles, the blockchain transaction and the item on OpenSea.</p><p class="trader-guide-note"><b>SUPPLY DATA</b> Current supply data is provided by GUNZscope. Supply Rank and the rest of the analytics are calculated by OTG Analytics.</p><p class="trader-guide-note">Market and participant metrics are based on observed OpenSea activity and may not represent activity outside the tracked marketplace data.</p>""", trusted_html=True)
+        render_section_guide_panel("""<p><b>ITEM ANALYTICS</b> Explore the full observed OpenSea trading history, current supply and market position of a single item.</p><p><b>SELECT ITEM</b> Choose any tracked item to load its sales history, market metrics, pricing data and participants.</p><p><b>WALLET FILTER</b> Select a wallet to focus on its activity. In CHART view, that wallet's BUY and SELL transactions are highlighted while other trades remain visible for context. In TABLE view, only transactions where the selected wallet was the buyer or seller are shown. Select ALL WALLETS to restore the full history.</p><p><b>USD PRICE</b> Switch monetary values between GUN and USD. Historical USD values use the GUN/USD price recorded at the time of each transaction where available. <b>TREND LINE</b> adds the prepared price trend for the selected item.</p><p><b>ITEM CARD</b> RANK is the item's Market Strength Rank. SUPPLY shows current on-chain supply, while SUPPLY RANK compares scarcity across the current tracked supply universe. MARKET POSITION shows Volume Rank and Liquidity Rank. MARKET METRICS summarize trading volume, average trading activity and transaction count. PRICING shows average, minimum, maximum and last sale price. PARTICIPANTS counts unique buyers, sellers and wallets.</p><p><b>CHART</b> Each point represents an observed GUN or WGUN transaction. Hover over a point for transaction date, price and currency details. GUN sales represent direct purchases of listed items: an item was listed at a price and bought. WGUN sales represent accepted offers: a buyer proposed a price and the seller accepted the offer, completing the sale. <b>TABLE</b> shows the sales history from newest to oldest, with links to seller and buyer OpenSea profiles, the blockchain transaction and the item on OpenSea.</p><p class="trader-guide-note"><b>SUPPLY DATA</b> Current supply data is provided by GUNZscope. Supply Rank and the rest of the analytics are calculated by OTG Analytics.</p><p class="trader-guide-note">Market and participant metrics are based on observed OpenSea activity and may not represent activity outside the tracked marketplace data.</p>""", trusted_html=True)
     
     # Extract item details
     item_name = df['name'].iloc[0] if 'name' in df.columns and not df.empty else current_selected_item.rsplit(' ', 1)[0]

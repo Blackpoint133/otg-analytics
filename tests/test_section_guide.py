@@ -37,7 +37,8 @@ def test_helper_is_per_section_and_all_guides_are_implemented():
 def test_analytics_guide_punctuation_uses_safe_html_entities():
     market = (ROOT / "streamlit_opensea_sales" / "ui" / "market_overview.py").read_text(encoding="utf-8")
     top_items = (ROOT / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
-    assert "trading activity &mdash; not order-book depth" in market
+    assert "trading activity &mdash; not order-book depth" not in market
+    assert "show how many completed sales occurred over time" in market
     assert "recalculate ranks &mdash; displayed rank numbers remain global" in top_items
     assert "normalized Volume &times; normalized Liquidity" in top_items
     assert "trading activity  not order-book depth" not in market
