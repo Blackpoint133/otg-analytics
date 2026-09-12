@@ -82,3 +82,5 @@ def test_all_desktop_mode_containers_share_pre_trader_zero_offset():
     assert all(selector in block for selector in selectors)
     assert "margin-top: 0 !important;" in block
     assert "margin-top: 41.6px" not in block
+    app_source = (APP / "app_opensea_sales.py").read_text(encoding="utf-8")
+    assert 'with st.container(key="item_main_content"):' in app_source

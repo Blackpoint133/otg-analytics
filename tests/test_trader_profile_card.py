@@ -119,7 +119,7 @@ def test_trader_table_splits_image_and_trader_and_scopes_avatar_border(monkeypat
     ]
     assert 'trader-table-image' in rendered
     assert 'trader-profile-trigger' in rendered
-    assert '.trader-table .trader-avatar-small{border:0}' in rendered
+    assert '.trader-table .trader-avatar-small{border:0;border-radius:0;overflow:visible;background-size:contain}' in rendered
 
 
 def test_trader_header_uses_top_items_copy_and_typography_contract():

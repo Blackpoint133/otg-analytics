@@ -263,20 +263,21 @@ def main():
     # ════════════════════════════════════════════════════════════════
     
     # technical implementation note Item Analytics technical implementation note technical implementation note technical implementation note
-    render_item_overview(
-        df=df,
-        filtered_df=filtered_df,
-        current_selected_item=current_selected_item,
-        item_record=item_record,
-        show_volume=show_volume,
-        show_usd=show_usd,
-        current_gun_price=current_gun_price,
-        show_trend_line=show_trend_line,
-        item_view_mode=item_view_mode,
-                highlight_wallet=highlight_wallet,
-                guide_open=guide_open,
-                items_per_page=ITEMS_PER_PAGE
-    )
+    with st.container(key="item_main_content"):
+        render_item_overview(
+            df=df,
+            filtered_df=filtered_df,
+            current_selected_item=current_selected_item,
+            item_record=item_record,
+            show_volume=show_volume,
+            show_usd=show_usd,
+            current_gun_price=current_gun_price,
+            show_trend_line=show_trend_line,
+            item_view_mode=item_view_mode,
+            highlight_wallet=highlight_wallet,
+            guide_open=guide_open,
+            items_per_page=ITEMS_PER_PAGE
+        )
 
     # ════════════════════════════════════════════════════════════════
     # technical implementation note technical implementation note technical implementation note
