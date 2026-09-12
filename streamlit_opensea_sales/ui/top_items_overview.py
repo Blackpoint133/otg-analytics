@@ -1321,7 +1321,7 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 }}
 .top-items-image-profile-trigger {{ position: relative; display: inline-flex; cursor: pointer; outline: none; }}
 .top-items-image-profile-trigger::after {{ content: ""; position: absolute; left: 48px; top: 0; width: 16px; height: 100%; }}
-.top-items-image-profile-overlay {{ display: none; position: absolute; z-index: 1100; left: 56px; top: -22px; pointer-events: auto; }}
+.top-items-image-profile-overlay {{ display: none; position: absolute; z-index: 1100; left: 64px; top: 0; pointer-events: auto; }}
 .top-items-image-profile-trigger:hover .top-items-image-profile-overlay,
 .top-items-image-profile-trigger:focus-within .top-items-image-profile-overlay {{ display: block; }}
 .top-items-image-profile-overlay .top-item-profile-card {{ --item-profile-square: 350px; width: min(980px, calc(100vw - 40px)); grid-template-columns: var(--item-profile-square) minmax(0, 1fr); padding: 14px; gap: 16px; align-items: stretch; }}

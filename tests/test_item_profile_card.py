@@ -64,6 +64,14 @@ def test_desktop_table_injects_shared_card_styles_before_overlay_markup():
     assert "item_profile_card_styles()" in source
 
 
+def test_desktop_profile_overlay_uses_shared_48px_anchor_geometry():
+    source = Path(__file__).parents[1] / "streamlit_opensea_sales" / "ui" / "top_items_overview.py"
+    text = source.read_text(encoding="utf-8")
+    assert "left: 48px; top: 0; width: 16px" in text
+    assert "left: 64px; top: 0" in text
+    assert "left: 56px; top: -22px" not in text
+
+
 def test_desktop_overlay_media_is_square_and_wide():
     source = (Path(__file__).resolve().parents[1] / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
     assert "--item-profile-square: 350px" in source

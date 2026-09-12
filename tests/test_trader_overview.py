@@ -247,4 +247,5 @@ def test_hover_rank_uses_em_dash_and_readable_metric_labels(monkeypatch):
     assert "<span>Invested</span><b>#4</b>" in rendered
     assert "<span>ROI</span>" in rendered and "<span>Roi</span>" not in rendered
     assert "height:8px;bottom:-8px" in rendered
-    assert "nth-child(-n+8) .trader-profile-card::before" in rendered
+    assert "trader-image-profile-trigger:hover .trader-profile-card" in rendered
+    assert "trader-image-profile-trigger:focus-within .trader-profile-card" in rendered
