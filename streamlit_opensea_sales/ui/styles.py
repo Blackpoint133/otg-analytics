@@ -840,7 +840,7 @@ def apply_global_styles():
             .st-key-market_main_content,
             .st-key-top_items_main_content,
             .st-key-trader_main_content {{
-                margin-top: 41.6px !important;
+                margin-top: 0 !important;
             }}
         }}
         
