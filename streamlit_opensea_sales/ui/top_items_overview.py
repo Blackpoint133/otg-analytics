@@ -231,26 +231,37 @@ def _catalog_identity_map(catalog: pd.DataFrame) -> dict:
 
 
 def _enrich_with_all_time_market_metrics(catalog_rows: pd.DataFrame, market_rows: Optional[pd.DataFrame]) -> pd.DataFrame:
-    """Join unambiguous market metrics without collapsing provider identities."""
+    """Vectorized collision-safe enrichment without collapsing provider identities."""
     result = catalog_rows.copy()
     for column in _MARKET_METRIC_COLUMNS:
         if column not in result.columns:
             result[column] = pd.NA
     if market_rows is None or not {'item_name', 'rarity'}.issubset(market_rows.columns):
         return result
-    provider_counts = result.groupby(['item_name', 'rarity'], dropna=False).size().to_dict()
     market = market_rows.copy()
-    market['_identity'] = list(zip(market['item_name'], market['rarity']))
-    market_counts = market['_identity'].value_counts(dropna=False).to_dict()
     available = [column for column in _MARKET_METRIC_COLUMNS if column in market.columns]
-    unique_market = {identity: row for identity, row in market.set_index('_identity').iterrows()
-                     if provider_counts.get(identity, 0) == 1 and market_counts.get(identity, 0) == 1}
-    for index, row in result.iterrows():
-        identity = (row.get('item_name'), row.get('rarity'))
-        values = unique_market.get(identity)
-        if values is not None:
-            for column in available:
-                result.at[index, column] = values[column]
+    if not available:
+        return result
+
+    catalog_identity = pd.MultiIndex.from_frame(result[['item_name', 'rarity']])
+    market_identity = pd.MultiIndex.from_frame(market[['item_name', 'rarity']])
+    catalog_counts = catalog_identity.value_counts()
+    market_counts = market_identity.value_counts()
+    safe_identities = catalog_counts.index[catalog_counts.eq(1) & catalog_counts.reindex(catalog_counts.index).index.isin(market_counts.index)]
+    safe_identities = pd.MultiIndex.from_tuples(
+        [identity for identity in safe_identities if market_counts.get(identity, 0) == 1],
+        names=catalog_identity.names,
+    )
+    if len(safe_identities) == 0:
+        return result
+
+    safe_market = market.loc[market_identity.isin(safe_identities), ['item_name', 'rarity', *available]]
+    safe_market = safe_market.set_index(['item_name', 'rarity'])
+    aligned = safe_market.reindex(catalog_identity)
+    matched = catalog_identity.isin(safe_identities)
+    # Assignment is deliberately bulk and does not use combine_first: a matched
+    # market NaN must overwrite an existing catalog value.
+    result.loc[matched, available] = aligned.loc[matched, available].to_numpy()
     return result
 
 
