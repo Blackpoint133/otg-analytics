@@ -1,0 +1,48 @@
+# LEADERBOARD RESPONSIVE PARITY
+
+REPORT_SEQUENCE=020
+RESULT=PARTIAL
+
+HEAD_BEFORE=a02cd1e2f6bcf13028c9d6f35704932441745b97
+MAIN_HEAD_BEFORE=dacee4c675419dea127ceb5e8a70e1a7ffc36a0
+
+ITEM_LOWER_ROW_FALLBACK_ADDED=YES
+ITEM_FALLBACK_ROWS=6
+ITEM_NORMAL_ANCHOR_CHANGED=NO
+ITEM_UPWARD_HOVER_BRIDGE=YES
+
+TRADER_VIEWPORT_DETECTION_ADDED=YES
+TRADER_MOBILE_BREAKPOINT=768px
+TRADER_DESKTOP_RENDERER=TABLE
+TRADER_MOBILE_RENDERER=STANDALONE_CARDS
+TRADER_MOBILE_TABLE_RENDERED=NO
+TRADER_PAGE_SIZE=20
+TRADER_CARD_CONTENT_SHARED=NO
+
+TRADER_DESKTOP_VISUAL_CHANGED=NO
+TRADER_SEMANTICS_CHANGED=NO
+ITEM_SEMANTICS_CHANGED=NO
+
+IMPLEMENTATION_COMMIT_SHA=5a1f70ba1921bffd05fa84d8fe4b4fd1959672e1
+IMPLEMENTATION_PARENT_SHA=a02cd1e2f6bcf13028c9d6f35704932441745b97
+FILES_CHANGED=streamlit_opensea_sales/ui/top_items_overview.py; streamlit_opensea_sales/ui/trader_overview.py; streamlit_opensea_sales/ui/sidebar.py; streamlit_opensea_sales/app_opensea_sales.py
+
+TESTS=54 passed (Trader, Item Profile, Top Items multiclass)
+COMPILE=PASS
+PIP_CHECK=PASS
+DIFF_CHECK=PASS
+
+STAGING_RESTART_RESULT=PASS
+STAGING_PID=375872
+STAGING_SUPPLY_SOURCE=v3
+FINAL_RUNTIME_HEAD=5a1f70ba1921bffd05fa84d8fe4b4fd1959672e1
+
+VISUAL_VALIDATION=HUMAN_VALIDATION_REQUIRED
+PRODUCTION_CHANGED=NO
+MAIN_CHANGED=NO
+
+The Item desktop overlay now opens upward for the final six page rows with an
+invisible 8px continuity bridge. Trader viewport detection is sidebar-scoped
+with the 768px breakpoint; desktop retains the table and mobile selects the
+standalone-card renderer. Existing ranking, pagination, and desktop styling
+remain unchanged.
