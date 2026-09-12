@@ -1,0 +1,55 @@
+# MOBILE TRADER CARD PARITY
+
+REPORT_SEQUENCE=021
+RESULT=PARTIAL
+
+HEAD_BEFORE=4bd7990b47cf4407a9cfc59370df81a8d2223f67
+MAIN_HEAD_BEFORE=dacee4c675419dea127ceb5e8a70e1a7ffc36a0
+
+ROOT_CAUSE=Report-020 mobile renderer duplicated and simplified Trader Profile Card instead of reusing approved component
+SHARED_CARD_HTML=YES
+SHARED_CARD_CSS=NO
+SHARED_COPY_WIRING=NO
+
+MOBILE_LARGE_AVATAR=YES
+MOBILE_VERIFIED_MARKER=YES
+MOBILE_SECONDARY_USERNAME=YES
+MOBILE_OPENSEA_LINK=YES
+MOBILE_COPY_WALLET=YES
+MOBILE_ENS=YES
+MOBILE_METRIC_ICONS=YES
+MOBILE_EXACT_RANK_SEMANTICS=YES
+
+MOBILE_TABLE_RENDERED=NO
+MOBILE_CARD_GRID_WRAPPER_COUNT=1
+TRADER_PAGE_SIZE=20
+
+DESKTOP_VISUAL_CHANGED=NO
+DESKTOP_BEHAVIOR_CHANGED=NO
+TRADER_SEMANTICS_CHANGED=NO
+TOP_ITEMS_CHANGED=NO
+
+IMPLEMENTATION_COMMIT_SHA=a3c4717796398111e6e575c8e6f2c82b9da79d0d
+IMPLEMENTATION_PARENT_SHA=4bd7990b47cf4407a9cfc59370df81a8d2223f67
+FILES_CHANGED=streamlit_opensea_sales/ui/trader_overview.py
+
+TESTS=48 passed (Trader profile, Trader overview, Item Profile)
+COMPILE=PASS
+PIP_CHECK=PASS
+DIFF_CHECK=PASS
+
+STAGING_RESTART_RESULT=PASS
+STAGING_PID=79700
+STAGING_SUPPLY_SOURCE=v3
+FINAL_RUNTIME_HEAD=a3c4717796398111e6e575c8e6f2c82b9da79d0d
+
+VISUAL_VALIDATION=HUMAN_VALIDATION_REQUIRED
+PRODUCTION_CHANGED=NO
+MAIN_CHANGED=NO
+
+The approved Trader Profile Card HTML construction is now centralized in
+_build_trader_profile_card_html and used by desktop and mobile. Mobile emits
+one standalone card grid and does not call the desktop table renderer. The
+existing full profile-card stylesheet and clipboard script remain emitted
+from the desktop render path; they were not fully extracted into shared
+helpers in this partial implementation.
