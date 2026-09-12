@@ -207,7 +207,7 @@ def _trader_profile_card_styles(metric_icons: dict[str, str | None]) -> str:
 .trader-profile-stat-icon{{width:18px;height:18px;object-fit:contain;object-position:center;display:block;background-size:contain;background-position:center;background-repeat:no-repeat;}}
 .trader-profile-stat-icon-fallback{{color:#FF003A;font-size:9px;line-height:18px;}}
 {icon_rules}
-@media (max-width:768px){{.trader-profile-card{{--trader-profile-square:auto;width:min(560px,calc(100vw - 24px));}}.trader-profile-card-grid{{grid-template-columns:1fr;height:auto;}}.trader-profile-avatar{{width:min(100%,300px);height:auto;aspect-ratio:1/1;}}.trader-profile-content{{height:auto;max-height:none;}}.trader-profile-identity strong{{font-size:24px;}}}}
+@media (max-width:768px){{.trader-profile-card{{--trader-profile-square:auto;width:min(560px,calc(100vw - 24px));}}.trader-profile-card-grid{{grid-template-columns:1fr;height:auto;}}.trader-profile-avatar{{width:100%;max-width:none;height:auto;aspect-ratio:1/1;}}.trader-profile-content{{height:auto;max-height:none;}}.trader-profile-identity strong{{font-size:24px;}}.trader-wallet-copy-label{{display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:28px;padding:0 8px;box-sizing:border-box;border:1px solid #FF003A;background:#050505;color:#FF003A !important;font-size:10px;font-weight:700;line-height:1;letter-spacing:1px;white-space:nowrap;}}.trader-wallet-copy:hover .trader-wallet-copy-label{{background:rgba(255,0,58,.08);}}.trader-wallet-short{{min-width:0;overflow-wrap:anywhere;white-space:normal;}}}}
 </style>'''
 
 

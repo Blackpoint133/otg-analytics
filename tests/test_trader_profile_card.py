@@ -110,6 +110,19 @@ def test_trader_table_matches_top_items_density_contract():
     assert source.count("Rank") >= 1 and source.count("Matched Sales") >= 1
 
 
+def test_mobile_card_polish_is_scoped_to_mobile_css():
+    source = Path(overview.__file__).read_text(encoding="utf-8")
+    mobile = overview._trader_profile_card_styles({})
+    assert "trader-profile-avatar{width:100%;max-width:none;height:auto;aspect-ratio:1/1;}" in mobile
+    assert "trader-wallet-copy-label{display:inline-flex" in mobile
+    assert "min-width:52px" in mobile
+    assert "height:28px" in mobile
+    assert "padding:0 8px" in mobile
+    assert "justify-content:center" in mobile
+    assert "width:min(100%,300px)" not in mobile
+    assert "navigator.clipboard" in source
+
+
 def test_trader_table_splits_image_and_trader_and_scopes_avatar_border(monkeypatch):
     rendered = _rendered(monkeypatch)
     header = rendered.split("<thead>", 1)[1].split("</thead>", 1)[0]
