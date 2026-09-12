@@ -204,3 +204,12 @@ def test_trader_outer_shell_matches_item_square_corner_contract(monkeypatch):
     assert ".trader-image-profile-trigger .trader-profile-card{left:64px;top:0;bottom:auto;pointer-events:auto}" in rendered
     assert ".trader-image-profile-trigger::after{content:\"\";position:absolute;left:48px;top:0;width:16px" in rendered
     assert ".trader-profile-card::before{content:\"\";position:absolute;left:0;right:0;height:8px;bottom:-8px}" in rendered
+
+
+def test_lower_trader_rows_have_viewport_safe_upward_fallback():
+    source = Path(overview.__file__).read_text(encoding="utf-8")
+    assert ".trader-table tbody tr:nth-last-child(-n+6) .trader-profile-card{{top:auto;bottom:calc(100% + 8px)}}" in source
+    assert ".trader-image-profile-trigger .trader-profile-card{{left:64px;top:0;bottom:auto;pointer-events:auto}}" in source
+    assert ".trader-image-profile-trigger:hover .trader-profile-card" in source
+    assert ".trader-image-profile-trigger:focus-within .trader-profile-card" in source
+    assert ".trader-image-profile-trigger::after{{content:\"\";position:absolute;left:48px;top:0;width:16px;height:100%}}" in source
