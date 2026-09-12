@@ -17,6 +17,7 @@ def test_card_contains_complete_identity_and_metric_contract():
     for text in ("Cyrix", "Epic", "Customization Item", "#8", "Market Strength", "Liquidity Score", "Volume GUN", "Volume USD", "Events", "Active Days", "Avg Price GUN", "Avg Price USD", "TOTAL SUPPLY", "SUPPLY RANK", "Data by GUNZscope"):
         assert text in html
     assert "Weighted Volume GUN" not in html
+    assert "FILTER RANK" in html and "GLOBAL RANK" in html
 
 
 def test_missing_values_and_anomaly_rank_are_safe():

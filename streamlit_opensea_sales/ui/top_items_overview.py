@@ -77,6 +77,17 @@ def paginate_top_items(data: pd.DataFrame, page: int, page_size: int = TOP_ITEMS
     return data.iloc[start:start + page_size].copy(), current, pages
 
 
+def assign_top_item_filter_ranks(data: pd.DataFrame, ranking_mode: str) -> pd.DataFrame:
+    """Assign filtered-context ranks after filtering and before pagination."""
+    result = data.copy()
+    if ranking_mode == 'total_supply':
+        supply = pd.to_numeric(result.get('_supply'), errors='coerce')
+        result['_filter_rank'] = supply.where(supply.notna()).rank(method='dense', ascending=True).astype('Int64')
+    else:
+        result['_filter_rank'] = pd.Series(range(1, len(result) + 1), index=result.index, dtype='Int64')
+    return result
+
+
 def _render_top_items_pager(page: int, pages: int) -> None:
     if pages <= 1:
         return
@@ -335,7 +346,7 @@ def render_top_items_overview(show_usd: bool = False, current_gun_price: float =
     
     if guide_open:
         from ui.section_guide import render_section_guide_panel
-        render_section_guide_panel("""<p><b>TOP ITEMS ANALYTICS</b> Compare and rank tracked OTG items by market activity, liquidity, market strength or current supply.</p><p><b>ITEM CLASSES</b> Enable any combination of classes to control which items are visible. Multiple selected classes use OR logic. Class filtering does not recalculate ranks &mdash; displayed rank numbers remain global, so gaps between positions are expected.</p><p><b>MARKET STRENGTH</b> A composite score balancing normalized trading Volume and Liquidity. It is calculated as the square root of normalized Volume &times; normalized Liquidity. Higher values indicate stronger combined market activity.</p><p><b>VOLUME</b> Ranks items by total traded value during the selected period. With USD PRICE enabled, Volume is displayed and ranked using USD transaction values where available; with it disabled, Volume uses GUN.</p><p><b>LIQUIDITY</b> Ranks items using a recency-weighted trading activity score. Higher Liquidity indicates stronger and more recent marketplace activity.</p><p><b>TOTAL SUPPLY</b> Ranks items by current on-chain supply from lowest to highest. Lower supply means a higher scarcity rank, with #1 representing the lowest current supply. Items with equal supply can share the same Supply Rank. Total Supply uses the current tracked supply universe and is independent of the trading PERIOD.</p><p><b>PERIOD</b> ALL, 30 DAY, 7 DAY and 1 DAY apply to Market Strength, Volume and Liquidity rankings. PERIOD controls are disabled for TOTAL SUPPLY because Supply represents the current state rather than historical trading activity.</p><p><b>VIEW</b> CARDS provide a visual ranking and direct access to ITEM ANALYTICS. TABLE exposes the wider metric set for comparison. On mobile, LEADERBOARD provides a compact ranking view.</p><p class="trader-guide-note"><b>SUPPLY DATA</b> Current supply data is provided by GUNZscope. Supply Rank and all market analytics are calculated by OTG Analytics.</p>""", trusted_html=True)
+        render_section_guide_panel("""<p><b>TOP ITEMS ANALYTICS</b> Compare and rank tracked OTG items by market activity, liquidity, market strength or current supply.</p><p><b>ITEM CLASSES</b> Enable any combination of classes to control which items are visible. Multiple selected classes use OR logic. FILTER RANK (red) ranks within selected classes; GLOBAL RANK (light gray) remains the rank in the complete eligible universe for the active ranking context.</p><p><b>MARKET STRENGTH</b> A composite score balancing normalized trading Volume and Liquidity. It is calculated as the square root of normalized Volume &times; normalized Liquidity. Higher values indicate stronger combined market activity.</p><p><b>VOLUME</b> Ranks items by total traded value during the selected period. With USD PRICE enabled, Volume is displayed and ranked using USD transaction values where available; with it disabled, Volume uses GUN.</p><p><b>LIQUIDITY</b> Ranks items using a recency-weighted trading activity score. Higher Liquidity indicates stronger and more recent marketplace activity.</p><p><b>TOTAL SUPPLY</b> Ranks items by current on-chain supply from lowest to highest. Filter Rank is dense within selected classes, while Global Rank uses the complete Supply universe. Items excluded from Supply Rank show - for both Supply ranking contexts.</p><p><b>PERIOD</b> ALL, 30 DAY, 7 DAY and 1 DAY apply to market metrics. Under TOTAL SUPPLY, Supply and Supply Rank remain current-state values while attached market metrics follow the selected period.</p><p class="trader-guide-note"><b>SUPPLY DATA</b> Current supply data is provided by GUNZscope. Supply Rank and all market analytics are calculated by OTG Analytics.</p>""", trusted_html=True)
 
     # technical implementation note technical implementation note data
     status = mda.get_market_data_status()
@@ -517,6 +528,8 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
     else:
         # For other modes or when USD is off, use original ranking
         display_data['display_rank'] = display_data['rank']
+
+    display_data['_global_rank'] = display_data['display_rank']
     
     display_data = attach_item_classes(display_data, class_mapping(read_item_class_snapshot()))
     legacy_all_classes = item_classes is None
@@ -533,6 +546,7 @@ def _render_top_items_section(cache_buster: str, show_usd: bool = False, current
             unsafe_allow_html=True,
         )
         return
+    display_data = assign_top_item_filter_ranks(display_data, ranking_mode)
 
     context = (ranking_mode, period, bool(show_usd and ranking_mode == 'volume'), tuple(item_classes) if not legacy_all_classes else "LEGACY_ALL")
     if st.session_state.get('top_items_page_context') != context:
@@ -727,7 +741,8 @@ def _render_top_items_card_view(top_items: pd.DataFrame, show_usd: bool = False,
     has_usd_data = 'volume_usd' in top_items.columns and 'avg_price_usd' in top_items.columns
     
     for idx, row in top_items.iterrows():
-        display_rank = _format_rank(row.get('display_rank')) if ranking_mode == 'total_supply' else f"#{row.get('display_rank', row['rank'])}"
+        display_rank = _format_rank(row.get('_global_rank')) if ranking_mode == 'total_supply' else f"#{row.get('_global_rank', row.get('rank'))}"
+        filter_rank = _format_rank(row.get('_filter_rank'))
         item_name = str(row['item_name']).strip()
         rarity = str(row['rarity']).strip()
         
@@ -1225,7 +1240,7 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
 
         item_name_cell = f'<a href="{item_url_safe}" class="top-items-table-link">{item_name_safe}</a>' if item_url else item_name_safe
         row_html = f'''<tr>
-<td>{display_rank}</td>
+<td><span class="top-items-rank-stack" aria-label="Filter Rank {filter_rank}; Global Rank {display_rank}"><span class="top-items-rank-filter">{filter_rank}</span><span class="top-items-rank-global">{display_rank}</span></span></td>
 <td style="text-align: center; padding: 4px;">{image_cell}</td>
 <td style="text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; max-width: 140px; word-break: break-word;">{item_name_cell}</td>
 <td style="text-transform: uppercase; letter-spacing: 0.3px; font-size: 10px; font-weight: 700; color: {rarity_color};">{escape(rarity, quote=True)}</td>
@@ -1244,6 +1259,9 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
     # Build complete table HTML with the standard columns plus Supply columns in Supply mode
     table_html = item_profile_card_styles() + textwrap.dedent(f"""
 <style>
+.top-items-rank-stack {{ display:flex; flex-direction:column; line-height:1.05; white-space:nowrap; }}
+.top-items-rank-filter {{ color:#FF003A; }}
+.top-items-rank-global {{ color:#C8C8CD; }}
 .top-items-table {{
     width: 100%;
     border-collapse: collapse;
