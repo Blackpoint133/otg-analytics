@@ -836,8 +836,10 @@ def apply_global_styles():
                 padding-top: 5.25rem !important;
             }}
 
+            .st-key-item_main_content,
             .st-key-market_main_content,
-            .st-key-top_items_main_content {{
+            .st-key-top_items_main_content,
+            .st-key-trader_main_content {{
                 margin-top: 41.6px !important;
             }}
         }}
