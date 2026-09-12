@@ -167,15 +167,18 @@ def test_desktop_profile_content_bottom_anchor_contract_is_preserved():
     assert ".trader-profile-content { display:block; height:auto; max-height:none; }" in source
 
 
-def test_trader_card_uses_outer_chamfered_frame_without_inset_border():
+def test_trader_card_uses_direct_square_outer_frame():
     source = Path(overview.__file__).read_text(encoding="utf-8")
-    assert "box-sizing:border-box;background:#303035" in source
-    assert ".trader-profile-card::after{{content:\"\";position:absolute;inset:1px;background:#050505;" in source
-    assert "clip-path:polygon(0 11px,11px 0,calc(100% - 11px) 0,100% 11px" in source
+    assert ".trader-profile-card{{--trader-profile-square:350px;box-sizing:border-box;border:1px solid #303035;background:#050505;" in source
+    assert "clip-path:polygon" not in source
+    assert "padding:14px" in source
+    assert "gap:16px;align-items:stretch" in source
     assert "inset:5px" not in source
     assert ".trader-profile-card-grid{{display:grid;position:relative;z-index:1;" in source
     assert ".trader-image-profile-trigger::after{{content:\"\";position:absolute;left:48px;top:0;width:16px" in source
     assert ".trader-image-profile-trigger .trader-profile-card{{left:64px;top:0;bottom:auto;pointer-events:auto}}" in source
+    assert "css.replace(" not in source
+    assert "spacing_override" not in source
 
 
 def test_trader_stats_neutral_body_frame_remains_intact():
@@ -189,7 +192,10 @@ def test_trader_stats_neutral_body_frame_remains_intact():
 
 def test_trader_outer_shell_matches_item_square_corner_contract(monkeypatch):
     rendered = _rendered(monkeypatch)
-    assert ".trader-profile-card{box-sizing:border-box;border:1px solid #303035;background:#050505;padding:14px}" in rendered
+    assert "--trader-profile-square:350px" in rendered
+    assert "border:1px solid #303035" in rendered
+    assert "padding:14px" in rendered
+    assert "gap:16px" in rendered
     assert "background:#050505" in rendered
     assert "clip-path:polygon" not in rendered
     assert "inset:5px" not in rendered
@@ -198,4 +204,3 @@ def test_trader_outer_shell_matches_item_square_corner_contract(monkeypatch):
     assert ".trader-image-profile-trigger .trader-profile-card{left:64px;top:0;bottom:auto;pointer-events:auto}" in rendered
     assert ".trader-image-profile-trigger::after{content:\"\";position:absolute;left:48px;top:0;width:16px" in rendered
     assert ".trader-profile-card::before{content:\"\";position:absolute;left:0;right:0;height:8px;bottom:-8px}" in rendered
-    assert ".trader-profile-card-grid{gap:16px}" in rendered
