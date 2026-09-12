@@ -117,8 +117,9 @@ def test_trader_table_splits_image_and_trader_and_scopes_avatar_border(monkeypat
         "Rank", "Image", "Trader", "Earned", "Invested", "Sold", "Trades",
         "Purchases", "Sales", "ROI", "Win Rate", "Coverage", "Matched Sales",
     ]
-    assert 'trader-table-image' in rendered
-    assert 'trader-profile-trigger' in rendered
+    assert 'trader-image-profile-trigger' in rendered
+    assert 'trader-profile-trigger' not in rendered
+    assert 'trader-table-link' in rendered
     assert '.trader-table .trader-avatar-small{border:0;border-radius:0;overflow:visible;background-size:contain}' in rendered
 
 
