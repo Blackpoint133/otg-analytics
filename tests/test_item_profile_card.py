@@ -99,6 +99,13 @@ def test_item_profile_title_link_states_are_white_and_un_underlined():
     assert "text-decoration:none !important" in styles
 
 
+def test_mobile_market_metrics_are_single_column_and_non_wrapping():
+    styles = item_profile_card_styles()
+    assert ".top-item-profile-stats{grid-template-columns:1fr}" in styles
+    assert ".top-item-profile-metric span,.top-item-profile-metric b{white-space:nowrap}" in styles
+    assert "grid-template-columns:repeat(2,minmax(0,1fr))" in styles
+
+
 def test_rarity_uses_existing_site_color_mapping():
     expected = {"Epic": "#a335ee", "Rare": "#0070dd", "Uncommon": "#1eff00", "Common": "#ffffff"}
     for rarity, color in expected.items():
