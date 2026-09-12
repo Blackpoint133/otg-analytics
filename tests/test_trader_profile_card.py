@@ -165,3 +165,23 @@ def test_desktop_profile_content_bottom_anchor_contract_is_preserved():
     assert "height:var(--trader-profile-square)" in source
     assert "@media (max-width:768px)" in source
     assert ".trader-profile-content { display:block; height:auto; max-height:none; }" in source
+
+
+def test_trader_card_uses_outer_chamfered_frame_without_inset_border():
+    source = Path(overview.__file__).read_text(encoding="utf-8")
+    assert "box-sizing:border-box;background:#303035" in source
+    assert ".trader-profile-card::after{{content:\"\";position:absolute;inset:1px;background:#050505;" in source
+    assert "clip-path:polygon(0 11px,11px 0,calc(100% - 11px) 0,100% 11px" in source
+    assert "inset:5px" not in source
+    assert ".trader-profile-card-grid{{display:grid;position:relative;z-index:1;" in source
+    assert ".trader-image-profile-trigger::after{{content:\"\";position:absolute;left:48px;top:0;width:16px" in source
+    assert ".trader-image-profile-trigger .trader-profile-card{{left:64px;top:0;bottom:auto;pointer-events:auto}}" in source
+
+
+def test_trader_stats_neutral_body_frame_remains_intact():
+    source = Path(overview.__file__).read_text(encoding="utf-8")
+    assert ".trader-profile-ranks{{border:1px solid #303035;margin-top:0;padding:0" in source
+    assert ".trader-profile-ranks div{{display:grid;" in source
+    assert "border:0;border-bottom:1px solid #303035" in source
+    assert ".trader-profile-ranks div:last-child{{border-bottom:0}}" in source
+    assert "border-right:1px solid #FF003A" in source
