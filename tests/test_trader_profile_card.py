@@ -153,7 +153,7 @@ def test_render_reuses_six_icon_definitions_for_many_rows(monkeypatch):
     overview.render_trader_table(overview.consolidated_table_rows(rows))
     rendered = "".join(captured)
     assert captured[1].count("data:image/png;base64,") == 6
-    assert rendered.count("trader-profile-stat-icon--earned") == 26
+    assert rendered.count("trader-profile-stat-icon--earned") == 27
 
 
 def test_desktop_profile_content_bottom_anchor_contract_is_preserved():
