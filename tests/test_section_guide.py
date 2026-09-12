@@ -21,7 +21,7 @@ def test_old_main_metric_trigger_is_removed_and_content_is_main_area():
     assert "METRIC GUIDE" not in TRADER
     assert "trader_metric_guide" not in TRADER
     assert "if guide_open:" in TRADER
-    assert TRADER.index("if guide_open:") < TRADER.index("render_trader_table(consolidated_table_rows")
+    assert TRADER.index("if guide_open:") < TRADER.index("render_trader_table(prepared_visible)")
 
 
 def test_helper_is_per_section_and_all_guides_are_implemented():
@@ -77,3 +77,25 @@ def test_trader_guide_uses_shared_panel_and_css_is_not_local():
     assert ".trader-metric-guide {{" not in trader
     assert "otg-section-guide-panel" in GUIDE
     assert "trusted_html" in GUIDE
+
+
+def test_guides_describe_current_responsive_interactions():
+    item = (ROOT / "streamlit_opensea_sales" / "ui" / "item_overview.py").read_text(encoding="utf-8")
+    top_items = (ROOT / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
+    trader = TRADER
+    assert "TREND LINE</b> adds the prepared price trend to the CHART" in item
+    assert "MOBILE VIEW</b> On mobile, ITEM ANALYTICS displays the Item Card and CHART only" in item
+    assert "ITEM PROFILE</b> On desktop, hover over an item's IMAGE" in top_items
+    assert "standalone Item Profile Cards" in top_items
+    assert "PROFILE CARD</b> The card shows FILTERED RANK" in top_items
+    assert "TRADER PROFILE</b> On desktop, hover over a trader's IMAGE" in trader
+    assert "standalone Trader Profile Cards" in trader
+    assert "DESKTOP TABLE</b> COVERAGE" in trader
+    assert "MATCHED SALES" in trader
+    assert "Hover over a trader to open" not in trader
+
+
+def test_market_guide_is_untouched_by_guide_content_audit():
+    market = (ROOT / "streamlit_opensea_sales" / "ui" / "market_overview.py").read_text(encoding="utf-8")
+    assert "MARKET SUMMARY" in market
+    assert "UNIQUE WALLETS" in market
