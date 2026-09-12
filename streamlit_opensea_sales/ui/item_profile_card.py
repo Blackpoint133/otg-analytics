@@ -60,7 +60,7 @@ def build_item_profile_card_html(row: Mapping[str, Any], presentation: str = "st
 <div class="top-item-profile-visual">{image_html}</div>
 <div class="top-item-profile-content">
 <div class="top-item-profile-identity">{link_open}{name}{link_close}<div class="top-item-profile-meta"><span class="top-item-profile-rarity" style="color:{escape(rarity_color, quote=True)}">{rarity}</span><span>{item_class}</span></div></div>
-<section class="top-item-profile-section"><h3>RANKING</h3><div class="top-item-profile-rank"><span>FILTER RANK</span><b class="top-item-profile-filter-rank">{filter_rank}</b></div><div class="top-item-profile-rank"><span>GLOBAL RANK</span><b class="top-item-profile-global-rank">{global_rank}</b></div></section>
+<section class="top-item-profile-section"><h3>RANKING</h3><div class="top-item-profile-stats"><div class="top-item-profile-metric"><span>FILTERED RANK</span><b class="top-item-profile-filter-rank">{filter_rank}</b></div><div class="top-item-profile-metric"><span>GLOBAL RANK</span><b class="top-item-profile-global-rank">{global_rank}</b></div></div></section>
 <section class="top-item-profile-section"><h3>MARKET STATS</h3><div class="top-item-profile-stats">{''.join(f'<div class="top-item-profile-metric"><span>{label}</span><b>{_value(row, key, spec)}</b></div>' for label, key, spec in _METRICS)}</div></section>
 <section class="top-item-profile-section"><h3>SUPPLY {inline_logo("top-item-profile-attribution")}</h3><div class="top-item-profile-stats"><div class="top-item-profile-metric"><span>TOTAL SUPPLY</span><b>{supply}</b></div><div class="top-item-profile-metric"><span>SUPPLY RANK</span><b>{escape(supply_rank_text)}</b></div></div></section>
 </div></article>'''

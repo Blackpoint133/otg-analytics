@@ -17,7 +17,16 @@ def test_card_contains_complete_identity_and_metric_contract():
     for text in ("Cyrix", "Epic", "Customization Item", "#8", "Market Strength", "Liquidity Score", "Volume GUN", "Volume USD", "Events", "Active Days", "Avg Price GUN", "Avg Price USD", "TOTAL SUPPLY", "SUPPLY RANK", "Data by GUNZscope"):
         assert text in html
     assert "Weighted Volume GUN" not in html
-    assert "FILTER RANK" in html and "GLOBAL RANK" in html
+    assert "FILTERED RANK" in html and "GLOBAL RANK" in html
+
+
+def test_ranking_uses_shared_two_column_metric_grid():
+    html = build_item_profile_card_html(row(_filter_rank=1, _global_rank=8), "overlay")
+    ranking = html.split('<section class="top-item-profile-section"><h3>RANKING</h3>', 1)[1].split('</section>', 1)[0]
+    assert ranking.count('class="top-item-profile-metric"') == 2
+    assert 'class="top-item-profile-stats"' in ranking
+    assert 'FILTERED RANK' in ranking and 'GLOBAL RANK' in ranking
+    assert 'class="top-item-profile-rank"' not in ranking
 
 
 def test_missing_values_and_anomaly_rank_are_safe():
