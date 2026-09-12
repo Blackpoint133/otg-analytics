@@ -82,7 +82,9 @@ def assign_top_item_filter_ranks(data: pd.DataFrame, ranking_mode: str) -> pd.Da
     result = data.copy()
     if ranking_mode == 'total_supply':
         supply = pd.to_numeric(result.get('_supply'), errors='coerce')
-        result['_filter_rank'] = supply.where(supply.notna()).rank(method='dense', ascending=True).astype('Int64')
+        global_supply_rank = pd.to_numeric(result.get('_supply_rank'), errors='coerce')
+        eligible = supply.notna() & global_supply_rank.notna()
+        result['_filter_rank'] = supply.where(eligible).rank(method='dense', ascending=True).astype('Int64')
     else:
         result['_filter_rank'] = pd.Series(range(1, len(result) + 1), index=result.index, dtype='Int64')
     return result
@@ -972,6 +974,7 @@ def _render_top_items_chart_view(top_items: pd.DataFrame, ranking_mode: str = 'v
     rows_html = []
     for idx, (_, row) in enumerate(top_items.iterrows()):
         display_rank = _format_rank(row.get('display_rank')) if ranking_mode == 'total_supply' else f"#{row.get('display_rank', row['rank'])}"
+        filter_rank = _format_rank(row.get('_filter_rank'))
         item_name = str(row['item_name']).strip()
         rarity = str(row['rarity']).strip()
         image_url = row.get('image_url', '')
