@@ -261,7 +261,8 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     """
     st.sidebar.html(item_sidebar_css)
 
-    viewport_info = get_viewport_info(key="item_chart_viewport")
+    with st.sidebar:
+        viewport_info = get_viewport_info(key="item_chart_viewport")
     is_mobile_viewport = _is_mobile_viewport(viewport_info)
     st.session_state['item_is_mobile_viewport'] = is_mobile_viewport
     

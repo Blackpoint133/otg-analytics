@@ -203,6 +203,23 @@ def test_profile_table_contract_and_escaping(monkeypatch):
     assert "trader-profile-bio" not in rendered
 
 
+def test_table_rank_is_prefixed_and_uses_red_rank_style(monkeypatch):
+    import ui.trader_overview as overview
+    captured = []
+    monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
+    rows = overview.consolidated_table_rows([dict(row("0x" + "A" * 40), _position=21, _profile={}, _ranks={})])
+    overview.render_trader_table(rows)
+    rendered = captured[0]
+    assert '<td class="rank rank-value">#21</td>' in rendered
+    assert ".trader-table td.rank-value{color:#FF003A}" in rendered
+
+
+def test_item_viewport_component_is_sidebar_scoped():
+    sidebar = (Path(__file__).parents[1] / "streamlit_opensea_sales" / "ui" / "sidebar.py").read_text(encoding="utf-8")
+    block = sidebar.split('key="item_chart_viewport"', 1)[0]
+    assert "with st.sidebar:" in block[-120:]
+
+
 def test_profile_fallback_avatar_is_embedded_once_for_25_rows(monkeypatch):
     import ui.trader_overview as overview
     captured = []
