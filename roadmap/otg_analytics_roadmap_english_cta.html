@@ -716,8 +716,8 @@
 
         <div class="hero-copy">
           Independent development plan for expanding the analytics ecosystem around
-          <strong>Off The Grid</strong> — from market intelligence and real-time marketplace tooling
-          to inventory insights, community features and future in-game analytics.
+          <strong>Off The Grid</strong> — from market intelligence and real-time OpenSea marketplace data
+          to trader intelligence, inventory insights, community features and advanced market research.
         </div>
 
         <a class="hero-cta" href="https://otgos.run.place/" aria-label="Open OTG Analytics">
@@ -764,13 +764,14 @@
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Detailed market overview for every tracked item</li>
+                <li>Detailed OpenSea market overview for every tracked item</li>
                 <li><strong>Volume Rank</strong> and <strong>Liquidity Rank</strong> for market positioning</li>
                 <li>Sales history displayed in both <strong>GUN</strong> and <strong>historical USD at sale</strong></li>
-                <li>Interactive sales chart with optional <strong>Trend Line</strong></li>
+                <li>Interactive OpenSea sales chart with optional <strong>Trend Line</strong></li>
                 <li>Switch between <strong>Chart</strong> and <strong>Table</strong> views</li>
                 <li>Track <strong>Volume, Liquidity, Transactions, Average Price, Min Price and Max Price</strong></li>
                 <li>Participant analytics: <strong>Unique Buyers, Unique Sellers and Unique Wallets</strong></li>
+                <li>On mobile, show the Item Card and <strong>Chart</strong> without the Table selector</li>
               </ul>
             </div>
           </article>
@@ -782,12 +783,15 @@
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Overall market overview covering the full OTG item economy</li>
+                <li>Market-wide view of observed OpenSea trading activity across tracked OTG items</li>
+                <li><strong>Total Transactions, Total Volume, Unique Wallets</strong> and <strong>Items Traded</strong></li>
+                <li><strong>All Time, 12 Month, 6 Month</strong> and <strong>3 Month</strong> periods</li>
                 <li><strong>Daily and Monthly Market Volume</strong></li>
                 <li><strong>Daily and Monthly Market Liquidity</strong></li>
                 <li>Historical <strong>GUN token price</strong> context</li>
+                <li>Optional Unique Wallets and GUN/USD Token Price chart overlays</li>
                 <li>Long-term market activity visualization</li>
-                <li>Market-wide transaction history aggregated from individual item sales</li>
+                <li>Market-wide OpenSea transaction history aggregated from individual item sales</li>
               </ul>
             </div>
           </article>
@@ -827,12 +831,32 @@
 
           <article class="card">
             <div class="card-header">
+              <h4 class="card-title">Top Traders Analytics</h4>
+              <div class="card-index">04 / Live</div>
+            </div>
+            <div class="card-body">
+              <ul class="list">
+                <li>Rank observed OpenSea wallets by <strong>EARNED, INVESTED, SOLD</strong> and <strong>TRADES</strong></li>
+                <li>Search for a wallet and automatically navigate to its leaderboard page</li>
+                <li>Desktop table includes trader identity and performance metrics</li>
+                <li><strong>IMAGE</strong> opens the detailed Trader Profile Card on desktop</li>
+                <li>Trader name opens the OpenSea profile</li>
+                <li>Mobile uses standalone Trader Profile Cards</li>
+                <li>Profile Card shows <strong>EARNED, INVESTED, SOLD, TRADES, ROI</strong> and <strong>WIN RATE</strong></li>
+                <li>Desktop table also exposes <strong>Coverage</strong> and <strong>Matched Sales</strong></li>
+                <li>Realized P&amp;L is based only on sales matched to an observed prior purchase of the exact same NFT</li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
               <h4 class="card-title">Data Pipeline</h4>
               <div class="card-index">05 / Infrastructure</div>
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Automated processing of OTG marketplace sales history</li>
+                <li>Automated processing of observed OpenSea sales history</li>
                 <li>Separate raw, enriched and analytics-ready data layers</li>
                 <li>Full dataset validation before new analytics data reaches production</li>
                 <li><strong>Staging → Validation → Atomic Publish</strong> deployment flow</li>
@@ -850,9 +874,9 @@
             <div class="card-body">
               <ul class="list">
                 <li>Custom OTG-inspired analytics interface</li>
-                <li>Dedicated <strong>ITEM / MARKET / TOP ITEMS</strong> analytics modes</li>
+                <li>Dedicated <strong>ITEM / MARKET / TOP ITEMS / TOP TRADERS</strong> analytics modes</li>
                 <li>USD / GUN value switching</li>
-                <li>Interactive charts and market tables</li>
+                <li>Interactive OpenSea charts and market tables</li>
                 <li>Direct item navigation and shareable analytics URLs</li>
                 <li>First-party traffic analytics infrastructure for measuring platform growth</li>
               </ul>
@@ -897,12 +921,12 @@
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Full-market rankings across the complete available tracked dataset</li>
+                <li>Market Strength, Volume, Liquidity and Total Supply rankings across the complete tracked dataset</li>
                 <li>20-item pagination with shared <strong>Previous / Page X of Y / Next</strong> navigation</li>
-                <li><strong>Cards, Table and Chart</strong> browse the same paginated ranking context</li>
-                <li>Responsive card browsing for complete 20-item pages</li>
+                <li>Desktop table with IMAGE-to-Item Profile Card hover and item-name navigation to ITEM ANALYTICS</li>
+                <li>Mobile standalone Item Profile Cards for complete 20-item pages</li>
                 <li>Current <strong>Total Supply</strong> ranking with global rank positions preserved</li>
-                <li>Filter rankings by Item Class</li>
+                <li>Multi-select Item Class filters use OR behavior and preserve FILTERED RANK and GLOBAL RANK</li>
               </ul>
             </div>
           </article>
@@ -931,7 +955,8 @@
             <div class="card-body">
               <ul class="list">
                 <li>New chart showing the distribution of sales by item class</li>
-                <li>Split sold items into the 5 in-game classes</li>
+                <li>Break down observed OpenSea sales by OTG item class</li>
+                <li>Use the current tracked item-class taxonomy rather than a fixed class count</li>
                 <li><strong>Daily — Stacked Area Chart</strong> showing the number of sold items from each class by day</li>
                 <li><strong>Monthly — Stacked Bar Chart</strong> showing the number of sold items from each class by month</li>
                 <li>Use a separate color for each item class</li>
@@ -1060,10 +1085,10 @@
           <div class="stage-code stage-marker"><span class="stage-marker__icon status-icon status-icon-planned" aria-hidden="true"></span><span class="stage-marker__copy"><span class="status-label status-planned">Planned</span><span class="stage-marker__stage">Stage 03</span></span></div>
           <div>
             <div class="stage-title">
-              <h3>Real-Time & Cross-Market Analytics</h3>
-              <span class="stage-sub">live listings / item analytics extension</span>
+              <h3>REAL-TIME OPENSEA ANALYTICS</h3>
+              <span class="stage-sub">OpenSea listings / item analytics extension</span>
             </div>
-            <p class="stage-desc">Extend historical analytics with real-time marketplace data, cross-market sales context, and practical trader analysis.</p>
+            <p class="stage-desc">Extend historical OpenSea analytics with active OpenSea listings, live OpenSea price context and trader signals.</p>
           </div>
         </div>
 
@@ -1075,8 +1100,8 @@
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Retrieve marketplace listings in real time</li>
-                <li>Display active listings on each item page</li>
+                <li>Retrieve active OpenSea listings in real time</li>
+                <li>Display active OpenSea listings on each item page</li>
                 <li>Automatically update listings without reloading the page</li>
                 <li>Compare the current listing with historical sales</li>
                 <li>Highlight potentially undervalued listings</li>
@@ -1106,15 +1131,15 @@
 
           <article class="card">
             <div class="card-header">
-              <h4 class="card-title">IN-GAME + OPENSEA SALES OVERLAY</h4>
-              <div class="card-index">03 / Cross-market view</div>
+              <h4 class="card-title">ACTIVE LISTINGS + SALES OVERLAY</h4>
+              <div class="card-index">03 / OpenSea view</div>
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Show in-game sales and OpenSea sales on the same ITEM ANALYTICS sales chart</li>
-                <li>Use red for in-game sales, blue/cyan for OpenSea direct sales, and yellow for OpenSea offer sales</li>
-                <li>When Wallet Highlight is active, BUY remains purple, SELL remains green, and unrelated regular/offer sales use gray tones</li>
-                <li>Keep transaction source visible in hover/details when wallet-role colors take precedence</li>
+                <li>Overlay active OpenSea listings and completed OpenSea sales in ITEM ANALYTICS</li>
+                <li>Distinguish active asks from executed direct-purchase sales and accepted-offer sales</li>
+                <li>Preserve Wallet Highlight BUY/SELL context for completed transactions</li>
+                <li>Keep listing-vs-sale state visible in hover/details</li>
               </ul>
             </div>
           </article>
@@ -1182,7 +1207,7 @@
             <div class="card-body">
               <ul class="list">
                 <li>Public OpenSea trader leaderboard and wallet rankings</li>
-                <li>Rank traders by <strong>Earned, Invested, Sold, Trades, ROI and Win Rate</strong></li>
+                <li>Rank traders by <strong>Earned, Invested, Sold</strong> and <strong>Trades</strong>, with ROI and Win Rate shown in profiles</li>
                 <li>Observed Realized P&amp;L with <strong>Coverage</strong> and <strong>Matched Sales</strong> context</li>
                 <li>Search and navigate directly to any tracked trader wallet</li>
                 <li>OpenSea profile enrichment with names, avatars and compact profile context</li>
@@ -1197,9 +1222,10 @@
             </div>
             <div class="card-body">
               <ul class="list">
-                <li>Estimate an <strong>Auto-Buy Probability / Automation Likelihood</strong> from observable marketplace behavior</li>
-                <li>Use signals such as purchase timing, reaction speed, repeated timing patterns, sustained activity, and price-trigger behavior</li>
-                <li>Present a probability estimate, never a definitive claim that a wallet is a bot</li>
+                <li>Estimate the probability that a wallet uses an auto-buy bot or script.</li>
+                <li>This is the only future feature that may use observations from the in-game marketplace, where available, to detect exceptionally fast and repeated purchase execution.</li>
+                <li>Combine timing, repeated execution speed and purchase clustering into an explainable probability score rather than a hard bot label.</li>
+                <li>Trader performance, rankings and all other market analytics remain based on observed OpenSea activity.</li>
               </ul>
             </div>
           </article>
