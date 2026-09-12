@@ -148,6 +148,29 @@ def consolidated_table_rows(rows: Iterable[dict[str, Any]], show_usd: bool = Tru
     return result
 
 
+def _build_trader_profile_card_html(row: dict[str, Any], metric_icons: dict[str, str | None]) -> str:
+    profile = row.get("_profile") or {}
+    display = html.escape(str(row.get("Profile") or row.get("_profile_name") or "Trader"))
+    wallet = str(row.get("_wallet") or "")
+    wallet_html = html.escape(wallet, quote=True)
+    username = str(profile.get("username") or "").strip()
+    secondary = f'<span class="trader-profile-secondary">@{html.escape(username)}</span>' if username and username != display else ""
+    verified = " ✓" if profile.get("is_verified") is True else ""
+    avatar_style = " " + avatar_style_attribute(profile, wallet)
+    rank_lines = []
+    for metric in SORT_OPTIONS:
+        entry = (row.get("_ranks") or {}).get(metric, {})
+        rank = entry.get("rank") or ""
+        label = {"EARNED": "Earned", "INVESTED": "Invested", "SOLD": "Sold", "TRADES": "Trades", "ROI": "ROI", "WIN RATE": "Win Rate"}[metric]
+        icon_class = metric.lower().replace(" ", "-")
+        icon_html = f'<span class="trader-profile-stat-icon trader-profile-stat-icon--{icon_class}"></span>' if metric_icons.get(metric) else '<span class="trader-profile-stat-icon trader-profile-stat-icon-fallback">//</span>'
+        rank_lines.append(f'<div>{icon_html}<span>{label}</span><b>{html.escape("#" + str(rank) if rank else "—")}</b><em>{html.escape(entry.get("value", "N/A"))}</em></div>')
+    ens = str(profile.get("ens_name") or "").strip()
+    ens_html = f'<div class="trader-profile-muted">ENS: {html.escape(ens)}</div>' if ens else ""
+    copy_html = f'<button class="trader-wallet-copy" type="button" data-wallet="{wallet_html}"><span class="trader-wallet-short">{html.escape(wallet)}</span><span class="trader-wallet-copy-label">COPY</span></button>'
+    return f'<div class="trader-profile-card"><div class="trader-profile-card-grid"><div class="trader-profile-avatar"><span class="trader-avatar trader-avatar-large"{avatar_style}></span></div><div class="trader-profile-content"><div class="trader-profile-identity"><div><strong>{display}{verified}</strong>{secondary}<a class="trader-opensea-link" href="https://opensea.io/{wallet_html}" target="_blank" rel="noopener noreferrer">OpenSea profile ↗</a></div></div><div class="trader-profile-label">WALLET ADDRESS</div><div class="trader-wallet-row">{copy_html}</div>{ens_html}<div class="trader-profile-stats-title">TRADING STATS</div><div class="trader-profile-ranks">{"".join(rank_lines)}</div></div></div></div>'
+
+
 def render_trader_table(rows: list[dict[str, Any]]) -> None:
     columns = ["Rank", "Image", "Trader", "Earned", "Invested", "Sold", "Trades", "Purchases", "Sales", "ROI", "Win Rate", "Coverage", "Matched Sales"]
     metric_icons = metric_icon_data_uris()
@@ -189,6 +212,7 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
                              f'data-wallet="{wallet_html}">'
                              f'<span class="trader-wallet-short">{full_wallet}</span><span class="trader-wallet-copy-label">COPY</span></button>')
                 card = f'<div class="trader-profile-card"><div class="trader-profile-card-grid"><div class="trader-profile-avatar"><span class="trader-avatar trader-avatar-large"{avatar_style}></span></div><div class="trader-profile-content"><div class="trader-profile-identity"><div><strong>{display}{verified}</strong>{secondary}<a class="trader-opensea-link" href="https://opensea.io/{wallet_html}" target="_blank" rel="noopener noreferrer">OpenSea profile ↗</a></div></div><div class="trader-profile-label">WALLET ADDRESS</div><div class="trader-wallet-row">{copy_html}</div>{ens_html}<div class="trader-profile-stats-title">TRADING STATS</div><div class="trader-profile-ranks">{rank_html}</div></div></div></div>'
+                card = _build_trader_profile_card_html(row, metric_icons)
                 if column == "Image":
                     value = f'<span class="trader-image-profile-trigger" tabindex="0" role="button" aria-label="View trader details for {display}"><span class="trader-avatar trader-avatar-small"{avatar_style}></span>{card}</span>'
                 else:
@@ -280,19 +304,9 @@ def _render_metric_guide() -> None:
 
 
 def render_trader_mobile_cards(rows: list[dict[str, Any]], show_usd: bool = True) -> None:
-    cards = []
-    for row in rows:
-        profile = row.get("_profile") or {}
-        name = html.escape(str(row.get("Profile") or "Trader"))
-        wallet = html.escape(str(row.get("_wallet") or ""), quote=True)
-        rank_rows = []
-        for metric in SORT_OPTIONS:
-            entry = (row.get("_ranks") or {}).get(metric, {})
-            rank = html.escape(str(entry.get("rank") or "—"))
-            value = html.escape(str(entry.get("value") or "N/A"))
-            rank_rows.append(f'<div><span>{metric}</span><b>#{rank}</b><em>{value}</em></div>')
-        cards.append(f'<div class="trader-mobile-card-grid"><div class="trader-profile-card" style="display:block;position:relative;left:auto;top:auto;bottom:auto;width:100%;"><div class="trader-profile-identity"><strong>{name}</strong></div><div class="trader-profile-label">WALLET ADDRESS</div><div class="trader-wallet-row"><a href="https://opensea.io/{wallet}">OpenSea profile ↗</a></div><div class="trader-profile-stats-title">TRADING STATS</div><div class="trader-profile-ranks">{"".join(rank_rows)}</div></div></div>')
-    st.markdown('<style>.trader-mobile-card-grid{display:grid;grid-template-columns:1fr;gap:16px;width:100%}.trader-mobile-card-grid .trader-profile-card{display:block;position:relative;left:auto;top:auto;bottom:auto;width:100%;pointer-events:auto}</style>' + ''.join(cards), unsafe_allow_html=True)
+    metric_icons = metric_icon_data_uris()
+    cards = [_build_trader_profile_card_html(row, metric_icons) for row in rows]
+    st.markdown('<style>.trader-mobile-card-grid{display:grid;grid-template-columns:1fr;gap:16px;width:100%}.trader-mobile-card-grid .trader-profile-card{display:block;position:relative;left:auto;right:auto;top:auto;bottom:auto;width:100%;pointer-events:auto}</style><div class="trader-mobile-card-grid">' + ''.join(cards) + '</div>', unsafe_allow_html=True)
 
 
 def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None, guide_open: bool = False, is_mobile_viewport: bool = False) -> None:
