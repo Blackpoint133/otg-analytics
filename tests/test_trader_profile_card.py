@@ -189,7 +189,7 @@ def test_trader_stats_neutral_body_frame_remains_intact():
 
 def test_trader_outer_shell_matches_item_square_corner_contract(monkeypatch):
     rendered = _rendered(monkeypatch)
-    assert ".trader-profile-card{--trader-profile-square:370px;box-sizing:border-box;border:1px solid #303035;" in rendered
+    assert ".trader-profile-card{box-sizing:border-box;border:1px solid #303035;background:#050505;padding:14px}" in rendered
     assert "background:#050505" in rendered
     assert "clip-path:polygon" not in rendered
     assert "inset:5px" not in rendered
@@ -198,3 +198,4 @@ def test_trader_outer_shell_matches_item_square_corner_contract(monkeypatch):
     assert ".trader-image-profile-trigger .trader-profile-card{left:64px;top:0;bottom:auto;pointer-events:auto}" in rendered
     assert ".trader-image-profile-trigger::after{content:\"\";position:absolute;left:48px;top:0;width:16px" in rendered
     assert ".trader-profile-card::before{content:\"\";position:absolute;left:0;right:0;height:8px;bottom:-8px}" in rendered
+    assert ".trader-profile-card-grid{gap:16px}" in rendered
