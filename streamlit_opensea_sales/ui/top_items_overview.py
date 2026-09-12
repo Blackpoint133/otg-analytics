@@ -1191,6 +1191,7 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
     
     for idx, (_, row) in enumerate(top_items.iterrows()):
         display_rank = _format_rank(row.get('display_rank')) if ranking_mode == 'total_supply' else f"#{row.get('display_rank', row['rank'])}"
+        filter_rank = _format_rank(row.get('_filter_rank'))
         item_name = str(row['item_name']).strip()
         rarity = str(row['rarity']).strip()
         item_url = _build_item_mode_url(item_name, rarity) if pd.notna(row.get('item_key')) else None
