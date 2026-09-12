@@ -98,6 +98,17 @@ def test_small_trigger_remains_circular_but_large_card_override_is_square():
     assert "@media (max-width:768px)" in source
 
 
+def test_trader_table_matches_top_items_density_contract():
+    assert overview.TRADER_PAGE_SIZE == 20
+    source = Path(overview.__file__).read_text(encoding="utf-8")
+    assert "font-size:12px" in source
+    assert "letter-spacing:.5px" in source
+    assert ".trader-table th{{color:#FF003A;padding:10px 8px" in source
+    assert ".trader-table td{{color:#FFF;padding:8px;text-align:left;font-size:11px" in source
+    assert ".trader-avatar-small{{width:48px;height:48px}}" in source
+    assert source.count("Rank") >= 1 and source.count("Matched Sales") >= 1
+
+
 def test_metric_icon_mapping_and_cached_sources_are_complete():
     assert overview.METRIC_ICON_FILES == {
         "EARNED": "earned.png", "INVESTED": "invested.png", "SOLD": "sold.png",

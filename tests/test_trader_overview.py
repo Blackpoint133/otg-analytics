@@ -125,9 +125,9 @@ def test_legacy_detail_function_and_call_are_removed():
 def test_page_for_wallet_is_one_based_and_normalizes():
     rows = [row(f"0x{i:040x}") for i in range(900)]
     assert page_for_wallet(rows, rows[0]["wallet"]) == 1
-    assert page_for_wallet(rows, rows[24]["wallet"]) == 1
-    assert page_for_wallet(rows, rows[25]["wallet"]) == 2
-    assert page_for_wallet(rows, "0x" + rows[879]["wallet"][2:].upper()) == 36
+    assert page_for_wallet(rows, rows[19]["wallet"]) == 1
+    assert page_for_wallet(rows, rows[20]["wallet"]) == 2
+    assert page_for_wallet(rows, "0x" + rows[879]["wallet"][2:].upper()) == 44
     assert page_for_wallet(rows, "0x" + "f" * 40) is None
 
 
@@ -148,8 +148,8 @@ def test_wallet_search_and_short_display_preserve_canonical_match():
 
 def test_pagination_clamps_without_rendering_all_rows():
     rows = [row(f"0x{i:040x}") for i in range(51)]
-    visible, page, pages = paginate_traders(rows, page=99, page_size=25)
-    assert len(visible) == 1 and page == 3 and pages == 3
+    visible, page, pages = paginate_traders(rows, page=99)
+    assert len(visible) == 11 and page == 3 and pages == 3
 
 
 def test_trader_pagination_geometry_and_context_are_scoped_and_deterministic():
