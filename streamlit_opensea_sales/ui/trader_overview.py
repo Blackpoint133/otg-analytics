@@ -177,31 +177,86 @@ def _trader_profile_card_styles(metric_icons: dict[str, str | None]) -> str:
         for metric, src in metric_icons.items() if src
     )
     return f'''<style>
-.trader-profile-card{{--trader-profile-square:350px;box-sizing:border-box;border:1px solid #303035;background:#050505;padding:14px;color:#FFF;line-height:1.35;}}
+.trader-avatar{{display:inline-block;flex:0 0 auto;background-image:var(--trader-remote-avatar,none),var(--trader-fallback-avatar);background-size:cover;background-position:center;background-repeat:no-repeat;border-radius:50%;background-color:#111;border:1px solid #FF003A;}}
+.trader-profile-card{{--trader-profile-square:350px;box-sizing:border-box;border:1px solid #303035;background:#050505;padding:14px;color:#FFF;line-height:1.35;white-space:normal;box-shadow:0 8px 24px #000;}}
 .trader-profile-card-grid{{display:grid;position:relative;z-index:1;grid-template-columns:var(--trader-profile-square) minmax(0,1fr);height:var(--trader-profile-square);gap:16px;align-items:stretch;}}
-.trader-profile-avatar{{width:var(--trader-profile-square);height:var(--trader-profile-square);background:#080808;position:relative;overflow:hidden;border:1px solid #303035;box-sizing:border-box;}}
+.trader-profile-avatar{{width:var(--trader-profile-square);height:var(--trader-profile-square);aspect-ratio:1/1;background:#080808;position:relative;overflow:hidden;border:1px solid #303035;box-sizing:border-box;}}
 .trader-profile-card .trader-avatar-large{{display:block;width:100%;height:100%;border-radius:0;border:0;background-size:contain;background-position:center;background-repeat:no-repeat;}}
+.trader-profile-card .trader-avatar-large{{aspect-ratio:1/1;}}
+.trader-profile-avatar::before{{content:"OFF\\A THE\\A GRID";white-space:pre;color:#7b7b82;font-size:9px;line-height:1.05;letter-spacing:2px;position:absolute;left:10px;top:10px;z-index:1;pointer-events:none;}}
+.trader-profile-avatar::after{{content:"TRADERS\\A BUILD\\A DIFFERENT";white-space:pre;color:#7b7b82;font-size:8px;line-height:1.05;letter-spacing:1px;position:absolute;right:10px;bottom:10px;text-align:right;z-index:1;pointer-events:none;}}
 .trader-profile-content{{min-width:0;height:var(--trader-profile-square);max-height:var(--trader-profile-square);position:relative;}}
+.trader-profile-content::before{{content:"TRADER\\A PROFILE";white-space:pre;position:absolute;right:0;top:-2px;color:#77777d;font-size:9px;line-height:1.1;letter-spacing:2px;text-align:right;}}
+.trader-profile-identity{{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-right:92px;}}
 .trader-profile-identity strong{{display:block;color:#FFF;font-size:32px;line-height:1.05;overflow-wrap:anywhere;}}
 .trader-profile-card a{{color:#FF003A;margin:4px 0;text-decoration:none;}}
-.trader-profile-secondary,.trader-profile-muted{{color:#C8C8CD;font-size:10px;}}
+.trader-opensea-link{{display:inline-block;font-size:13px;}}
+.trader-profile-secondary{{display:block;color:#C8C8CD;font-size:10px;font-weight:400;}}
+.trader-profile-muted{{color:#C8C8CD;font-size:10px;overflow-wrap:anywhere;}}
 .trader-profile-label{{color:#C8C8CD;font-size:9px;font-weight:700;letter-spacing:1.5px;margin-top:10px;margin-bottom:5px;}}
-.trader-wallet-row{{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #3a3a40;border-left:2px solid #FF003A;background:#090909;}}
-.trader-wallet-copy{{width:100%;background:transparent;border:0;color:#FFF;padding:2px;font:inherit;cursor:pointer;text-align:left;}}
+.trader-wallet-row{{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border:1px solid #3a3a40;border-left:2px solid #FF003A;background:#090909;margin-top:0;}}
+.trader-wallet-copy{{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;background:transparent;border:0;color:#FFF;padding:2px;font:inherit;cursor:pointer;text-align:left;}}
+.trader-wallet-copy:hover{{color:#FFF;}}.trader-wallet-copy span{{color:#FF003A;margin-left:0;}}.trader-wallet-short{{white-space:nowrap;overflow:visible;font-size:10px;letter-spacing:0;}}
 .trader-profile-stats-title{{display:flex;justify-content:space-between;color:#FF003A;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-top:10px;border:1px solid #FF003A;border-bottom:0;padding:6px 8px;}}
 .trader-profile-ranks{{border:1px solid #303035;margin-top:0;padding:0;font-size:10px;background:#080808;}}
 .trader-profile-ranks div{{display:grid;grid-template-columns:22px minmax(70px,1fr) 44px minmax(100px,1fr);gap:6px;align-items:center;border:0;border-bottom:1px solid #303035;background:#0b0b0b;padding:4px 6px;margin:0;min-height:18px;}}
 .trader-profile-ranks div:last-child{{border-bottom:0;}}
 .trader-profile-ranks b{{color:#FFF;border-right:1px solid #FF003A;padding-right:6px;}}
-.trader-profile-ranks em{{color:#C8C8CD;font-style:normal;text-align:right;}}
-.trader-profile-stat-icon{{width:18px;height:18px;background-size:contain;background-position:center;background-repeat:no-repeat;}}
+.trader-profile-ranks em{{color:#C8C8CD;font-style:normal;text-align:right;overflow-wrap:anywhere;}}
+.trader-profile-ranks div::before{{display:none;}}
+.trader-profile-stat-icon{{width:18px;height:18px;object-fit:contain;object-position:center;display:block;background-size:contain;background-position:center;background-repeat:no-repeat;}}
+.trader-profile-stat-icon-fallback{{color:#FF003A;font-size:9px;line-height:18px;}}
 {icon_rules}
 @media (max-width:768px){{.trader-profile-card{{--trader-profile-square:auto;width:min(560px,calc(100vw - 24px));}}.trader-profile-card-grid{{grid-template-columns:1fr;height:auto;}}.trader-profile-avatar{{width:min(100%,300px);height:auto;aspect-ratio:1/1;}}.trader-profile-content{{height:auto;max-height:none;}}.trader-profile-identity strong{{font-size:24px;}}}}
 </style>'''
 
 
 def _render_trader_clipboard_wiring() -> None:
-    components.html("""<script>(function(){function wire(){var d=window.parent.document;d.querySelectorAll('.trader-wallet-copy[data-wallet]').forEach(function(b){if(b.dataset.otgClipboardBound)return;b.dataset.otgClipboardBound='1';b.addEventListener('click',function(){var l=b.querySelector('.trader-wallet-copy-label');var w=b.dataset.wallet;var p=window.parent.navigator.clipboard;if(p&&p.writeText){p.writeText(w).then(function(){l.textContent='COPIED';setTimeout(function(){l.textContent='COPY'},1200)})}})})}wire();})();</script>""", height=0, width=0)
+    components.html("""
+<script>
+(function () {
+  function wire() {
+    var doc;
+    try { doc = window.parent.document; } catch (e) { return false; }
+    var parentWindow = window.parent;
+    var parentDocument = doc;
+    var buttons = parentDocument.querySelectorAll('.trader-wallet-copy[data-wallet]');
+    if (!buttons.length) return false;
+    buttons.forEach(function (button) {
+      if (button.dataset.otgClipboardBound) return;
+      button.dataset.otgClipboardBound = '1';
+      button.addEventListener('click', function () {
+        var label = button.querySelector('.trader-wallet-copy-label');
+        if (!label) return;
+        var restore = function () { label.textContent = 'COPY'; };
+        var legacyCopy = function () {
+          var textarea = parentDocument.createElement('textarea');
+          textarea.value = button.dataset.wallet;
+          textarea.setAttribute('readonly', '');
+          textarea.style.position = 'fixed'; textarea.style.left = '-9999px';
+          parentDocument.body.appendChild(textarea);
+          textarea.focus(); textarea.select();
+          var ok = false;
+          try { ok = parentDocument.execCommand('copy'); }
+          finally { parentDocument.body.removeChild(textarea); }
+          return ok;
+        };
+        var wallet = button.dataset.wallet;
+        var primary = parentWindow.navigator && parentWindow.navigator.clipboard && parentWindow.navigator.clipboard.writeText;
+        var write = primary ? primary.call(parentWindow.navigator.clipboard, wallet).then(function () { return true; }).catch(function () { return legacyCopy(); }) : Promise.resolve(legacyCopy());
+        write.then(function (ok) {
+          if (!ok) { label.textContent = 'COPY FAILED'; window.setTimeout(restore, 1200); return; }
+          label.textContent = 'COPIED'; window.setTimeout(restore, 1200);
+        }).catch(function () { label.textContent = 'COPY FAILED'; window.setTimeout(restore, 1200); });
+      });
+    });
+    return true;
+  }
+  var timer = window.setInterval(function () { if (wire()) window.clearInterval(timer); }, 100);
+  wire();
+})();
+</script>
+""", height=0, width=0)
 
 
 def render_trader_table(rows: list[dict[str, Any]]) -> None:
