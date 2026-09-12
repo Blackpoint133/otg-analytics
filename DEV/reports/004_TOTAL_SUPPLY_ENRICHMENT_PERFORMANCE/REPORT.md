@@ -1,0 +1,52 @@
+# TOTAL SUPPLY ENRICHMENT PERFORMANCE
+
+REPORT_SEQUENCE=004
+RESULT=PASS
+
+HEAD_BEFORE=d56cf4551cd094e882294fc905e8e30c2b62ef42
+MAIN_HEAD_BEFORE=dacee4c675419dea127ceb5e8a70e1a7ffc36a0
+IMPLEMENTATION_COMMIT_SHA=0820ea24bd08e0d5eba0811b00b1332ec3071f8c
+IMPLEMENTATION_PARENT_SHA=d56cf4551cd094e882294fc905e8e30c2b62ef42
+FILES_CHANGED=streamlit_opensea_sales/ui/top_items_overview.py; tests/test_top_items_provider_enrichment.py
+
+PERFORMANCE_BOTTLENECK_BEFORE=_enrich_with_all_time_market_metrics row-wise assignment
+IMPLEMENTATION=collision-safe vectorized market enrichment using MultiIndex identity counts, safe identity alignment, and bulk assignment
+BEFORE_WARM_MEDIAN_MS=595.9
+AFTER_WARM_MEDIAN_MS=55.3
+SPEEDUP_X=10.8
+CATALOG_ROWS=1919
+MARKET_ROWS=1919
+
+ROW_COUNT_PRESERVED=YES
+ROW_ORDER_PRESERVED=YES
+INDEX_PRESERVED=YES
+DUPLICATE_CATALOG_IDENTITIES_SAFE=YES
+DUPLICATE_MARKET_IDENTITIES_SAFE=YES
+MATCHED_NAN_OVERWRITE_PRESERVED=YES
+PROVIDER_ONLY_ROWS_PRESERVED=YES
+
+SUPPLY_SEMANTICS_CHANGED=NO
+RANKING_SEMANTICS_CHANGED=NO
+CLASS_FILTERING_CHANGED=NO
+ITEM_PROFILE_CARD_CHANGED=NO
+UI_LAYOUT_CHANGED=NO
+
+TESTS=79 focused/relevant tests passed
+COMPILE=PASS
+PIP_CHECK=PASS
+DIFF_CHECK=PASS
+STAGING_RESTART_RESULT=PASS
+FINAL_RUNTIME_HEAD=0820ea24bd08e0d5eba0811b00b1332ec3071f8c
+STAGING_PID=190904
+STAGING_SUPPLY_SOURCE=v3
+RUNTIME_TOTAL_SUPPLY=Application started successfully; staging port 8504 returned HTTP 200
+
+PRODUCTION_CHANGED=NO
+BACKEND_CHANGED=NO
+DATABASE_CHANGED=NO
+PARSERS_CHANGED=NO
+SCHEDULER_CHANGED=NO
+CADDY_CHANGED=NO
+MAIN_CHANGED=NO
+
+Notes: The optimized path does not trim, lowercase, merge, or use assetKey identity. It preserves exact `(item_name, rarity)` matching, rejects ambiguous identities on either side, leaves unmatched provider rows intact, and overwrites matched NaN values as required. No permanent instrumentation or generated artifacts were added.
