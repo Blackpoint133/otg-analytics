@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 
@@ -191,7 +192,12 @@ def test_profile_table_contract_and_escaping(monkeypatch):
     row_data = consolidated_table_rows([dict(row("0x" + "A" * 40), _profile={"display_name": "<Name>", "bio": "<b>bio</b>"}, _ranks={})])
     overview.render_trader_table(row_data)
     rendered = captured[0]
-    assert "Profile" in rendered and "Wallet" not in rendered.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    header = rendered.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    assert re.findall(r"<th>([^<]+)</th>", header) == [
+        "Rank", "Image", "Trader", "Earned", "Invested", "Sold", "Trades",
+        "Purchases", "Sales", "ROI", "Win Rate", "Coverage", "Matched Sales",
+    ]
+    assert "Profile" not in header and "Wallet" not in header
     assert "&lt;Name&gt;" in rendered
     assert "PROFILE DESCRIPTION" not in rendered
     assert "trader-profile-bio" not in rendered

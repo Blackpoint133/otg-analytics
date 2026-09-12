@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 
@@ -107,6 +108,29 @@ def test_trader_table_matches_top_items_density_contract():
     assert ".trader-table td{{color:#FFF;padding:8px;text-align:left;font-size:11px" in source
     assert ".trader-avatar-small{{width:48px;height:48px}}" in source
     assert source.count("Rank") >= 1 and source.count("Matched Sales") >= 1
+
+
+def test_trader_table_splits_image_and_trader_and_scopes_avatar_border(monkeypatch):
+    rendered = _rendered(monkeypatch)
+    header = rendered.split("<thead>", 1)[1].split("</thead>", 1)[0]
+    assert re.findall(r"<th>([^<]+)</th>", header) == [
+        "Rank", "Image", "Trader", "Earned", "Invested", "Sold", "Trades",
+        "Purchases", "Sales", "ROI", "Win Rate", "Coverage", "Matched Sales",
+    ]
+    assert 'trader-table-image' in rendered
+    assert 'trader-profile-trigger' in rendered
+    assert '.trader-table .trader-avatar-small{border:0}' in rendered
+
+
+def test_trader_header_uses_top_items_copy_and_typography_contract():
+    source = Path(overview.__file__).read_text(encoding="utf-8")
+    assert "<h3>TOP TRADERS</h3>" in source
+    assert "SORTED BY {html.escape(sort_by)}" in source
+    assert "ALL-TIME RANKING" in source
+    assert "font-size:13px" in source
+    assert "letter-spacing:.5px" in source
+    assert "font-size:11px" in source
+    assert "letter-spacing:.4px" in source
 
 
 def test_metric_icon_mapping_and_cached_sources_are_complete():
