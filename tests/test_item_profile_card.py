@@ -106,6 +106,12 @@ def test_mobile_market_metrics_are_single_column_and_non_wrapping():
     assert "grid-template-columns:repeat(2,minmax(0,1fr))" in styles
 
 
+def test_mobile_item_image_fills_card_inner_width_without_cap():
+    styles = item_profile_card_styles()
+    assert ".top-item-profile-visual{width:100%;max-width:none;margin:0 0 14px}" in styles
+    assert "max-width:300px;margin:0 auto 14px" not in styles
+
+
 def test_rarity_uses_existing_site_color_mapping():
     expected = {"Epic": "#a335ee", "Rare": "#0070dd", "Uncommon": "#1eff00", "Common": "#ffffff"}
     for rarity, color in expected.items():
