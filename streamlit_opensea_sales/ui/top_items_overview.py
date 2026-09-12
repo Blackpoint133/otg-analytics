@@ -1257,7 +1257,7 @@ def _render_top_items_table_view(top_items: pd.DataFrame, ranking_mode: str = 'v
         row_html = f'''<tr>
 <td><span class="top-items-rank-stack" aria-label="Filter Rank {filter_rank}; Global Rank {display_rank}"><span class="top-items-rank-filter">{filter_rank}</span><span class="top-items-rank-global">{display_rank}</span></span></td>
 <td style="text-align: center; padding: 4px;">{image_cell}</td>
-<td style="text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; max-width: 140px; word-break: break-word;">{item_name_cell}</td>
+<td style="letter-spacing: 0.3px; font-weight: 700; max-width: 140px; word-break: break-word;">{item_name_cell}</td>
 <td style="text-transform: uppercase; letter-spacing: 0.3px; font-size: 10px; font-weight: 700; color: {rarity_color};">{escape(rarity, quote=True)}</td>
 <td>{market_strength_str}</td>
 <td>{liquidity_str}</td>
