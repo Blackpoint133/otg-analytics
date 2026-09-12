@@ -279,7 +279,23 @@ def _render_metric_guide() -> None:
     render_section_guide_panel("""<p><b>TOP TRADERS ANALYTICS</b> Compare wallets by observed OpenSea trading activity and realized trading performance.</p><p><b>FILTERS</b> Select or enter a wallet address to locate a specific trader. The leaderboard automatically moves to the page containing that wallet and highlights its row while preserving the surrounding ranking context.</p><p><b>SORT BY</b> EARNED ranks by realized profit/loss. INVESTED ranks by total observed purchase value. SOLD ranks by total observed sale value. TRADES ranks by total observed marketplace participations.</p><p><b>TRADER PROFILE</b> Hover over a trader to open the detailed profile card. It contains the OpenSea profile link, copyable wallet address and the trader's rank and value for EARNED, INVESTED, SOLD, TRADES, ROI and WIN RATE.</p><p><b>EARNED</b> Realized profit/loss only from sales that can be matched to a previous purchase of the exact same NFT. <b>INVESTED</b> is the total value of all observed purchases. <b>SOLD</b> is the total value of all observed sales.</p><p><b>ROI</b> Realized return on the acquisition cost of matched sold NFTs only. It is not return on total Invested.</p><p><b>WIN RATE</b> The share of evaluable matched sales closed in profit. <b>COVERAGE</b> is the share of observed sales that could be matched to a previous acquisition. <b>MATCHED SALES</b> are sales linked to an observed previous purchase of the exact contract + tokenId.</p><p class="trader-guide-note"><b>WIN RATE RANKING</b> requires supported P&amp;L data, at least 3 matched sales and at least 50% sale coverage. When those conditions are not met, a Win Rate rank may be unavailable.</p><p class="trader-guide-note"><b>CURRENCY</b> With USD PRICE enabled, monetary metrics, ROI and Win Rate use historical USD values based on the GUN/USD price at the time of each transaction. With USD PRICE disabled, those metrics use GUN values.</p><p class="trader-guide-note">Metrics are based only on observed OpenSea activity. Unknown external transfers, mints, in-game acquisitions, other marketplaces, fees and royalties are not included unless explicitly present in the source data.</p>""", trusted_html=True)
 
 
-def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None, guide_open: bool = False) -> None:
+def render_trader_mobile_cards(rows: list[dict[str, Any]], show_usd: bool = True) -> None:
+    cards = []
+    for row in rows:
+        profile = row.get("_profile") or {}
+        name = html.escape(str(row.get("Profile") or "Trader"))
+        wallet = html.escape(str(row.get("_wallet") or ""), quote=True)
+        rank_rows = []
+        for metric in SORT_OPTIONS:
+            entry = (row.get("_ranks") or {}).get(metric, {})
+            rank = html.escape(str(entry.get("rank") or "—"))
+            value = html.escape(str(entry.get("value") or "N/A"))
+            rank_rows.append(f'<div><span>{metric}</span><b>#{rank}</b><em>{value}</em></div>')
+        cards.append(f'<div class="trader-mobile-card-grid"><div class="trader-profile-card" style="display:block;position:relative;left:auto;top:auto;bottom:auto;width:100%;"><div class="trader-profile-identity"><strong>{name}</strong></div><div class="trader-profile-label">WALLET ADDRESS</div><div class="trader-wallet-row"><a href="https://opensea.io/{wallet}">OpenSea profile ↗</a></div><div class="trader-profile-stats-title">TRADING STATS</div><div class="trader-profile-ranks">{"".join(rank_rows)}</div></div></div>')
+    st.markdown('<style>.trader-mobile-card-grid{display:grid;grid-template-columns:1fr;gap:16px;width:100%}.trader-mobile-card-grid .trader-profile-card{display:block;position:relative;left:auto;top:auto;bottom:auto;width:100%;pointer-events:auto}</style>' + ''.join(cards), unsafe_allow_html=True)
+
+
+def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highlight_wallet: Optional[str] = None, guide_open: bool = False, is_mobile_viewport: bool = False) -> None:
     payload = load_current_snapshot()
     if guide_open:
         _render_metric_guide()
@@ -330,7 +346,11 @@ def render_trader_overview(sort_by: str = "EARNED", show_usd: bool = True, highl
         st.session_state.trader_page = page_for_wallet(ranked, selected_wallet) or 1
     visible, page, pages = paginate_traders(ranked, st.session_state.get("trader_page", 1)); st.session_state.trader_page = page
     visible = [dict(row, _selected=bool(selected_wallet and normalize_wallet(row.get("wallet")) == selected_wallet)) for row in visible]
-    render_trader_table(consolidated_table_rows(visible, show_usd))
+    prepared_visible = consolidated_table_rows(visible, show_usd)
+    if is_mobile_viewport:
+        render_trader_mobile_cards(prepared_visible, show_usd)
+    else:
+        render_trader_table(prepared_visible)
     with st.container(key="trader_pagination"):
         nav = st.columns([1, 2, 1], gap="small")
         if nav[0].button("Previous", disabled=page <= 1, key="trader_prev", use_container_width=False): st.session_state.trader_page = page - 1; st.rerun()

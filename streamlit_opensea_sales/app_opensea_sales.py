@@ -138,6 +138,7 @@ def main():
                 show_usd=trader_controls['show_usd'],
                 highlight_wallet=trader_controls['wallet'],
                 guide_open=trader_controls['guide_open'],
+                is_mobile_viewport=trader_controls['is_mobile_viewport'],
             )
         render_sidebar_footer()
         return

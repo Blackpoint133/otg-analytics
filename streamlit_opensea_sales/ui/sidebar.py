@@ -825,6 +825,16 @@ TRADER_CONTROLS_CSS = r"""<style>
 
 def render_trader_sidebar_controls() -> Dict[str, Any]:
     """Render Trader controls, including one editable wallet combobox."""
+    if 'trader_is_mobile_viewport' not in st.session_state:
+        st.session_state.trader_is_mobile_viewport = False
+    if 'trader_viewport_resolved' not in st.session_state:
+        st.session_state.trader_viewport_resolved = False
+    with st.sidebar:
+        viewport_info = get_viewport_info(key="trader_viewport")
+    if isinstance(viewport_info, dict):
+        width = int(viewport_info.get('width', 0) or 0)
+        st.session_state.trader_is_mobile_viewport = width <= 768
+        st.session_state.trader_viewport_resolved = True
     payload = load_current_snapshot()
     rows = payload.get('wallets', []) if payload else []
     wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
@@ -862,4 +872,4 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     guide_open = render_section_guide_button("trader")
     selected_value = "" if selected is None else str(selected).strip()
     effective = None if not selected_value or selected_value == "ALL TRADERS" else normalize_wallet(selected_value)
-    return {"sort_by": st.session_state.trader_sort_by, "show_usd": show_usd, "wallet": effective, "guide_open": guide_open}
+    return {"sort_by": st.session_state.trader_sort_by, "show_usd": show_usd, "wallet": effective, "guide_open": guide_open, "is_mobile_viewport": bool(st.session_state.trader_is_mobile_viewport), "viewport_resolved": bool(st.session_state.trader_viewport_resolved)}
