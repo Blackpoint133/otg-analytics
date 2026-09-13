@@ -16,6 +16,12 @@ def test_feedback_store_normalizes_source_context():
 
 def test_feedback_page_contract_and_safe_persistence_hooks():
     source = (APP / "ui" / "feedback.py").read_text(encoding="utf-8")
+    assert 'with st.container(key="feedback_page"):' in source
+    assert ".st-key-feedback_page{width:100%;max-width:760px" in source
+    assert '[data-testid="stForm"]' in source
+    assert "width:200px;height:38px" in source
+    assert "width:100%" in source
+    assert "st.markdown(\"</div></div>\"" not in source
     assert 'BUG": "bug"' in source
     assert '"SUGGESTION"' in source and '"DATA ISSUE"' in source and '"OTHER"' in source
     assert 'placeholder="Describe the issue or idea..."' in source
