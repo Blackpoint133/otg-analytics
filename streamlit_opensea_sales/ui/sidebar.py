@@ -112,15 +112,6 @@ def _is_mobile_viewport(viewport_info: Optional[Dict]) -> bool:
 
 def _wallet_options_for_item(item_record: Optional[Dict]) -> list:
     """Return full wallet values ordered by participation, without address folding."""
-    if not isinstance(item_record, dict) or not item_record.get('file_path'):
-        return []
-    try:
-        path = resolve_item_path(item_record['file_path'])
-        if not path.exists():
-            return []
-        df = load_item_data(str(path), path.stat().st_mtime)
-    except Exception:
-        return []
     counts = _wallet_trade_counts_for_item(item_record)
     return sorted(counts, key=lambda wallet: (-counts[wallet], wallet))
 
@@ -141,7 +132,7 @@ def _wallet_trade_counts_for_item(item_record: Optional[Dict]) -> dict[str, int]
             value = row.get(field)
             if pd.isna(value):
                 continue
-            value = str(value).strip()
+            value = normalize_wallet(str(value).strip()) or str(value).strip().lower()
             if value:
                 wallets.add(value)
         for wallet in wallets:
@@ -407,8 +398,8 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         st.error(f"Item '{current_selected_item}' not found in index.")
         return None
 
-    wallet_options = _wallet_options_for_item(item_record)
     wallet_counts = _wallet_trade_counts_for_item(item_record)
+    wallet_options = sorted(wallet_counts, key=lambda wallet: (-wallet_counts[wallet], wallet))
     wallet_key = f"item_highlight_wallet_{abs(hash(current_selected_item))}"
     current_wallet = st.session_state.get(wallet_key, "ALL WALLETS")
     if current_wallet != "ALL WALLETS":
