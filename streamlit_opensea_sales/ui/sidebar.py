@@ -210,8 +210,8 @@ SHARED_DISPLAY_OPTIONS_CSS = """
     [data-testid="stWidgetLabel"] p { color: #FFFFFF !important; }
 
     .otg-sidebar-section-gap {
-        height: 14px;
-        min-height: 14px;
+        height: 7px;
+        min-height: 7px;
         margin: 0;
         padding: 0;
         display: block;

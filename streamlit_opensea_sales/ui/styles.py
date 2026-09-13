@@ -840,7 +840,8 @@ def apply_global_styles():
             .st-key-market_main_content,
             .st-key-top_items_main_content,
             .st-key-trader_main_content {{
-                margin-top: 0 !important;
+                /* Offset the shared 36px navigation row plus its 8px flow margin. */
+                margin-top: -44px !important;
             }}
         }}
         
