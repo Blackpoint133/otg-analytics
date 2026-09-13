@@ -28,17 +28,17 @@ def test_match_existing_wallet_rejects_unknown_prefix_all_and_none():
 
 def test_item_wallet_selector_accepts_full_values_but_keeps_compact_labels():
     source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
-    item_wallet = source.split('"Highlight Wallet"', 1)[1].split('effective_wallet', 1)[0]
-    assert "accept_new_options=True" in item_wallet
-    assert "_short_wallet_label" in item_wallet
+    item_wallet = source.split('key="item_wallet_filter"', 1)[1].split('highlight_wallet =', 1)[0]
+    assert 'render_trader_search' in item_wallet
+    assert 'key="item_wallet_search"' in item_wallet
+    assert '_match_existing_wallet' in source
 
-    select_item = source.split('"Select Item"', 1)[1].split("record_initial_item_context", 1)[0]
-    assert "accept_new_options=True" not in select_item
+    assert 'render_item_search' in source
 
 
 def test_item_select_filters_keeps_one_shared_spacer_and_trader_selector_is_unchanged():
     source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
-    selectbox = source.index('st.sidebar.selectbox(\n        "Select Item"')
+    selectbox = source.index('key="item_select_item"')
     filters = source.index('<div class="otg-sidebar-label">FILTERS</div>', selectbox)
     assert source[selectbox:filters].count("otg-sidebar-section-gap") == 1
-    assert 'key="trader_selected_wallet"' in source
+    assert 'key="trader_search"' in source

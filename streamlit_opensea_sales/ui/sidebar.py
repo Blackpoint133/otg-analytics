@@ -20,6 +20,8 @@ from item_paths import resolve_item_path
 from trader_analytics import load_current_snapshot, normalize_wallet
 from opensea_account_profiles import get_profile, load_profile_snapshot, profile_name
 from ui.trader_search import render_trader_search
+from ui.item_search import render_item_search
+from formatters import get_rarity_style
 from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, read_item_class_snapshot
 
 
@@ -352,15 +354,18 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         selected_present=st.session_state.get("selected_item") is not None,
     )
     with st.sidebar.container(key="item_select_item"):
-        st.selectbox(
-            "Select Item",
-            options=sorted(items_index.keys()),
-            format_func=format_option,
-            key="selected_item",
-            on_change=_on_item_selection_changed,
-            args=(browser_identity,),
-            label_visibility="collapsed"
-        )
+        records = []
+        for item_key in sorted(items_index):
+            item = items_index[item_key]
+            rarity = str(item.get("rarity", "Common"))
+            color, _ = get_rarity_style(rarity)
+            records.append({"item_key": item_key, "display_name": str(item.get("display_name", item_key)), "rarity": rarity, "rarity_color": color})
+        item_event = render_item_search(records, st.session_state.get("selected_item"), next((r["display_name"] for r in records if r["item_key"] == st.session_state.get("selected_item")), None), key="item_search")
+    if item_event and item_event.get("event_id") != st.session_state.get("item_search_last_event"):
+        st.session_state.item_search_last_event = item_event["event_id"]
+        if item_event.get("item_key") in items_index:
+            st.session_state.selected_item = item_event["item_key"]
+            _on_item_selection_changed(browser_identity)
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     _log_item_ui(
         "ITEM_UI_POST_WIDGET",
@@ -398,15 +403,18 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         else:
             st.session_state[wallet_key] = "ALL WALLETS"
     st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
+    profile_snapshot = load_profile_snapshot()
+    wallet_records = _trader_search_records([{"wallet": wallet} for wallet in wallet_options], profile_snapshot)
     with st.sidebar.container(key="item_wallet_filter"):
-        highlight_wallet = st.selectbox(
-            "Highlight Wallet",
-            options=["ALL WALLETS", *wallet_options],
-            format_func=lambda value: "All Wallets" if value == "ALL WALLETS" else _short_wallet_label(value),
-            key=wallet_key,
-            label_visibility="collapsed",
-            accept_new_options=True,
-        )
+        wallet_event = render_trader_search(wallet_records, st.session_state.get(wallet_key) if st.session_state.get(wallet_key) != "ALL WALLETS" else None, next((r["display_name"] for r in wallet_records if r["wallet"] == st.session_state.get(wallet_key)), None), key="item_wallet_search")
+    if wallet_event and wallet_event.get("event_id") != st.session_state.get("item_wallet_search_last_event"):
+        st.session_state.item_wallet_search_last_event = wallet_event["event_id"]
+        if wallet_event["action"] == "clear":
+            st.session_state[wallet_key] = "ALL WALLETS"
+        else:
+            matched = _match_existing_wallet(wallet_event.get("wallet"), wallet_options)
+            st.session_state[wallet_key] = matched or "ALL WALLETS"
+    highlight_wallet = st.session_state.get(wallet_key, "ALL WALLETS")
 
     if highlight_wallet == "ALL WALLETS":
         effective_wallet = None
