@@ -74,7 +74,7 @@ def test_item_component_selected_render_restores_marker():
 
 def test_item_component_result_marker_uses_record_color():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
-    assert "d.style.background=r.rarity_color||'#fff'" in source
+    assert "x.style.background=r.rarity_color||'#fff'" in source
 
 def test_item_component_selection_event_is_single_action():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
