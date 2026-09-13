@@ -15,7 +15,11 @@ def test_item_viewport_width_is_persisted_before_visible_sidebar_controls():
 
 
 def test_item_desktop_ratios_preserve_large_and_add_exact_medium_breakpoint():
-    assert "column_ratio = [0.26, 0.74] if 769 <= viewport_width <= 1440 else [0.17, 0.83]" in ITEM
+    assert "if 769 <= viewport_width <= 1440:" in ITEM
+    assert "column_ratio = [0.26, 0.74]" in ITEM
+    assert "elif 1441 <= viewport_width <= 1680:" in ITEM
+    assert "column_ratio = [0.22, 0.78]" in ITEM
+    assert "column_ratio = [0.17, 0.83]" in ITEM
     assert "st.columns(column_ratio)" in ITEM
     assert "is_mobile_chart" in ITEM
 

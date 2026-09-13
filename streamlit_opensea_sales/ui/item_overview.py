@@ -901,7 +901,12 @@ def render_item_overview(
 
     # Keep the approved large-desktop split, with a wider card on laptop widths.
     viewport_width = int(st.session_state.get('item_viewport_width', 0) or 0)
-    column_ratio = [0.26, 0.74] if 769 <= viewport_width <= 1440 else [0.17, 0.83]
+    if 769 <= viewport_width <= 1440:
+        column_ratio = [0.26, 0.74]
+    elif 1441 <= viewport_width <= 1680:
+        column_ratio = [0.22, 0.78]
+    else:
+        column_ratio = [0.17, 0.83]
     col_left, col_right = st.columns(column_ratio)
     
     with col_left:
