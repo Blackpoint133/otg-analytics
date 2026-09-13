@@ -18,6 +18,7 @@ from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
 from data_access import load_item_data
 from item_paths import resolve_item_path
 from trader_analytics import load_current_snapshot, normalize_wallet
+from opensea_account_profiles import get_profile, load_profile_snapshot, profile_name
 from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, read_item_class_snapshot
 
 
@@ -25,6 +26,24 @@ SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytic
 SIDEBAR_LOGGER = get_module_logger("sidebar", log_file=SIDEBAR_LOG_PATH, module_tag="sidebar")
 
 TRADER_VISIBLE_SORT_OPTIONS = ("EARNED", "INVESTED", "SOLD", "TRADES")
+
+def _trader_search_options(rows: list[dict[str, Any]], profile_snapshot: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
+    fallback_names = profile_snapshot.get("fallback_names", {})
+    options = ["ALL TRADERS"]
+    mapping: dict[str, str] = {}
+    for row in rows:
+        wallet = str(row.get("wallet") or "").strip()
+        if not wallet:
+            continue
+        profile = get_profile(wallet, profile_snapshot)
+        name = profile_name(wallet, profile, fallback_names)
+        username = str(profile.get("username") or "").strip()
+        option = f"{name}  {_short_wallet_label(wallet)}  {wallet}"
+        if username and username != name:
+            option += f"  {username}"
+        options.append(option)
+        mapping[option] = normalize_wallet(wallet) or wallet.lower()
+    return options, mapping
 
 
 def _log_item_ui(marker: str, **fields: Any) -> None:
@@ -870,7 +889,8 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
         st.session_state.trader_viewport_resolved = True
     payload = load_current_snapshot()
     rows = payload.get('wallets', []) if payload else []
-    wallets = [str(row.get('wallet')) for row in rows if row.get('wallet')]
+    profile_snapshot = load_profile_snapshot()
+    trader_options, trader_option_wallets = _trader_search_options(rows, profile_snapshot)
     from ui.section_guide import section_guide_button_css
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS + section_guide_button_css("trader") + TRADER_CONTROLS_CSS)
     st.sidebar.header("Display Options")
@@ -879,14 +899,18 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
     with st.sidebar.container(key="trader_wallet_controls"):
+        current = st.session_state.get("trader_selected_wallet", "ALL TRADERS")
+        if current != "ALL TRADERS":
+            current_wallet = normalize_wallet(current)
+            current = next((label for label, wallet in trader_option_wallets.items() if wallet == current_wallet), "ALL TRADERS")
+            st.session_state["trader_selected_wallet"] = current
         selected = st.selectbox(
             "Trader",
-            ["ALL TRADERS", *wallets],
-            format_func=lambda value: "All Traders" if value == "ALL TRADERS" else _short_wallet_label(value),
+            trader_options,
+            format_func=lambda value: "All Traders" if value == "ALL TRADERS" else "  ".join(value.split("  ")[:2]),
             key="trader_selected_wallet",
             label_visibility="collapsed",
-            placeholder="Search or enter wallet address",
-            accept_new_options=True,
+            placeholder="Search trader name or wallet",
         )
     if st.session_state.get("trader_sort_by") not in TRADER_VISIBLE_SORT_OPTIONS:
         st.session_state.trader_sort_by = "EARNED"
@@ -904,5 +928,5 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
     guide_open = render_section_guide_button("trader")
     selected_value = "" if selected is None else str(selected).strip()
-    effective = None if not selected_value or selected_value == "ALL TRADERS" else normalize_wallet(selected_value)
+    effective = None if not selected_value or selected_value == "ALL TRADERS" else trader_option_wallets.get(selected_value)
     return {"sort_by": st.session_state.trader_sort_by, "show_usd": show_usd, "wallet": effective, "guide_open": guide_open, "is_mobile_viewport": bool(st.session_state.trader_is_mobile_viewport), "viewport_resolved": bool(st.session_state.trader_viewport_resolved)}
