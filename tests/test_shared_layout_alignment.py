@@ -12,6 +12,23 @@ def test_all_analytics_containers_use_one_desktop_alignment_rule():
     assert "@media (min-width: 769px)" in source
 
 
+def test_section_helper_accepts_target_and_keeps_shared_markup():
+    source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
+    assert "target=None" in source
+    assert "renderer = target if target is not None else st.sidebar" in source
+    assert "otg-sidebar-section-start" in source
+    assert 'target=top_items_filter_controls' in source
+
+
+def test_top_items_period_is_inside_controls_container_before_all_button():
+    source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
+    container = source.index('top_items_filter_controls = st.sidebar.container')
+    period = source.index('_render_sidebar_section_start("PERIOD", target=top_items_filter_controls)')
+    all_button = source.index('key="top_items_period_all"')
+    sort = source.index('_render_sidebar_section_start("SORT BY", target=top_items_filter_controls)')
+    assert container < sort < period < all_button
+
+
 def test_navigation_remains_top_right_without_content_redesign():
     source = (APP / "ui" / "mode_switch.py").read_text(encoding="utf-8")
     assert "otg-top-nav" in source

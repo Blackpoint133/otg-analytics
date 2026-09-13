@@ -214,11 +214,12 @@ SHARED_DISPLAY_OPTIONS_CSS = """
 """
 
 
-def _render_sidebar_section_start(label: str, *, transition: bool = True) -> None:
+def _render_sidebar_section_start(label: str, *, transition: bool = True, target=None) -> None:
     """Render a section heading with only the intentional transition spacing."""
     padding = "3px" if transition else "0"
     safe_label = html.escape(label)
-    st.sidebar.markdown(
+    renderer = target if target is not None else st.sidebar
+    renderer.markdown(
         f'<div class="otg-sidebar-section-start" style="padding-top:{padding}"><div class="otg-sidebar-label">{safe_label}</div></div>',
         unsafe_allow_html=True,
     )
@@ -781,11 +782,11 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         if st.sidebar.checkbox(label, key=key):
             selected_classes.append(name)
     
-    _render_sidebar_section_start("SORT BY")
-    
     # Wrap Top Items controls in stable container
-    with st.sidebar.container(key="top_items_filter_controls"):
+    top_items_filter_controls = st.sidebar.container(key="top_items_filter_controls")
+    with top_items_filter_controls:
         # Render Sort By label
+        _render_sidebar_section_start("SORT BY", target=top_items_filter_controls)
         
         # Sort By buttons using native type parameter
         if st.button(
@@ -824,7 +825,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             st.session_state.top_items_ranking_mode = 'total_supply'
             st.rerun()
         
-        _render_sidebar_section_start("PERIOD")
+        _render_sidebar_section_start("PERIOD", target=top_items_filter_controls)
         
         # Period buttons using native type parameter
         if st.button(
