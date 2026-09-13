@@ -423,6 +423,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         else:
             matched = _match_existing_wallet(wallet_event.get("wallet"), wallet_options)
             st.session_state[wallet_key] = matched or "ALL WALLETS"
+        st.rerun()
     highlight_wallet = st.session_state.get(wallet_key, "ALL WALLETS")
 
     if highlight_wallet == "ALL WALLETS":

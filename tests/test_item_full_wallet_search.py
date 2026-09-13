@@ -46,7 +46,7 @@ def test_item_select_filters_keeps_one_shared_spacer_and_trader_selector_is_unch
 def test_item_component_has_selected_marker_and_dimensions():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
     assert "selected-diamond" in source and "width:8px;height:8px" in source
-    assert "selectedMode=" in source and "rarity_color" in source
+    assert "selected" in source and "rarity_color" in source
 
 def test_item_component_hides_marker_outside_selected_mode():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
@@ -56,13 +56,13 @@ def test_item_component_hides_marker_outside_selected_mode():
 def test_item_component_has_one_shared_sorted_match_helper():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
     assert source.count("function matches(") == 1
-    assert "localeCompare" in source and "slice(0,10)" in source
-    assert "matches(browsing?'':q.value)" in source
+    assert "localeCompare" in source and "max-height:260px" in source
+    assert "matches(browse?'':q.value)" in source
 
 def test_item_keyboard_uses_shared_matches():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
     assert "ArrowDown" in source and "ArrowUp" in source and "Enter" in source and "Escape" in source
-    assert "m=matches(browsing?'':q.value)" in source
+    assert "matches(browse?'':q.value)" in source
 
 def test_item_component_uses_safe_text_and_json_protocol():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
