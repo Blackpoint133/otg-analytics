@@ -291,6 +291,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         args=(browser_identity,),
         label_visibility="collapsed"
     )
+    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     _log_item_ui(
         "ITEM_UI_POST_WIDGET",
         selected_present=st.session_state.get("selected_item") is not None,

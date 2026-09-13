@@ -29,3 +29,10 @@ def test_top_items_has_one_gap_before_guide_after_one_day():
     guide = period.split('render_section_guide_button("top_items")', 1)[0]
     assert guide.count("otg-sidebar-section-gap") == 1
     assert '<div class="otg-sidebar-section-gap"></div>' in guide
+
+
+def test_item_select_item_to_filters_has_exactly_one_shared_gap():
+    selectbox = SIDEBAR.index('st.sidebar.selectbox(\n        "Select Item"')
+    filters = SIDEBAR.index('<div class="otg-sidebar-label">FILTERS</div>', selectbox)
+    segment = SIDEBAR[selectbox:filters]
+    assert segment.count("otg-sidebar-section-gap") == 1
