@@ -113,3 +113,57 @@ def test_component_has_single_clear_path_and_state_sync():
 def test_component_payload_is_limited_to_search_fields():
     source = Path(__file__).parents[1].joinpath("streamlit_opensea_sales/ui/sidebar.py").read_text()
     assert '"display_name": name' in source and '"username"' in source
+
+def _component_source():
+    return Path(__file__).parents[1].joinpath("streamlit_opensea_sales/ui/trader_search_component/index.html").read_text()
+
+def test_selected_mode_suppresses_duplicate_results():
+    source = _component_source()
+    assert "localSelectedWallet&&norm(input.value)===norm(selectedDisplayName)" in source
+    assert "panel.hidden=true;active=-1;height();return" in source
+
+def test_select_clears_panel_before_emitting_event():
+    source = _component_source()
+    select_body = source[source.index("function select"):source.index("function enter")]
+    assert "panel.hidden=true" in select_body
+    assert "send({action:'select'" in select_body
+
+def test_server_selection_render_keeps_selected_mode():
+    source = _component_source()
+    assert "if(sw&&sw!==serverSelectedWallet)" in source
+    assert "input.value=selectedDisplayName" in source
+    assert "draw()" in source
+
+def test_focus_does_not_have_focus_handler_that_opens_results():
+    source = _component_source()
+    assert "addEventListener('focus'" not in source
+
+def test_editing_selected_value_exits_mode_and_searches():
+    source = _component_source()
+    assert "norm(input.value)!==norm(selectedDisplayName)" in source
+    assert "clearOnce()" in source
+    assert "draw()" in source
+
+def test_empty_input_does_not_render_results():
+    source = _component_source()
+    assert "else panel.hidden=true" in source
+
+def test_clear_event_is_single_guarded_path():
+    source = _component_source()
+    assert "if((localSelectedWallet||serverSelectedWallet)&&!clearSent)" in source
+    assert source.count("action:'clear'") == 1
+
+def test_no_per_keystroke_component_value_event():
+    source = _component_source()
+    input_body = source[source.index("input.addEventListener('input'"):source.index("document.addEventListener")]
+    assert "send(" not in input_body
+
+def test_selection_and_enter_paths_emit_select():
+    source = _component_source()
+    assert source.count("action:'select'") == 1
+    assert "else if(e.key==='Enter')" in source
+
+def test_frame_height_handles_closed_and_open_panel():
+    source = _component_source()
+    assert "panel.offsetHeight" in source
+    assert "type:'streamlit:setFrameHeight'" in source
