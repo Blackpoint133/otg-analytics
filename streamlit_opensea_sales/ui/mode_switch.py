@@ -1,135 +1,31 @@
-"""
-Mode Switch UI Component.
+"""Top-right analytics navigation."""
 
-technical diagnostic text technical diagnostic text technical diagnostic text:
-- ITEM ANALYTICS (technical diagnostic text technical diagnostic text)
-- MARKET ANALYTICS (technical diagnostic text technical diagnostic text)
-
-technical diagnostic text query parameter `mode` technical diagnostic text persisting technical diagnostic text.
-
-technical diagnostic text: technical diagnostic text HTML anchor links technical diagnostic text OTG cyberpunk technical diagnostic text
-- technical diagnostic text: technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text
-- technical diagnostic text: technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text
-- technical diagnostic text: technical diagnostic text technical diagnostic text, technical diagnostic text technical diagnostic text
-"""
-
-import streamlit as st
 from typing import Literal
+import streamlit as st
 
 
 def render_mode_switch() -> Literal['item', 'market', 'top_items', 'trader']:
-    """
-    technical diagnostic text mode switcher technical diagnostic text sidebar technical diagnostic text technical diagnostic text HTML anchor links.
-    
-    technical diagnostic text query param `mode` technical diagnostic text technical diagnostic text technical diagnostic text.
-    Default: 'item'
-    
-    technical diagnostic text technical diagnostic text technical diagnostic text: ?mode=item, ?mode=market, ?mode=top_items
-    Streamlit technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text URL.
-    
-    technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text OTG cyberpunk technical diagnostic text:
-    - technical diagnostic text technical diagnostic text: technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text
-    - technical diagnostic text technical diagnostic text: technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text
-    - technical diagnostic text emoji, technical diagnostic text "MODE" label
-    
-    Returns:
-        'item', 'market' technical diagnostic text 'top_items' technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text
-    """
-    # Get current mode from query params
     raw_mode = st.query_params.get('mode', 'item')
     if isinstance(raw_mode, list):
         raw_mode = raw_mode[0]
     current_mode = 'trader' if raw_mode in ('trader', 'top_traders') else raw_mode
-    
-    # Ensure valid mode (whitelist)
-    if current_mode not in ['item', 'market', 'top_items', 'trader']:
+    if current_mode not in ('item', 'market', 'top_items', 'trader'):
         current_mode = 'item'
-    
-    # Determine active classes
-    item_class = "active" if current_mode == "item" else ""
-    market_class = "active" if current_mode == "market" else ""
-    top_items_class = "active" if current_mode == "top_items" else ""
-    trader_class = "active" if current_mode == "trader" else ""
-    
-    # Render mode switch using styled HTML anchor links with custom CSS
-    st.sidebar.markdown(f"""
-        <style>
-        .otg-mode-switch {{
-            margin: 18px 0 22px 0;
-        }}
-
-        .otg-mode-link {{
-            display: block;
-            width: 100%;
-            box-sizing: border-box;
-            min-height: 58px;
-            padding: 18px 16px;
-            margin-bottom: 10px;
-            border: 2px solid var(--otg-accent);
-            background: var(--otg-bg-secondary);
-            color: var(--otg-text-primary) !important;
-            text-decoration: none !important;
-            font-family: 'PP Supply Sans', 'Space Mono', monospace, sans-serif;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            text-align: center;
-            border-radius: 0;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }}
-
-        .otg-mode-link:hover {{
-            background: rgba(255, 0, 58, 0.08);
-            color: var(--otg-accent) !important;
-            text-decoration: none !important;
-        }}
-
-        .otg-mode-link.active {{
-            color: var(--otg-accent) !important;
-            box-shadow: inset 5px 0 0 var(--otg-accent);
-            background: var(--otg-bg-secondary);
-        }}
-
-        .otg-mode-link.active:hover {{
-            background: rgba(255, 0, 58, 0.06);
-            color: var(--otg-accent) !important;
-            text-decoration: none !important;
-        }}
-
-        .otg-mode-roadmap {{
-            border-color: #FF9D2E;
-            color: #FF9D2E !important;
-            animation: otg-roadmap-pulse 2.8s ease-in-out infinite;
-        }}
-
-        .otg-mode-link.otg-mode-roadmap:hover,
-        .otg-mode-link.otg-mode-roadmap.active {{
-            border-color: #FF9D2E;
-            background: #FF9D2E;
-            color: #000 !important;
-            box-shadow: 0 0 14px rgba(255, 157, 46, 0.45);
-        }}
-
-        @keyframes otg-roadmap-pulse {{
-            0%, 100% {{ box-shadow: 0 0 0 rgba(255, 157, 46, 0); }}
-            50% {{ box-shadow: 0 0 12px rgba(255, 157, 46, 0.38); }}
-        }}
-
-        @media (prefers-reduced-motion: reduce) {{
-            .otg-mode-link.otg-mode-roadmap {{ animation: none; }}
-        }}
-
-        </style>
-
-        <div class="otg-mode-switch">
-            <a class="otg-mode-link {item_class}" href="?mode=item" target="_self">ITEM</a>
-            <a class="otg-mode-link {market_class}" href="?mode=market" target="_self">MARKET</a>
-            <a class="otg-mode-link {top_items_class}" href="?mode=top_items" target="_self">TOP ITEMS</a>
-            <a class="otg-mode-link {trader_class}" href="?mode=top_traders" target="_self">TOP TRADERS</a>
-            <a class="otg-mode-link otg-mode-roadmap" href="/?mode=roadmap" target="_self">ROADMAP</a>
-        </div>
-    """, unsafe_allow_html=True)
-    
+    active = {key: ('active' if current_mode == mode else '') for key, mode in {
+        'item': 'item', 'market': 'market', 'top_items': 'top_items', 'top_traders': 'trader'
+    }.items()}
+    st.markdown(f'''<style>
+.otg-top-nav{{display:flex;align-items:center;justify-content:flex-end;gap:8px;width:100%;min-height:36px;margin:0 0 8px 0;padding:0;position:relative;z-index:50}}
+.otg-top-nav-control{{height:34px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;background:#050505;border:1px solid #303035;border-radius:0;font-family:'PP Supply Sans','Space Mono',monospace,sans-serif;font-size:10px;font-weight:700;line-height:1;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;color:#D8D8D8;text-decoration:none;cursor:pointer;transition:color 150ms ease,border-color 150ms ease,background-color 150ms ease,transform 150ms ease}}
+.otg-top-nav-control:hover{{color:#FF003A;border-color:#FF003A;background:rgba(255,0,58,.06);transform:translateY(-1px)}}
+.otg-top-nav-control:focus-visible,.otg-nav-dropdown a:focus-visible{{outline:1px solid #FF003A;outline-offset:2px}}
+.otg-nav-analytics{{position:relative}}.otg-nav-analytics>summary{{list-style:none;color:#FFFFFF;border-color:#FF003A;border-bottom:2px solid #FF003A;background:rgba(255,0,58,.04)}}.otg-nav-analytics>summary::-webkit-details-marker{{display:none}}
+.otg-nav-chevron{{margin-left:7px;font-size:9px;color:currentColor;transition:transform 140ms ease}}.otg-nav-chevron::after{{content:'⌄'}}.otg-nav-analytics[open] .otg-nav-chevron{{transform:rotate(180deg)}}
+.otg-nav-dropdown{{position:absolute;top:calc(100% + 6px);left:0;width:190px;box-sizing:border-box;padding:6px;background:#050505;border:1px solid #303035;box-shadow:0 10px 24px rgba(0,0,0,.55);z-index:100;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-4px);transition:opacity 140ms ease,transform 140ms ease,visibility 140ms ease}}
+.otg-nav-analytics:hover .otg-nav-dropdown,.otg-nav-analytics:focus-within .otg-nav-dropdown,.otg-nav-analytics[open] .otg-nav-dropdown{{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0)}}
+.otg-nav-dropdown a{{height:34px;display:flex;align-items:center;padding:0 10px;box-sizing:border-box;border-left:2px solid transparent;background:transparent;color:#C8C8C8!important;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;text-decoration:none!important;transition:color 120ms ease,background-color 120ms ease,border-color 120ms ease,padding-left 120ms ease}}.otg-nav-dropdown a:hover{{color:#FFFFFF!important;background:rgba(255,0,58,.07);border-left-color:#FF003A;padding-left:13px}}.otg-nav-dropdown a.active{{color:#FF003A!important;border-left-color:#FF003A;background:rgba(255,0,58,.04)}}
+.otg-nav-disabled{{cursor:default;user-select:none}}.otg-nav-disabled:hover{{color:#707070;border-color:#303035;background:#050505;transform:none}}.otg-nav-login{{background:#151515;border-color:#404040;color:#A0A0A0}}.otg-nav-login:hover{{color:#A0A0A0;border-color:#404040;background:#151515;transform:none}}
+@media(max-width:768px){{.otg-top-nav{{justify-content:flex-end;gap:6px;min-height:32px;margin-bottom:8px}}.otg-top-nav-control{{height:30px;padding-left:8px;padding-right:8px;font-size:9px;letter-spacing:.6px}}.otg-nav-analytics,.otg-nav-analytics>summary{{width:176px}}.otg-nav-dropdown{{width:176px}}.otg-nav-dropdown a{{min-height:34px;height:34px}}}}
+@media(prefers-reduced-motion:reduce){{.otg-top-nav-control,.otg-nav-chevron,.otg-nav-dropdown,.otg-nav-dropdown a{{transition:none}}.otg-top-nav-control:hover{{transform:none}}}}
+</style><nav class="otg-top-nav" aria-label="Primary navigation"><details class="otg-nav-analytics"><summary class="otg-top-nav-control">ANALYTICS<span class="otg-nav-chevron" aria-hidden="true"></span></summary><div class="otg-nav-dropdown"><a class="{active['item']}" href="/?mode=item">ITEM</a><a class="{active['market']}" href="/?mode=market">MARKET</a><a class="{active['top_items']}" href="/?mode=top_items">TOP ITEMS</a><a class="{active['top_traders']}" href="/?mode=top_traders">TOP TRADERS</a></div></details><a class="otg-top-nav-control" href="/?mode=roadmap">ROADMAP</a><span class="otg-top-nav-control otg-nav-disabled" aria-disabled="true" title="Coming soon">FEEDBACK</span><span class="otg-top-nav-control otg-nav-disabled otg-nav-login" aria-disabled="true" title="Coming soon">LOG IN</span></nav>''', unsafe_allow_html=True)
     return current_mode
