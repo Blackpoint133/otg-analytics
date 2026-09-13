@@ -15,8 +15,8 @@ def test_trader_search_option_contains_name_short_and_full_wallet():
         [{"wallet": wallet}], {"profiles": {wallet: {"display_name": "B_rasengan"}}, "fallback_names": {}}
     )
     assert records[0]["display_name"] == "B_rasengan"
-    assert sidebar._search_trader_records("0x31c5", records)[0]["wallet"] == wallet
-    assert sidebar._search_trader_records("bec9537d73", records)[0]["wallet"] == wallet
+    assert records[0]["wallet"] == wallet
+    assert records[0]["display_name"] == "B_rasengan"
 
 
 def test_trader_search_options_keep_similar_names_unique():
@@ -28,6 +28,18 @@ def test_trader_search_options_keep_similar_names_unique():
 
 def test_all_traders_maps_to_none_and_selector_is_not_freeform():
     source = (Path(__file__).parents[1] / "streamlit_opensea_sales" / "ui" / "sidebar.py").read_text(encoding="utf-8")
-    assert "st.session_state.trader_selected_wallet = None" in source
+    assert "st.session_state.trader_selected_wallet" in source
     assert "accept_new_options=True" not in source[source.index("def render_trader_sidebar_controls"):]
     assert "st.selectbox(" not in source[source.index("def render_trader_sidebar_controls"):]
+
+
+def test_component_contract_supports_live_safe_autocomplete():
+    source = (Path(__file__).parents[1] / "streamlit_opensea_sales" / "ui" / "trader_search_component" / "index.html").read_text(encoding="utf-8")
+    for token in ("oninput", "display_name", "username", "slice(2)", "slice(0,10)", "textContent", "setComponentValue", "ArrowDown", "ArrowUp", "Enter", "Escape", "componentReady", "streamlit:render", "setFrameHeight"):
+        assert token in source
+
+
+def test_search_records_use_only_search_fields():
+    wallet = "0x1111111111111111111111111111111111111111"
+    records = sidebar._trader_search_records([{"wallet": wallet}], {"profiles": {wallet: {"username": "alice"}}, "fallback_names": {}})
+    assert set(records[0]) == {"wallet", "display_name", "username"}

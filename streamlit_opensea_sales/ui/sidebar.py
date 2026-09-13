@@ -19,7 +19,7 @@ from data_access import load_item_data
 from item_paths import resolve_item_path
 from trader_analytics import load_current_snapshot, normalize_wallet
 from opensea_account_profiles import get_profile, load_profile_snapshot, profile_name
-import hashlib
+from ui.trader_search import render_trader_search
 from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, read_item_class_snapshot
 
 
@@ -41,7 +41,7 @@ def _trader_search_records(rows: list[dict[str, Any]], profile_snapshot: dict[st
     return records
 
 
-def _search_trader_records(query: str, records: list[dict[str, str]]) -> list[dict[str, str]]:
+def _legacy_search_removed(query: str, records: list[dict[str, str]]) -> list[dict[str, str]]:
     target = str(query or "").strip().casefold()
     if not target:
         return []
@@ -925,28 +925,20 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     with st.sidebar.container(key="trader_wallet_controls"):
         if "trader_selected_wallet" not in st.session_state:
             st.session_state.trader_selected_wallet = None
-        query = st.text_input("Trader", key="trader_search_query", label_visibility="collapsed", placeholder="Search trader name or wallet")
-        matches = _search_trader_records(query, trader_records)
-        normalized_query = query.strip().casefold()
-        selected_wallet = st.session_state.get("trader_selected_wallet")
-        if selected_wallet and normalized_query:
-            selected_record = next((record for record in trader_records if record["wallet"] == normalize_wallet(selected_wallet)), None)
-            if not selected_record or normalized_query not in {selected_record["wallet"].casefold(), selected_record["wallet"].casefold().removeprefix("0x"), selected_record["display_name"].casefold(), selected_record["username"].casefold()}:
+        selected = st.session_state.get("trader_selected_wallet")
+        selected_record = next((record for record in trader_records if record["wallet"] == normalize_wallet(selected)), None) if selected else None
+        event = render_trader_search(trader_records, selected, selected_record["display_name"] if selected_record else None, st.session_state.get("trader_search_query", ""), key="trader_search")
+        if event and event.get("event_id") != st.session_state.get("trader_search_last_event"):
+            st.session_state.trader_search_last_event = event["event_id"]
+            if event["action"] == "clear":
                 st.session_state.trader_selected_wallet = None
-        if normalized_query and matches and (
-            (len(normalized_query) == 42 and normalized_query.startswith("0x") and matches[0]["wallet"].casefold() == normalized_query)
-            or sum(record["display_name"].casefold() == normalized_query for record in matches) == 1
-            or sum(bool(record["username"]) and record["username"].casefold() == normalized_query for record in matches) == 1
-            or len(matches) == 1
-        ):
-            st.session_state.trader_selected_wallet = matches[0]["wallet"]
-        if query.strip():
-            for record in matches:
-                st.button(record["display_name"], key="trader_result_" + hashlib.sha1(record["wallet"].encode()).hexdigest()[:12], on_click=_trader_selection_callback, args=(record["wallet"], record["display_name"]))
-            if not matches:
-                st.caption("No results")
-        else:
-            st.session_state.trader_selected_wallet = None
+                st.session_state.trader_search_query = ""
+            else:
+                wallet = normalize_wallet(event.get("wallet"))
+                valid = next((record for record in trader_records if record["wallet"] == wallet), None)
+                if valid:
+                    st.session_state.trader_selected_wallet = wallet
+                    st.session_state.trader_search_query = valid["display_name"]
         selected = st.session_state.get("trader_selected_wallet")
     if st.session_state.get("trader_sort_by") not in TRADER_VISIBLE_SORT_OPTIONS:
         st.session_state.trader_sort_by = "EARNED"
