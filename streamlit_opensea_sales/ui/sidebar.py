@@ -21,6 +21,7 @@ from trader_analytics import load_current_snapshot, normalize_wallet
 from opensea_account_profiles import get_profile, load_profile_snapshot, profile_name
 from ui.trader_search import render_trader_search
 from ui.item_search import render_item_search
+from ui.item_wallet_search import render_item_wallet_search
 from formatters import get_rarity_style
 from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, read_item_class_snapshot
 
@@ -120,6 +121,19 @@ def _wallet_options_for_item(item_record: Optional[Dict]) -> list:
         df = load_item_data(str(path), path.stat().st_mtime)
     except Exception:
         return []
+    counts = _wallet_trade_counts_for_item(item_record)
+    return sorted(counts, key=lambda wallet: (-counts[wallet], wallet))
+
+
+def _wallet_trade_counts_for_item(item_record: Optional[Dict]) -> dict[str, int]:
+    if not isinstance(item_record, dict) or not item_record.get('file_path'):
+        return {}
+    try:
+        path = resolve_item_path(item_record['file_path'])
+        if not path.exists(): return {}
+        df = load_item_data(str(path), path.stat().st_mtime)
+    except Exception:
+        return {}
     counts = Counter()
     for _, row in df.iterrows():
         wallets = set()
@@ -132,7 +146,7 @@ def _wallet_options_for_item(item_record: Optional[Dict]) -> list:
                 wallets.add(value)
         for wallet in wallets:
             counts[wallet] += 1
-    return sorted(counts, key=lambda wallet: (-counts[wallet], wallet))
+    return dict(counts)
 
 
 def _short_wallet_label(wallet: str) -> str:
@@ -366,6 +380,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         if item_event.get("item_key") in items_index:
             st.session_state.selected_item = item_event["item_key"]
             _on_item_selection_changed(browser_identity)
+            st.rerun()
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     _log_item_ui(
         "ITEM_UI_POST_WIDGET",
@@ -393,6 +408,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         return None
 
     wallet_options = _wallet_options_for_item(item_record)
+    wallet_counts = _wallet_trade_counts_for_item(item_record)
     wallet_key = f"item_highlight_wallet_{abs(hash(current_selected_item))}"
     current_wallet = st.session_state.get(wallet_key, "ALL WALLETS")
     if current_wallet != "ALL WALLETS":
@@ -405,8 +421,10 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
     profile_snapshot = load_profile_snapshot()
     wallet_records = _trader_search_records([{"wallet": wallet} for wallet in wallet_options], profile_snapshot)
+    for record in wallet_records:
+        record["trade_count"] = wallet_counts.get(record["wallet"], 0)
     with st.sidebar.container(key="item_wallet_filter"):
-        wallet_event = render_trader_search(wallet_records, st.session_state.get(wallet_key) if st.session_state.get(wallet_key) != "ALL WALLETS" else None, next((r["display_name"] for r in wallet_records if r["wallet"] == st.session_state.get(wallet_key)), None), key="item_wallet_search")
+        wallet_event = render_item_wallet_search(wallet_records, st.session_state.get(wallet_key) if st.session_state.get(wallet_key) != "ALL WALLETS" else None, next((r["display_name"] for r in wallet_records if r["wallet"] == st.session_state.get(wallet_key)), None), key="item_wallet_search")
     if wallet_event and wallet_event.get("event_id") != st.session_state.get("item_wallet_search_last_event"):
         st.session_state.item_wallet_search_last_event = wallet_event["event_id"]
         if wallet_event["action"] == "clear":

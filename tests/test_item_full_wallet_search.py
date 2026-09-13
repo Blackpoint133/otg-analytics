@@ -29,7 +29,7 @@ def test_match_existing_wallet_rejects_unknown_prefix_all_and_none():
 def test_item_wallet_selector_accepts_full_values_but_keeps_compact_labels():
     source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
     item_wallet = source.split('key="item_wallet_filter"', 1)[1].split('highlight_wallet =', 1)[0]
-    assert 'render_trader_search' in item_wallet
+    assert 'render_item_wallet_search' in item_wallet
     assert 'key="item_wallet_search"' in item_wallet
     assert '_match_existing_wallet' in source
 
