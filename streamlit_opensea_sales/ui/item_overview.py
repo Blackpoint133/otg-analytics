@@ -899,8 +899,10 @@ def render_item_overview(
         )
         return
 
-    # Desktop two-column layout: 17% left, 83% right
-    col_left, col_right = st.columns([0.17, 0.83])
+    # Keep the approved large-desktop split, with a wider card on laptop widths.
+    viewport_width = int(st.session_state.get('item_viewport_width', 0) or 0)
+    column_ratio = [0.26, 0.74] if 769 <= viewport_width <= 1440 else [0.17, 0.83]
+    col_left, col_right = st.columns(column_ratio)
     
     with col_left:
         _render_item_card(df, filtered_df, item_name, rarity, metrics, ranking_metrics, show_usd, current_gun_price, supply_record, supply_rank)

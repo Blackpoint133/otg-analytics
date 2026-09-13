@@ -203,6 +203,18 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
             return f"{dots.get(rarity, '⚪')} {display_name}"
         return f"⚪ {item_key}"
     
+    if 'item_is_mobile_viewport' not in st.session_state:
+        st.session_state['item_is_mobile_viewport'] = False
+    if 'item_viewport_width' not in st.session_state:
+        st.session_state['item_viewport_width'] = 0
+    with st.sidebar:
+        viewport_info = get_viewport_info(key="item_chart_viewport")
+    if isinstance(viewport_info, dict):
+        viewport_width = int(viewport_info.get("width", 0) or 0)
+        if viewport_width > 0:
+            st.session_state['item_viewport_width'] = viewport_width
+            st.session_state['item_is_mobile_viewport'] = viewport_width <= 768
+
     st.sidebar.header("Display Options")
 
     item_sidebar_css = SHARED_DISPLAY_OPTIONS_CSS + """
@@ -261,10 +273,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     """
     st.sidebar.html(item_sidebar_css)
 
-    with st.sidebar:
-        viewport_info = get_viewport_info(key="item_chart_viewport")
-    is_mobile_viewport = _is_mobile_viewport(viewport_info)
-    st.session_state['item_is_mobile_viewport'] = is_mobile_viewport
+    is_mobile_viewport = bool(st.session_state['item_is_mobile_viewport'])
     
     # Selectbox with key automatically syncs with st.session_state
     st.sidebar.markdown('<div class="otg-sidebar-label">SELECT ITEM</div>', unsafe_allow_html=True)
@@ -777,10 +786,6 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             st.session_state.top_items_period = '1d'
             st.rerun()
         
-        st.markdown(
-            '<div class="otg-sidebar-section-gap"></div>',
-            unsafe_allow_html=True,
-        )
     from ui.section_guide import render_section_guide_button
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
