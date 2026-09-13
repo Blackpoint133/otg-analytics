@@ -7,7 +7,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+import json
 from pathlib import Path
+
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "streamlit_opensea_sales"
@@ -38,24 +42,78 @@ def sync_sales(source: Path, target: Path) -> int:
     return changed
 
 
-def run(source: Path, target: Path) -> int:
-    source, target = source.resolve(), target.resolve()
-    if source == target: raise ValueError("source and target must differ")
-    if not source.is_dir(): raise FileNotFoundError(source)
-    if not target.is_dir(): raise FileNotFoundError(target)
-    changed = sync_sales(source, target)
-    py = sys.executable
-    stages = [
-        [py, str(ROOT / "scripts" / "build_market_period_summaries.py"), "--data-dir", str(target)],
-        [py, str(ROOT / "scripts" / "build_market_expansion_metrics.py"), "--data-dir", str(target)],
-        [py, str(ROOT / "scripts" / "build_trader_analytics.py"), "--data-dir", str(target)],
-    ]
-    for command in stages:
-        subprocess.run(command, cwd=ROOT, check=True)
+def get_sales_date_max(data_dir: Path):
+    """Return the maximum valid, timezone-aware sale_date in enriched sales."""
+    values = []
+    for path in sorted((data_dir / "sales_enriched").glob("*.csv")):
+        try:
+            frame = pd.read_csv(path, usecols=["sale_date"])
+        except (OSError, ValueError, pd.errors.ParserError):
+            continue
+        parsed = pd.to_datetime(frame["sale_date"], errors="coerce", utc=True).dropna()
+        if not parsed.empty:
+            values.append(parsed.max())
+    return max(values) if values else None
+
+
+def validate_snapshot(target: Path, target_date) -> None:
+    path = target / "trader_analytics_snapshot.json"
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    with path.open(encoding="utf-8") as handle:
+        payload = json.load(handle)
+    snapshot_date = pd.to_datetime(payload.get("date_max"), errors="coerce", utc=True)
+    if pd.isna(snapshot_date) or snapshot_date < target_date:
+        raise ValueError("trader snapshot is older than refreshed sales")
+
+
+def write_log(*, status: str, duration: float, source_date=None, target_date=None,
+              changed=None, stage=None, error_type=None) -> None:
     LOG.parent.mkdir(parents=True, exist_ok=True)
+    if status == "success":
+        line = (f"status=success source_date_max={source_date.isoformat()} "
+                f"target_date_max={target_date.isoformat()} files_changed={changed} "
+                f"duration_seconds={duration:.3f}\n")
+    else:
+        line = (f"status=failed stage={stage} error_type={error_type} "
+                f"duration_seconds={duration:.3f}\n")
     with LOG.open("a", encoding="utf-8") as handle:
-        handle.write(f"sync_success source={source} target={target} files_changed={changed}\n")
-    return changed
+        handle.write(line)
+
+
+def run(source: Path, target: Path) -> int:
+    started = time.monotonic()
+    source, target = source.resolve(), target.resolve()
+    stage = "source_freshness"
+    try:
+        if source == target: raise ValueError("source and target must differ")
+        if not source.is_dir(): raise FileNotFoundError(source)
+        if not target.is_dir(): raise FileNotFoundError(target)
+        source_date = get_sales_date_max(source)
+        if source_date is None: raise ValueError("source has no parseable sale dates")
+        stage = "sync"
+        changed = sync_sales(source, target)
+        stage = "target_freshness"
+        target_date = get_sales_date_max(target)
+        if target_date is None or target_date < source_date:
+            raise ValueError("target sales are older than source")
+        py = sys.executable
+        stages = [
+            ("market_period", "build_market_period_summaries.py"),
+            ("market_expansion", "build_market_expansion_metrics.py"),
+            ("trader", "build_trader_analytics.py"),
+        ]
+        for stage, builder in stages:
+            subprocess.run([py, str(ROOT / "scripts" / builder), "--data-dir", str(target)], cwd=ROOT, check=True)
+        stage = "snapshot_validation"
+        validate_snapshot(target, target_date)
+        write_log(status="success", source_date=source_date, target_date=target_date,
+                  changed=changed, duration=time.monotonic() - started)
+        return changed
+    except Exception as exc:
+        write_log(status="failed", stage=stage, error_type=type(exc).__name__,
+                  duration=time.monotonic() - started)
+        raise
 
 
 def main() -> int:
