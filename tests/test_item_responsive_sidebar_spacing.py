@@ -27,12 +27,9 @@ def test_item_desktop_ratios_preserve_large_and_add_exact_medium_breakpoint():
 def test_top_items_has_one_gap_before_guide_after_one_day():
     period = SIDEBAR.split('key="top_items_period_1d"', 1)[1]
     guide = period.split('render_section_guide_button("top_items")', 1)[0]
-    assert guide.count("otg-sidebar-section-gap") == 1
-    assert '<div class="otg-sidebar-section-gap"></div>' in guide
+    assert guide.count("_render_sidebar_section_start(\"GUIDE\")") == 1
 
 
 def test_item_select_item_to_filters_has_exactly_one_shared_gap():
-    selectbox = SIDEBAR.index('st.sidebar.selectbox(\n        "Select Item"')
-    filters = SIDEBAR.index('<div class="otg-sidebar-label">FILTERS</div>', selectbox)
-    segment = SIDEBAR[selectbox:filters]
-    assert segment.count("otg-sidebar-section-gap") == 1
+    assert '_render_sidebar_section_start("SELECT ITEM", transition=False)' in SIDEBAR
+    assert '_render_sidebar_section_start("FILTERS")' in SIDEBAR

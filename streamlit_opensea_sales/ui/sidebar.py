@@ -5,6 +5,7 @@ technical diagnostic text technical diagnostic text technical diagnostic text te
 """
 
 from pathlib import Path
+import html
 from typing import Dict, Optional, Any
 from collections import Counter
 import pandas as pd
@@ -209,15 +210,18 @@ SHARED_DISPLAY_OPTIONS_CSS = """
     [data-testid="stCheckbox"] label p,
     [data-testid="stWidgetLabel"] p { color: #FFFFFF !important; }
 
-    .otg-sidebar-section-gap {
-        height: 7px;
-        min-height: 7px;
-        margin: 0;
-        padding: 0;
-        display: block;
-    }
     </style>
 """
+
+
+def _render_sidebar_section_start(label: str, *, transition: bool = True) -> None:
+    """Render a section heading with only the intentional transition spacing."""
+    padding = "3px" if transition else "0"
+    safe_label = html.escape(label)
+    st.sidebar.markdown(
+        f'<div class="otg-sidebar-section-start" style="padding-top:{padding}"><div class="otg-sidebar-label">{safe_label}</div></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[str, Any]] = None) -> Optional[Dict]:
@@ -352,7 +356,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     is_mobile_viewport = bool(st.session_state['item_is_mobile_viewport'])
     
     # Selectbox with key automatically syncs with st.session_state
-    st.sidebar.markdown('<div class="otg-sidebar-label">SELECT ITEM</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("SELECT ITEM", transition=False)
     _log_item_ui(
         "ITEM_UI_SELECTBOX_READY",
         callback_registered=True,
@@ -372,7 +376,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
             st.session_state.selected_item = item_event["item_key"]
             _on_item_selection_changed(browser_identity)
             st.rerun()
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("FILTERS")
     _log_item_ui(
         "ITEM_UI_POST_WIDGET",
         selected_present=st.session_state.get("selected_item") is not None,
@@ -409,7 +413,6 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
                 st.session_state[wallet_key] = canonical_wallet
         else:
             st.session_state[wallet_key] = "ALL WALLETS"
-    st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
     profile_snapshot = load_profile_snapshot()
     wallet_records = _trader_search_records([{"wallet": wallet} for wallet in wallet_options], profile_snapshot)
     for record in wallet_records:
@@ -442,8 +445,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
 
     from ui.section_guide import section_guide_button_css
     st.sidebar.html(section_guide_button_css("item"))
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("VALUE DISPLAY")
     show_usd = st.sidebar.checkbox('USD Price', key='item_show_usd')
     show_trend_line = st.sidebar.checkbox('Trend Line', key='item_show_trend_line')
     
@@ -454,8 +456,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     current_item_view = st.session_state.item_view_mode
 
     if not is_mobile_viewport:
-        st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-        st.sidebar.markdown('<div class="otg-sidebar-label">VIEW</div>', unsafe_allow_html=True)
+        _render_sidebar_section_start("VIEW")
 
         # Wrap only the View buttons for scoped styling.
         with st.sidebar.container(key="item_view_buttons"):
@@ -480,8 +481,7 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
                 st.rerun()
     
     from ui.section_guide import render_section_guide_button
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("GUIDE")
     guide_open = render_section_guide_button("item")
     return {
         'selected_item': current_selected_item,
@@ -513,10 +513,7 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
 
     # Display options
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
-    st.sidebar.markdown(
-        '<div class="otg-sidebar-label">VALUE DISPLAY</div>',
-        unsafe_allow_html=True,
-    )
+    _render_sidebar_section_start("VALUE DISPLAY", transition=False)
     show_usd = st.sidebar.checkbox(
         'USD Price',
         key='market_show_usd'
@@ -537,10 +534,7 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
 
     current_period = st.session_state.market_time_range
 
-    st.sidebar.markdown(
-        '<div class="otg-sidebar-section-gap"></div>',
-        unsafe_allow_html=True,
-    )
+    _render_sidebar_section_start("PERIOD")
 
     st.sidebar.html("""
         <style>
@@ -598,7 +592,6 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
     """)
 
     with st.sidebar.container(key="market_time_range_controls"):
-        st.markdown('<div class="otg-sidebar-label">PERIOD</div>', unsafe_allow_html=True)
 
         if st.button(
             "ALL",
@@ -637,8 +630,7 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
             st.rerun()
     
     from ui.section_guide import render_section_guide_button
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("GUIDE")
     guide_open = render_section_guide_button("market")
     info(f"Market sidebar: show_usd={show_usd}, show_token_price={show_token_price}, show_unique_wallets={show_unique_wallets}, time_range={current_period}")
     
@@ -756,10 +748,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
     st.sidebar.html(section_guide_button_css("top_items"))
     st.sidebar.header("Display Options")
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
-    st.sidebar.markdown(
-        '<div class="otg-sidebar-label">VALUE DISPLAY</div>',
-        unsafe_allow_html=True,
-    )
+    _render_sidebar_section_start("VALUE DISPLAY", transition=False)
     
     # Display options
     show_usd = st.sidebar.checkbox(
@@ -767,8 +756,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         value=True,
         key='top_items_show_usd'
     )
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("FILTERS")
 
     catalog_names = []
     try:
@@ -793,15 +781,11 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         if st.sidebar.checkbox(label, key=key):
             selected_classes.append(name)
     
-    st.sidebar.markdown(
-        '<div class="otg-sidebar-section-gap"></div>',
-        unsafe_allow_html=True,
-    )
+    _render_sidebar_section_start("SORT BY")
     
     # Wrap Top Items controls in stable container
     with st.sidebar.container(key="top_items_filter_controls"):
         # Render Sort By label
-        st.markdown('<div class="otg-sidebar-label">SORT BY</div>', unsafe_allow_html=True)
         
         # Sort By buttons using native type parameter
         if st.button(
@@ -840,11 +824,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             st.session_state.top_items_ranking_mode = 'total_supply'
             st.rerun()
         
-        st.markdown(
-            '<div class="otg-sidebar-section-gap"></div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown('<div class="otg-sidebar-label">PERIOD</div>', unsafe_allow_html=True)
+        _render_sidebar_section_start("PERIOD")
         
         # Period buttons using native type parameter
         if st.button(
@@ -888,8 +868,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             st.rerun()
         
     from ui.section_guide import render_section_guide_button
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("GUIDE")
     guide_open = render_section_guide_button("top_items")
     info(f"Top Items sidebar: show_usd={show_usd}, ranking_mode={current_mode}, period={current_period}, view={current_view}")
     
@@ -948,10 +927,9 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     from ui.section_guide import section_guide_button_css
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS + section_guide_button_css("trader") + TRADER_CONTROLS_CSS)
     st.sidebar.header("Display Options")
-    st.sidebar.markdown('<div class="otg-sidebar-label">VALUE DISPLAY</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("VALUE DISPLAY", transition=False)
     show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("FILTERS")
     with st.sidebar.container(key="trader_wallet_controls"):
         if "trader_selected_wallet" not in st.session_state:
             st.session_state.trader_selected_wallet = None
@@ -975,8 +953,7 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     if st.session_state.get("trader_sort_by") not in TRADER_VISIBLE_SORT_OPTIONS:
         st.session_state.trader_sort_by = "EARNED"
         st.session_state.trader_page = 1
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="otg-sidebar-label">SORT BY</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("SORT BY")
     with st.sidebar.container(key="trader_sort_controls"):
         for option in TRADER_VISIBLE_SORT_OPTIONS:
             if st.button(option, key=f"trader_sort_{option.lower().replace(' ', '_')}", use_container_width=True, type="primary" if st.session_state.trader_sort_by == option else "secondary"):
@@ -984,8 +961,7 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
                 st.session_state.trader_page = 1
                 st.rerun()
     from ui.section_guide import render_section_guide_button
-    st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
-    st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
+    _render_sidebar_section_start("GUIDE")
     guide_open = render_section_guide_button("trader")
     effective = normalize_wallet(selected) if selected else None
     return {"sort_by": st.session_state.trader_sort_by, "show_usd": show_usd, "wallet": effective, "guide_open": guide_open, "is_mobile_viewport": bool(st.session_state.trader_is_mobile_viewport), "viewport_resolved": bool(st.session_state.trader_viewport_resolved)}

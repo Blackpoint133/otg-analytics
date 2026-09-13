@@ -29,16 +29,16 @@ def test_mobile_navigation_has_separate_spacing_rule():
 
 def test_sidebar_section_gap_is_seven_pixels_and_label_gap_stays_ten():
     source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
-    gap = source[source.index(".otg-sidebar-section-gap"):source.index("</style>", source.index(".otg-sidebar-section-gap"))]
-    assert "height: 7px" in gap and "min-height: 7px" in gap
+    assert "def _render_sidebar_section_start" in source
+    assert 'padding = "3px" if transition else "0"' in source
     label = source[source.index(".otg-sidebar-label"):source.index("[data-testid=", source.index(".otg-sidebar-label"))]
     assert "margin: 0 0 10px 0" in label
 
 
 def test_each_sidebar_uses_shared_section_gap():
     source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
-    assert source.count("otg-sidebar-section-gap") >= 12
-    assert "height: 14px" not in source
+    assert source.count("_render_sidebar_section_start(") >= 12
+    assert "otg-sidebar-section-gap" not in source
 
 
 def test_accepted_components_and_frozen_values_remain_intact():

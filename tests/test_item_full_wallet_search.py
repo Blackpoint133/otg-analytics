@@ -39,8 +39,7 @@ def test_item_wallet_selector_accepts_full_values_but_keeps_compact_labels():
 def test_item_select_filters_keeps_one_shared_spacer_and_trader_selector_is_unchanged():
     source = (APP / "ui" / "sidebar.py").read_text(encoding="utf-8")
     selectbox = source.index('key="item_select_item"')
-    filters = source.index('<div class="otg-sidebar-label">FILTERS</div>', selectbox)
-    assert source[selectbox:filters].count("otg-sidebar-section-gap") == 1
+    assert '_render_sidebar_section_start("FILTERS")' in source
     assert 'key="trader_search"' in source
 
 def test_item_component_has_selected_marker_and_dimensions():

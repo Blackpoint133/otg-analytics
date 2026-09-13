@@ -9,7 +9,7 @@ GUIDE = (ROOT / "streamlit_opensea_sales" / "ui" / "section_guide.py").read_text
 
 def test_trader_guide_is_sidebar_scoped_and_uses_stable_state_key():
     assert 'render_section_guide_button("trader")' in SIDEBAR
-    assert SIDEBAR.index('otg-sidebar-label">GUIDE') < SIDEBAR.index('render_section_guide_button("trader")')
+    assert SIDEBAR.index('_render_sidebar_section_start("GUIDE")') < SIDEBAR.index('render_section_guide_button("trader")')
     assert 'state_key = f"{section_key}_guide_open"' in GUIDE
     assert 'control_key = f"{section_key}_guide"' in GUIDE
     assert 'label: str = "GUIDE"' in GUIDE
@@ -52,10 +52,10 @@ def test_trader_sort_controls_remain_before_guide():
 
 
 def test_sidebar_filter_labels_and_guide_reference_style():
-    assert '<div class="otg-sidebar-label">FILTERS</div>' in SIDEBAR
+    assert '_render_sidebar_section_start("FILTERS")' in SIDEBAR
     assert '<div class="otg-sidebar-label">TRADER</div>' not in SIDEBAR
     assert 'render_section_guide_button("item")' in SIDEBAR
-    assert 'label_visibility="collapsed"' in SIDEBAR
+    assert '_render_sidebar_section_start("VALUE DISPLAY", transition=False)' in SIDEBAR
     assert "height:28px!important" in SIDEBAR
     assert "padding:4px 10px!important" in SIDEBAR
     assert "margin-bottom:3px!important" in SIDEBAR
