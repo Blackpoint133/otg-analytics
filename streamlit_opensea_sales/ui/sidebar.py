@@ -41,28 +41,15 @@ def _trader_search_records(rows: list[dict[str, Any]], profile_snapshot: dict[st
     return records
 
 
-def _legacy_search_removed(query: str, records: list[dict[str, str]]) -> list[dict[str, str]]:
-    target = str(query or "").strip().casefold()
-    if not target:
-        return []
-    exact_wallet = target if len(target) == 42 and target.startswith("0x") else None
-    ranked = []
+def _canonical_trader_wallet(value: Any, records: list[dict[str, str]]) -> Optional[str]:
+    if not value:
+        return None
+    target = str(value).strip().casefold()
     for record in records:
-        wallet = record["wallet"].casefold(); body = wallet[2:] if wallet.startswith("0x") else wallet
-        name = record["display_name"].casefold(); username = record["username"].casefold()
-        if exact_wallet and wallet == exact_wallet: priority = 0
-        elif name == target: priority = 1
-        elif username and username == target: priority = 2
-        elif name.startswith(target): priority = 3
-        elif username and username.startswith(target): priority = 4
-        elif wallet.startswith(target) or body.startswith(target): priority = 5
-        elif target in name: priority = 6
-        elif username and target in username: priority = 7
-        elif target in wallet or target in body: priority = 8
-        else: continue
-        ranked.append((priority, name, wallet, record))
-    ranked.sort(key=lambda item: item[:3])
-    return [item[3] for item in ranked[:10]]
+        canonical = str(record.get("wallet") or "").strip()
+        if canonical.casefold() == target:
+            return canonical
+    return None
 
 
 def _trader_selection_callback(wallet: str, display_name: str) -> None:
@@ -925,8 +912,10 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     with st.sidebar.container(key="trader_wallet_controls"):
         if "trader_selected_wallet" not in st.session_state:
             st.session_state.trader_selected_wallet = None
-        selected = st.session_state.get("trader_selected_wallet")
-        selected_record = next((record for record in trader_records if record["wallet"] == normalize_wallet(selected)), None) if selected else None
+        selected = _canonical_trader_wallet(st.session_state.get("trader_selected_wallet"), trader_records)
+        if st.session_state.get("trader_selected_wallet") and selected is None:
+            st.session_state.trader_selected_wallet = None
+        selected_record = next((record for record in trader_records if record["wallet"] == selected), None) if selected else None
         event = render_trader_search(trader_records, selected, selected_record["display_name"] if selected_record else None, st.session_state.get("trader_search_query", ""), key="trader_search")
         if event and event.get("event_id") != st.session_state.get("trader_search_last_event"):
             st.session_state.trader_search_last_event = event["event_id"]
@@ -939,7 +928,7 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
                 if valid:
                     st.session_state.trader_selected_wallet = wallet
                     st.session_state.trader_search_query = valid["display_name"]
-        selected = st.session_state.get("trader_selected_wallet")
+        selected = _canonical_trader_wallet(st.session_state.get("trader_selected_wallet"), trader_records)
     if st.session_state.get("trader_sort_by") not in TRADER_VISIBLE_SORT_OPTIONS:
         st.session_state.trader_sort_by = "EARNED"
         st.session_state.trader_page = 1
