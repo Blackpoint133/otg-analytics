@@ -925,6 +925,13 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     rows = payload.get('wallets', []) if payload else []
     profile_snapshot = load_profile_snapshot()
     trader_records = _trader_search_records(rows, profile_snapshot)
+    trade_counts = {
+        normalize_wallet(row.get("wallet")): int(row.get("trade_count") or 0)
+        for row in rows
+        if normalize_wallet(row.get("wallet"))
+    }
+    for record in trader_records:
+        record["trade_count"] = trade_counts.get(record["wallet"], 0)
     from ui.section_guide import section_guide_button_css
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS + section_guide_button_css("trader") + TRADER_CONTROLS_CSS)
     st.sidebar.header("Display Options")
@@ -950,6 +957,7 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
                 if valid:
                     st.session_state.trader_selected_wallet = wallet
                     st.session_state.trader_search_query = valid["display_name"]
+            st.rerun()
         selected = _canonical_trader_wallet(st.session_state.get("trader_selected_wallet"), trader_records)
     if st.session_state.get("trader_sort_by") not in TRADER_VISIBLE_SORT_OPTIONS:
         st.session_state.trader_sort_by = "EARNED"

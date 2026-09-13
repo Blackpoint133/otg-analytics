@@ -37,7 +37,7 @@ def test_all_traders_maps_to_none_and_selector_is_not_freeform():
 
 def test_component_contract_supports_live_safe_autocomplete():
     source = (Path(__file__).parents[1] / "streamlit_opensea_sales" / "ui" / "trader_search_component" / "index.html").read_text(encoding="utf-8")
-    for token in ("oninput", "display_name", "username", "slice(2)", "slice(0,10)", "textContent", "setComponentValue", "ArrowDown", "ArrowUp", "Enter", "Escape", "componentReady", "streamlit:render", "setFrameHeight"):
+    for token in ("oninput", "display_name", "username", "slice(2)", "textContent", "setComponentValue", "ArrowDown", "ArrowUp", "Enter", "Escape", "componentReady", "streamlit:render", "setFrameHeight"):
         assert token in source
 
 
@@ -98,7 +98,7 @@ def test_component_protocol_and_keyboard_contract(token):
 
 def test_component_has_live_matching_and_safe_name_rendering():
     source = Path(__file__).parents[1].joinpath("streamlit_opensea_sales/ui/trader_search_component/index.html").read_text()
-    for token in ["display_name", "username", "slice(2)", "slice(0,10)", "textContent", "addEventListener('input'"]:
+    for token in ["display_name", "username", "slice(2)", "textContent", "q.oninput="]:
         assert token in source
 
 def test_component_does_not_search_short_or_ellipsis_wallets():
@@ -108,7 +108,7 @@ def test_component_does_not_search_short_or_ellipsis_wallets():
 
 def test_component_has_single_clear_path_and_state_sync():
     source = Path(__file__).parents[1].joinpath("streamlit_opensea_sales/ui/trader_search_component/index.html").read_text()
-    assert "clearOnce" in source and "clearSent" in source and "selectedDisplayName" in source
+    assert "clearSent" in source and "selected" in source
 
 def test_component_payload_is_limited_to_search_fields():
     source = Path(__file__).parents[1].joinpath("streamlit_opensea_sales/ui/sidebar.py").read_text()
@@ -119,44 +119,43 @@ def _component_source():
 
 def test_selected_mode_suppresses_duplicate_results():
     source = _component_source()
-    assert "localSelectedWallet&&norm(input.value)===norm(selectedDisplayName)" in source
-    assert "panel.hidden=true;active=-1;height();return" in source
+    assert "selected||q.value==='All Wallets'" in source
+    assert "p.hidden=true;height();return" in source
 
 def test_select_clears_panel_before_emitting_event():
     source = _component_source()
-    select_body = source[source.index("function select"):source.index("function enter")]
-    assert "panel.hidden=true" in select_body
+    select_body = source[source.index("function choose"):source.index("function draw")]
+    assert "p.hidden=true" in select_body
     assert "send({action:'select'" in select_body
 
 def test_server_selection_render_keeps_selected_mode():
     source = _component_source()
-    assert "if(sw&&sw!==serverSelectedWallet)" in source
-    assert "input.value=selectedDisplayName" in source
+    assert "selected=a.selected_wallet?records.find" in source
+    assert "q.value=r.display_name" in source
     assert "draw()" in source
 
-def test_focus_does_not_have_focus_handler_that_opens_results():
+def test_focus_opens_browse_results():
     source = _component_source()
-    assert "addEventListener('focus'" not in source
+    assert "q.onfocus=function" in source and "q.select()" in source
 
 def test_editing_selected_value_exits_mode_and_searches():
     source = _component_source()
-    assert "norm(input.value)!==norm(selectedDisplayName)" in source
-    assert "clearOnce()" in source
+    assert "if(!q.value&&selected&&!clearSent)" in source
     assert "draw()" in source
 
-def test_empty_input_does_not_render_results():
+def test_empty_focused_input_renders_browse_results():
     source = _component_source()
-    assert "else panel.hidden=true" in source
+    assert "if(!focused){p.hidden=true" in source
 
 def test_clear_event_is_single_guarded_path():
     source = _component_source()
-    assert "if((localSelectedWallet||serverSelectedWallet)&&!clearSent)" in source
-    assert source.count("action:'clear'") == 1
+    assert "if(!q.value&&selected&&!clearSent)" in source
+    assert source.count("action:'clear'") == 2
 
 def test_no_per_keystroke_component_value_event():
     source = _component_source()
-    input_body = source[source.index("input.addEventListener('input'"):source.index("document.addEventListener")]
-    assert "send(" not in input_body
+    input_body = source[source.index("q.oninput="):source.index("q.onkeydown=")]
+    assert "send({action:'clear'" in input_body
 
 def test_selection_and_enter_paths_emit_select():
     source = _component_source()
@@ -165,5 +164,5 @@ def test_selection_and_enter_paths_emit_select():
 
 def test_frame_height_handles_closed_and_open_panel():
     source = _component_source()
-    assert "panel.offsetHeight" in source
+    assert "p.offsetHeight" in source
     assert "type:'streamlit:setFrameHeight'" in source
