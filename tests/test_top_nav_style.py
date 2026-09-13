@@ -27,6 +27,17 @@ def test_top_level_ghost_states_are_neutral_and_stationary():
     assert "rgba(255,0,58" not in SOURCE
 
 
+def test_refined_accent_is_chevron_and_dropdown_row_only():
+    assert ".otg-nav-chevron" in SOURCE and "color:#FF003A" in SOURCE
+    assert "summary.active:not(.otg-nav-disabled)::after{{opacity:0" in SOURCE
+    assert ".otg-nav-dropdown a::before" in SOURCE
+    assert "width:2px" in SOURCE and "background:#FF003A" in SOURCE
+    assert ".otg-nav-dropdown a:hover::before" in SOURCE
+    assert "scaleY(0)" in SOURCE and "scaleY(1)" in SOURCE
+    assert ".otg-top-nav-control:not(.otg-nav-disabled)::after" in SOURCE
+    assert ".otg-nav-disabled" in SOURCE
+
+
 def test_red_is_only_the_enabled_control_hairline():
     assert ".otg-top-nav-control:not(.otg-nav-disabled)::after" in SOURCE
     assert "width:44%" in SOURCE and "height:1px" in SOURCE
@@ -44,6 +55,7 @@ def test_dropdown_is_neutral_without_accent_bars():
     assert "rgba(255,255,255,.055)" in SOURCE
     assert "rgba(255,255,255,.080)" in SOURCE
     assert "padding-left:10px" in SOURCE
+    assert "border-left" not in SOURCE
 
 
 def test_login_remains_disabled_and_neutral():
@@ -51,6 +63,12 @@ def test_login_remains_disabled_and_neutral():
     assert 'title="Coming soon"' in SOURCE
     assert ".otg-nav-login{{background:transparent" in SOURCE
     assert "color:#5F646C" in SOURCE
+
+
+def test_reduced_motion_disables_new_accent_transitions():
+    assert "otg-top-nav-control::after" in SOURCE
+    assert "otg-nav-dropdown a::before" in SOURCE
+    assert "@media(prefers-reduced-motion:reduce)" in SOURCE
 
 
 def test_navigation_functionality_and_structure_are_preserved():
