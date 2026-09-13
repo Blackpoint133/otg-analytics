@@ -107,6 +107,13 @@ def main():
 
     info("Application started (lazy-load architecture)")
 
+    requested_mode = st.query_params.get("mode", "item")
+    if isinstance(requested_mode, list):
+        requested_mode = requested_mode[0] if requested_mode else "item"
+    if requested_mode == "feedback":
+        render_feedback_page()
+        return
+
     # technical implementation note technical implementation note technical implementation note
     st.sidebar.markdown("<div style='flex: 1'></div>", unsafe_allow_html=True)
 
@@ -124,10 +131,6 @@ def main():
     # technical implementation note technical implementation note: ITEM vs MARKET vs TOP ITEMS ANALYTICS
     # ════════════════════════════════════════════════════════════════
     current_mode = mode_switch.render_mode_switch()
-    if current_mode == "feedback":
-        render_feedback_page()
-        render_sidebar_footer()
-        return
     browser_identity = get_browser_identity()
     record_current_session_once(
         mode=current_mode,

@@ -28,7 +28,8 @@ def _clean_message(message) -> str:
 
 
 def build_feedback_notification(*, submission_id, feedback_type, message, source_mode, source_item_key=None) -> str:
-    lines = ["NEW OTG ANALYTICS FEEDBACK", "", f"TYPE: {_display_type(feedback_type)}", f"SOURCE: {_display_source(source_mode)}"]
+    emoji = {"bug": "🐞", "suggestion": "💡", "data_issue": "📊", "other": "💬"}.get(str(feedback_type).strip().lower(), "💬")
+    lines = [f"{emoji} NEW OTG ANALYTICS FEEDBACK", "", f"TYPE: {_display_type(feedback_type)}", f"SOURCE: {_display_source(source_mode)}"]
     if source_item_key:
         lines.append(f"ITEM: {str(source_item_key).strip()}")
     lines.extend(["", "MESSAGE:", _clean_message(message), "", f"SUBMISSION: {str(submission_id).replace('-', '')[:8]}"])

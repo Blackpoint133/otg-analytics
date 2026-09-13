@@ -24,6 +24,7 @@ def test_notification_text_mappings_and_safe_truncation():
     sid = uuid.UUID("12345678-abcd-0000-0000-000000000000")
     text = notifications.build_feedback_notification(submission_id=sid, feedback_type="data_issue", message="one\r\ntwo", source_mode="trader", source_item_key="Tacoma Pioneer")
     assert "TYPE: DATA ISSUE" in text and "SOURCE: TOP TRADERS" in text
+    assert text.startswith("📊 NEW OTG ANALYTICS FEEDBACK")
     assert "ITEM: Tacoma Pioneer" in text and "SUBMISSION: 12345678" in text
     assert "one\ntwo" in text and "\r" not in text
     assert "ITEM: None" not in text

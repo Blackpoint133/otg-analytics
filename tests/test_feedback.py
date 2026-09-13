@@ -17,7 +17,7 @@ def test_feedback_store_normalizes_source_context():
 def test_feedback_page_contract_and_safe_persistence_hooks():
     source = (APP / "ui" / "feedback.py").read_text(encoding="utf-8")
     assert 'with st.container(key="feedback_page"):' in source
-    assert ".st-key-feedback_page{width:100%;max-width:760px" in source
+    assert ".st-key-feedback_page{width:100%;max-width:800px" in source
     assert '[data-testid="stForm"]' in source
     assert "width:200px;height:38px" in source
     assert "width:100%" in source
@@ -29,6 +29,12 @@ def test_feedback_page_contract_and_safe_persistence_hooks():
     assert "source_context" in source
     assert "Do not include passwords, seed phrases, private keys" in source
     assert "TOO MANY SUBMISSIONS" in source
+    assert "ATTACHED CONTEXT" in source
+    assert "SOURCE PAGE" in source
+    assert "ITEM ANALYTICS" in source
+    assert "This context is attached automatically to help reproduce your report." in source
+    assert "feedback-back" in source
+    assert "max-width:800px" in source
 
 
 def test_feedback_navigation_and_early_routing_contract():
@@ -38,13 +44,15 @@ def test_feedback_navigation_and_early_routing_contract():
     assert "'feedback']" in nav
     assert "feedback_href" in nav and "source" in nav
     assert "href=\"{feedback_href}\"" in nav
-    assert "current_mode == \"feedback\"" in app
-    route = app.index('current_mode == "feedback"')
+    assert "requested_mode == \"feedback\"" in app
+    route = app.index('requested_mode == "feedback"')
     analytics = app.index('current_mode = mode_switch.render_mode_switch()')
     session_call = app.index('record_current_session_once', analytics)
-    assert analytics < route < session_call
+    assert route < analytics < session_call
     assert "ON CONFLICT (submission_id) DO NOTHING" in store
     assert "%(message)s" in store
+    assert "render_sidebar_logo()" in app
+    assert app.index('requested_mode == "feedback"') < app.index("render_sidebar_logo()")
 
 
 def test_feedback_schema_is_additive_and_constrained():
