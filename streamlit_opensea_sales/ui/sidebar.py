@@ -108,6 +108,22 @@ def _short_wallet_label(wallet: str) -> str:
     return value if len(value) <= 12 else f"{value[:6]}…{value[-4:]}"
 
 
+def _match_existing_wallet(value, wallet_options):
+    if value is None:
+        return None
+
+    target = str(value).strip()
+    if not target or target == "ALL WALLETS":
+        return None
+
+    target_lower = target.lower()
+    for wallet in wallet_options:
+        canonical = str(wallet).strip()
+        if canonical.lower() == target_lower:
+            return canonical
+    return None
+
+
 def _resolve_highlight_wallet(selected_wallet: Optional[str]) -> Optional[str]:
     """Return the selected canonical wallet, or None for the all-wallets option."""
     if selected_wallet in (None, "", "ALL WALLETS"):
@@ -320,9 +336,13 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     wallet_options = _wallet_options_for_item(item_record)
     wallet_key = f"item_highlight_wallet_{abs(hash(current_selected_item))}"
     current_wallet = st.session_state.get(wallet_key, "ALL WALLETS")
-    if current_wallet != "ALL WALLETS" and current_wallet not in wallet_options:
-        current_wallet = "ALL WALLETS"
-        st.session_state[wallet_key] = current_wallet
+    if current_wallet != "ALL WALLETS":
+        canonical_wallet = _match_existing_wallet(current_wallet, wallet_options)
+        if canonical_wallet is not None:
+            if current_wallet != canonical_wallet:
+                st.session_state[wallet_key] = canonical_wallet
+        else:
+            st.session_state[wallet_key] = "ALL WALLETS"
     st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
     highlight_wallet = st.sidebar.selectbox(
         "Highlight Wallet",
@@ -330,9 +350,16 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         format_func=lambda value: "All Wallets" if value == "ALL WALLETS" else _short_wallet_label(value),
         key=wallet_key,
         label_visibility="collapsed",
+        accept_new_options=True,
     )
 
-    effective_wallet = _resolve_highlight_wallet(highlight_wallet)
+    if highlight_wallet == "ALL WALLETS":
+        effective_wallet = None
+    else:
+        effective_wallet = _match_existing_wallet(highlight_wallet, wallet_options)
+        if effective_wallet is None:
+            st.session_state[wallet_key] = "ALL WALLETS"
+            effective_wallet = None
     
     show_volume = False
     if 'item_show_usd' not in st.session_state:
