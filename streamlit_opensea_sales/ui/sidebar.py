@@ -19,6 +19,7 @@ from data_access import load_item_data
 from item_paths import resolve_item_path
 from trader_analytics import load_current_snapshot, normalize_wallet
 from opensea_account_profiles import get_profile, load_profile_snapshot, profile_name
+import hashlib
 from item_class_data import UNCLASSIFIED, USER_FACING_CLASSES, read_item_class_snapshot
 
 
@@ -27,23 +28,46 @@ SIDEBAR_LOGGER = get_module_logger("sidebar", log_file=SIDEBAR_LOG_PATH, module_
 
 TRADER_VISIBLE_SORT_OPTIONS = ("EARNED", "INVESTED", "SOLD", "TRADES")
 
-def _trader_search_options(rows: list[dict[str, Any]], profile_snapshot: dict[str, Any]) -> tuple[list[str], dict[str, str]]:
+def _trader_search_records(rows: list[dict[str, Any]], profile_snapshot: dict[str, Any]) -> list[dict[str, str]]:
     fallback_names = profile_snapshot.get("fallback_names", {})
-    options = ["ALL TRADERS"]
-    mapping: dict[str, str] = {}
+    records = []
     for row in rows:
         wallet = str(row.get("wallet") or "").strip()
         if not wallet:
             continue
         profile = get_profile(wallet, profile_snapshot)
         name = profile_name(wallet, profile, fallback_names)
-        username = str(profile.get("username") or "").strip()
-        option = f"{name}  {_short_wallet_label(wallet)}  {wallet}"
-        if username and username != name:
-            option += f"  {username}"
-        options.append(option)
-        mapping[option] = normalize_wallet(wallet) or wallet.lower()
-    return options, mapping
+        records.append({"wallet": normalize_wallet(wallet) or wallet.lower(), "display_name": name, "username": str(profile.get("username") or "").strip()})
+    return records
+
+
+def _search_trader_records(query: str, records: list[dict[str, str]]) -> list[dict[str, str]]:
+    target = str(query or "").strip().casefold()
+    if not target:
+        return []
+    exact_wallet = target if len(target) == 42 and target.startswith("0x") else None
+    ranked = []
+    for record in records:
+        wallet = record["wallet"].casefold(); body = wallet[2:] if wallet.startswith("0x") else wallet
+        name = record["display_name"].casefold(); username = record["username"].casefold()
+        if exact_wallet and wallet == exact_wallet: priority = 0
+        elif name == target: priority = 1
+        elif username and username == target: priority = 2
+        elif name.startswith(target): priority = 3
+        elif username and username.startswith(target): priority = 4
+        elif wallet.startswith(target) or body.startswith(target): priority = 5
+        elif target in name: priority = 6
+        elif username and target in username: priority = 7
+        elif target in wallet or target in body: priority = 8
+        else: continue
+        ranked.append((priority, name, wallet, record))
+    ranked.sort(key=lambda item: item[:3])
+    return [item[3] for item in ranked[:10]]
+
+
+def _trader_selection_callback(wallet: str, display_name: str) -> None:
+    st.session_state["trader_selected_wallet"] = wallet
+    st.session_state["trader_search_query"] = display_name
 
 
 def _log_item_ui(marker: str, **fields: Any) -> None:
@@ -890,7 +914,7 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     payload = load_current_snapshot()
     rows = payload.get('wallets', []) if payload else []
     profile_snapshot = load_profile_snapshot()
-    trader_options, trader_option_wallets = _trader_search_options(rows, profile_snapshot)
+    trader_records = _trader_search_records(rows, profile_snapshot)
     from ui.section_guide import section_guide_button_css
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS + section_guide_button_css("trader") + TRADER_CONTROLS_CSS)
     st.sidebar.header("Display Options")
@@ -899,19 +923,31 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
     with st.sidebar.container(key="trader_wallet_controls"):
-        current = st.session_state.get("trader_selected_wallet", "ALL TRADERS")
-        if current != "ALL TRADERS":
-            current_wallet = normalize_wallet(current)
-            current = next((label for label, wallet in trader_option_wallets.items() if wallet == current_wallet), "ALL TRADERS")
-            st.session_state["trader_selected_wallet"] = current
-        selected = st.selectbox(
-            "Trader",
-            trader_options,
-            format_func=lambda value: "All Traders" if value == "ALL TRADERS" else "  ".join(value.split("  ")[:2]),
-            key="trader_selected_wallet",
-            label_visibility="collapsed",
-            placeholder="Search trader name or wallet",
-        )
+        if "trader_selected_wallet" not in st.session_state:
+            st.session_state.trader_selected_wallet = None
+        query = st.text_input("Trader", key="trader_search_query", label_visibility="collapsed", placeholder="Search trader name or wallet")
+        matches = _search_trader_records(query, trader_records)
+        normalized_query = query.strip().casefold()
+        selected_wallet = st.session_state.get("trader_selected_wallet")
+        if selected_wallet and normalized_query:
+            selected_record = next((record for record in trader_records if record["wallet"] == normalize_wallet(selected_wallet)), None)
+            if not selected_record or normalized_query not in {selected_record["wallet"].casefold(), selected_record["wallet"].casefold().removeprefix("0x"), selected_record["display_name"].casefold(), selected_record["username"].casefold()}:
+                st.session_state.trader_selected_wallet = None
+        if normalized_query and matches and (
+            (len(normalized_query) == 42 and normalized_query.startswith("0x") and matches[0]["wallet"].casefold() == normalized_query)
+            or sum(record["display_name"].casefold() == normalized_query for record in matches) == 1
+            or sum(bool(record["username"]) and record["username"].casefold() == normalized_query for record in matches) == 1
+            or len(matches) == 1
+        ):
+            st.session_state.trader_selected_wallet = matches[0]["wallet"]
+        if query.strip():
+            for record in matches:
+                st.button(record["display_name"], key="trader_result_" + hashlib.sha1(record["wallet"].encode()).hexdigest()[:12], on_click=_trader_selection_callback, args=(record["wallet"], record["display_name"]))
+            if not matches:
+                st.caption("No results")
+        else:
+            st.session_state.trader_selected_wallet = None
+        selected = st.session_state.get("trader_selected_wallet")
     if st.session_state.get("trader_sort_by") not in TRADER_VISIBLE_SORT_OPTIONS:
         st.session_state.trader_sort_by = "EARNED"
         st.session_state.trader_page = 1
@@ -927,6 +963,5 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     st.sidebar.markdown('<div class="otg-sidebar-label">GUIDE</div>', unsafe_allow_html=True)
     guide_open = render_section_guide_button("trader")
-    selected_value = "" if selected is None else str(selected).strip()
-    effective = None if not selected_value or selected_value == "ALL TRADERS" else trader_option_wallets.get(selected_value)
+    effective = normalize_wallet(selected) if selected else None
     return {"sort_by": st.session_state.trader_sort_by, "show_usd": show_usd, "wallet": effective, "guide_open": guide_open, "is_mobile_viewport": bool(st.session_state.trader_is_mobile_viewport), "viewport_resolved": bool(st.session_state.trader_viewport_resolved)}
