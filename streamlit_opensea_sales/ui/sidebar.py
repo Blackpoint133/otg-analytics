@@ -265,6 +265,29 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
 
     item_sidebar_css = SHARED_DISPLAY_OPTIONS_CSS + """
         <style>
+        .st-key-item_select_item [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+        .st-key-item_wallet_filter [data-testid="stSelectbox"] [data-baseweb="select"] > div {
+            height: 34px !important;
+            min-height: 34px !important;
+            box-sizing: border-box !important;
+            padding: 0 9px !important;
+            background-color: #080808 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #FF003A !important;
+            border-radius: 0 !important;
+        }
+        .st-key-item_select_item [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
+        .st-key-item_wallet_filter [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within {
+            border-color: #FF003A !important;
+            box-shadow: none !important;
+        }
+        .st-key-item_select_item [data-testid="stSelectbox"] [data-baseweb="select"] span,
+        .st-key-item_wallet_filter [data-testid="stSelectbox"] [data-baseweb="select"] span,
+        .st-key-item_select_item [data-testid="stSelectbox"] [data-baseweb="select"] input,
+        .st-key-item_wallet_filter [data-testid="stSelectbox"] [data-baseweb="select"] input {
+            color: #FFFFFF !important;
+            font-size: 13px !important;
+        }
         .st-key-item_view_buttons {
             padding: 0;
         }
@@ -328,15 +351,16 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         callback_registered=True,
         selected_present=st.session_state.get("selected_item") is not None,
     )
-    st.sidebar.selectbox(
-        "Select Item",
-        options=sorted(items_index.keys()),
-        format_func=format_option,
-        key="selected_item",
-        on_change=_on_item_selection_changed,
-        args=(browser_identity,),
-        label_visibility="collapsed"
-    )
+    with st.sidebar.container(key="item_select_item"):
+        st.selectbox(
+            "Select Item",
+            options=sorted(items_index.keys()),
+            format_func=format_option,
+            key="selected_item",
+            on_change=_on_item_selection_changed,
+            args=(browser_identity,),
+            label_visibility="collapsed"
+        )
     st.sidebar.markdown('<div class="otg-sidebar-section-gap"></div>', unsafe_allow_html=True)
     _log_item_ui(
         "ITEM_UI_POST_WIDGET",
@@ -374,14 +398,15 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         else:
             st.session_state[wallet_key] = "ALL WALLETS"
     st.sidebar.markdown('<div class="otg-sidebar-label">FILTERS</div>', unsafe_allow_html=True)
-    highlight_wallet = st.sidebar.selectbox(
-        "Highlight Wallet",
-        options=["ALL WALLETS", *wallet_options],
-        format_func=lambda value: "All Wallets" if value == "ALL WALLETS" else _short_wallet_label(value),
-        key=wallet_key,
-        label_visibility="collapsed",
-        accept_new_options=True,
-    )
+    with st.sidebar.container(key="item_wallet_filter"):
+        highlight_wallet = st.selectbox(
+            "Highlight Wallet",
+            options=["ALL WALLETS", *wallet_options],
+            format_func=lambda value: "All Wallets" if value == "ALL WALLETS" else _short_wallet_label(value),
+            key=wallet_key,
+            label_visibility="collapsed",
+            accept_new_options=True,
+        )
 
     if highlight_wallet == "ALL WALLETS":
         effective_wallet = None

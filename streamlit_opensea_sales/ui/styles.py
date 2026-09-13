@@ -533,7 +533,7 @@ def apply_global_styles():
             padding: 12px 0;
             text-align: center;
             margin-top: auto;
-            border-top: 2px solid var(--otg-accent);
+            border-top: 1px solid var(--otg-accent);
         }}
         
         .footer-content {{
