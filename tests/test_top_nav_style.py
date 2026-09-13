@@ -14,17 +14,26 @@ def test_navigation_geometry_is_unchanged():
 def test_top_level_ghost_states_are_neutral_and_stationary():
     assert "background:transparent" in SOURCE
     assert "border:1px solid transparent" in SOURCE
-    assert "color:#9EA3AA" in SOURCE
+    assert "color:#AEB3BA" in SOURCE
     assert "a.otg-top-nav-control:link" in SOURCE and "a.otg-top-nav-control:visited" in SOURCE
-    assert "color:#F5F7FA!important" in SOURCE
-    assert "background:rgba(255,255,255,.045)" in SOURCE
+    assert "color:#FFFFFF!important" in SOURCE
+    assert "background:rgba(255,255,255,.032)" in SOURCE
     assert "transform:none" in SOURCE
     assert "color:#FFFFFF!important" in SOURCE
-    assert "background:rgba(255,255,255,.065)" in SOURCE
+    assert "background:rgba(255,255,255,.025)" in SOURCE
     assert "outline:none" in SOURCE
     assert "text-decoration:none!important" in SOURCE
-    assert "#FF003A" not in SOURCE
+    assert "#FF003A" in SOURCE
     assert "rgba(255,0,58" not in SOURCE
+
+
+def test_red_is_only_the_enabled_control_hairline():
+    assert ".otg-top-nav-control:not(.otg-nav-disabled)::after" in SOURCE
+    assert "width:44%" in SOURCE and "height:1px" in SOURCE
+    assert "bottom:2px" in SOURCE and "opacity:0" in SOURCE
+    assert "scaleX(0)" in SOURCE and "opacity:.88" in SOURCE and "opacity:.72" in SOURCE
+    assert "background:#FF003A" in SOURCE
+    assert ".otg-nav-login{{background:transparent" in SOURCE
 
 
 def test_dropdown_is_neutral_without_accent_bars():
