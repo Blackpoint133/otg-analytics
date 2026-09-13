@@ -4,6 +4,7 @@ import uuid
 import streamlit as st
 
 from feedback_store import insert_feedback, normalize_source_mode, sanitize_source_item
+from feedback_notifications import send_feedback_notification
 
 
 def _context():
@@ -49,6 +50,17 @@ def render_feedback_page() -> None:
             st.caption("Please try again later.")
             return
         if result in ("inserted", "duplicate"):
+            if result == "inserted":
+                try:
+                    send_feedback_notification(
+                        submission_id=submission_id,
+                        feedback_type=labels[feedback_label],
+                        message=clean_message,
+                        source_mode=source,
+                        source_item_key=item,
+                    )
+                except Exception:
+                    pass
             st.session_state.feedback_successes = [*timestamps, now]
             st.session_state.feedback_submission_id = uuid.uuid4()
             st.success("FEEDBACK RECEIVED")
