@@ -20,7 +20,7 @@ def _display_type(value) -> str:
 
 
 def _display_source(value) -> str:
-    return {"item": "ITEM", "market": "MARKET", "top_items": "TOP ITEMS", "trader": "TOP TRADERS", "unknown": "UNKNOWN"}.get(str(value).strip().lower(), "UNKNOWN")
+    return {"item": "ITEM", "market": "MARKET", "top_items": "TOP ITEMS", "trader": "TOP TRADERS", "top_traders": "TOP TRADERS", "roadmap": "ROADMAP", "unknown": "UNKNOWN"}.get(str(value).strip().lower(), "UNKNOWN")
 
 
 def _clean_message(message) -> str:

@@ -13,6 +13,8 @@ def _context():
     if isinstance(raw_source, list):
         raw_source = raw_source[0] if raw_source else "unknown"
     source = str(raw_source or "unknown").strip().lower()
+    if source == "top_traders":
+        source = "trader"
     if source not in {"item", "market", "top_items", "top_traders", "trader", "roadmap"}:
         source = "unknown"
     item = sanitize_source_item(st.query_params.get("item")) if source == "item" else None
@@ -31,13 +33,17 @@ def _back_target(source, item):
     return "/?" + urlencode(params)
 
 
+def _back_label(source):
+    return {"item": "ITEM ANALYTICS", "market": "MARKET", "top_items": "TOP ITEMS", "trader": "TOP TRADERS", "roadmap": "ROADMAP"}.get(source, "ANALYTICS")
+
+
 def render_feedback_page() -> None:
     source, item = _context()
     with st.container(key="feedback_page"):
         st.markdown("""<style>
 .st-key-feedback_page{width:100%;max-width:800px;margin:0;padding:0}.st-key-feedback_page h1{margin:0 0 12px}.st-key-feedback_page .feedback-subtitle{color:#FF003A;font-weight:700;letter-spacing:1px;margin:0 0 14px}.st-key-feedback_page [data-testid="stForm"]{width:100%;box-sizing:border-box;background:#050505;border:1px solid #303035;border-radius:0;padding:20px}.st-key-feedback_page [data-testid="stFormSubmitButton"] button{width:200px;height:38px;background:#FF003A;color:#FFF;border:1px solid #FF003A;border-radius:0;font-weight:700}.st-key-feedback_page [data-testid="stFormSubmitButton"] button:hover{background:#E60033;border-color:#E60033}.st-key-feedback_page .feedback-back{display:inline-flex;align-items:center;height:32px;padding:0 12px;margin:0 0 20px;background:#050505;border:1px solid #303035;color:#FFF;text-decoration:none;font-size:10px;font-weight:700;letter-spacing:.8px}.st-key-feedback_page .feedback-back:hover,.st-key-feedback_page .feedback-back:focus{border-color:#FF003A;color:#FF003A}@media(max-width:768px){.st-key-feedback_page{width:100%;max-width:100%}.st-key-feedback_page [data-testid="stForm"]{padding:14px}.st-key-feedback_page [data-testid="stFormSubmitButton"] button{width:100%}}
 </style>""", unsafe_allow_html=True)
-        st.markdown(f'<a class="feedback-back" href="{_back_target(source, item)}">← BACK TO {"ITEM ANALYTICS" if source == "item" else "MARKET" if source == "market" else "TOP ITEMS" if source == "top_items" else "TOP TRADERS" if source in ("top_items", "top_traders", "trader") else "ROADMAP" if source == "roadmap" else "ANALYTICS"}</a>', unsafe_allow_html=True)
+        st.markdown(f'<a class="feedback-back" href="{_back_target(source, item)}">← BACK TO {_back_label(source)}</a>', unsafe_allow_html=True)
         st.markdown("<h1>FEEDBACK</h1><p class='feedback-subtitle'>HELP IMPROVE OTG ANALYTICS</p><p>Found a bug, incorrect data, or have an idea?<br>Send it here. Context about the page you came from is attached automatically.</p>", unsafe_allow_html=True)
         labels = {"BUG": "bug", "SUGGESTION": "suggestion", "DATA ISSUE": "data_issue", "OTHER": "other"}
         with st.form("feedback_form"):

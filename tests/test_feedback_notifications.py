@@ -32,6 +32,7 @@ def test_notification_text_mappings_and_safe_truncation():
         assert f"TYPE: {label}" in notifications.build_feedback_notification(submission_id=sid, feedback_type=feedback_type, message="valid message", source_mode="unknown")
     for mode, label in (("item", "ITEM"), ("market", "MARKET"), ("top_items", "TOP ITEMS"), ("trader", "TOP TRADERS"), ("bad", "UNKNOWN")):
         assert f"SOURCE: {label}" in notifications.build_feedback_notification(submission_id=sid, feedback_type="bug", message="valid message", source_mode=mode)
+    assert "SOURCE: ROADMAP" in notifications.build_feedback_notification(submission_id=sid, feedback_type="bug", message="valid message", source_mode="roadmap")
     assert len(notifications.build_feedback_notification(submission_id=sid, feedback_type="bug", message="x" * 4000, source_mode="item")) <= 3500
 
 

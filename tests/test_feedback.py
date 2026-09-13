@@ -33,6 +33,8 @@ def test_feedback_page_contract_and_safe_persistence_hooks():
     assert "SOURCE PAGE" in source
     assert "ITEM ANALYTICS" in source
     assert "This context is attached automatically to help reproduce your report." in source
+    assert "top_traders" in source and 'source = "trader"' in source
+    assert "def _back_label(source):" in source
     assert "feedback-back" in source
     assert "max-width:800px" in source
 
