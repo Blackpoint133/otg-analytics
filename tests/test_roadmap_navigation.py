@@ -40,8 +40,8 @@ def test_top_navigation_has_exact_disabled_controls_and_dropdown_contract():
     source = MODE_SWITCH.read_text(encoding="utf-8")
     assert "st.sidebar.markdown" not in source
     assert "<details class=\"otg-nav-analytics\">" in source
-    assert "<summary class=\"otg-top-nav-control\">ANALYTICS" in source
-    assert 'title="Coming soon">FEEDBACK' in source
+    assert "<summary class=\"otg-top-nav-control {'active' if analytics_active else ''}\">ANALYTICS" in source
+    assert 'href="{feedback_href}">FEEDBACK' in source
     assert 'title="Coming soon">LOG IN' in source
     assert "otg-nav-disabled" in source
     assert ".otg-nav-analytics:hover .otg-nav-dropdown" in source

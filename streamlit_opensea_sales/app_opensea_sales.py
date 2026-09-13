@@ -74,6 +74,7 @@ from ui.market_overview import render_market_overview
 from ui.top_items_overview import render_top_items_overview
 from ui.item_overview import render_item_overview
 from ui.trader_overview import render_trader_overview
+from ui.feedback import render_feedback_page
 from ui.sidebar import render_trader_sidebar_controls
 from site_analytics import record_current_session_once
 from visitor_identity import get_browser_identity
@@ -123,6 +124,10 @@ def main():
     # technical implementation note technical implementation note: ITEM vs MARKET vs TOP ITEMS ANALYTICS
     # ════════════════════════════════════════════════════════════════
     current_mode = mode_switch.render_mode_switch()
+    if current_mode == "feedback":
+        render_feedback_page()
+        render_sidebar_footer()
+        return
     browser_identity = get_browser_identity()
     record_current_session_once(
         mode=current_mode,
