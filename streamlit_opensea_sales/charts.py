@@ -23,6 +23,24 @@ OTHER_GUN_OUTLINE_COLOR = '#3F3F46'
 OTHER_WGUN_OUTLINE_COLOR = '#55555D'
 SELF_TRADE_OUTLINE_COLOR = '#453D59'
 
+def _compute_trade_x_range(filtered_df):
+    trades = filtered_df[filtered_df.get('type', pd.Series(index=filtered_df.index)).isin(['GUN', 'WGUN'])]
+    dates = pd.to_datetime(trades.get('sale_date', pd.Series(dtype='datetime64[ns]')), errors='coerce').dropna()
+    if dates.empty:
+        return None
+    start, end = dates.min(), dates.max()
+    span = end - start
+    padding = pd.Timedelta(days=1) if span == pd.Timedelta(0) else span * 0.05
+    return [start - padding, end + padding]
+
+def _extrapolate_trend_to_range(start_date, end_date, start_value, end_value, x_range):
+    dates = pd.to_datetime([start_date, end_date], errors='coerce')
+    values = pd.to_numeric(pd.Series([start_value, end_value]), errors='coerce')
+    if dates.isna().any() or values.isna().any() or dates[0] == dates[1]:
+        return None
+    slope = (float(values.iloc[1]) - float(values.iloc[0])) / (dates[1] - dates[0]).total_seconds()
+    return [float(values.iloc[0]) + slope * (x - dates[0]).total_seconds() for x in x_range]
+
 
 def classify_wallet_role(row: pd.Series, highlight_wallet: str = None) -> str:
     if not highlight_wallet:
@@ -97,6 +115,7 @@ def build_sales_chart(
     sales_df = filtered_df[filtered_df['type'] == 'GUN']
     offers_df = filtered_df[filtered_df['type'] == 'WGUN']
     combined_df = filtered_df.copy()
+    trade_x_range = _compute_trade_x_range(filtered_df)
     
     fig = go.Figure()
 
@@ -293,10 +312,8 @@ def build_sales_chart(
             )
 
             if trend_dates.notna().all() and trend_values.notna().all():
-                trend_plot_df = pd.DataFrame({
-                    'trend_date': trend_dates,
-                    'trend_value': trend_values,
-                }).sort_values('trend_date')
+                extrapolated = _extrapolate_trend_to_range(trend_dates[0], trend_dates[1], trend_values.iloc[0], trend_values.iloc[1], trade_x_range) if trade_x_range else None
+                trend_plot_df = pd.DataFrame({'trend_date': trade_x_range, 'trend_value': extrapolated}) if extrapolated else pd.DataFrame()
             else:
                 trend_plot_df = pd.DataFrame()
         else:
@@ -400,6 +417,8 @@ def build_sales_chart(
         zeroline=False,
         showline=True
     )
+    if trade_x_range:
+        xaxis_config['range'] = trade_x_range
     
     if mobile_layout:
         xaxis_config["domain"] = [0.0, 1.0]

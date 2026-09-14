@@ -324,8 +324,8 @@ class ItemUsdReconciliationTests(unittest.TestCase):
 
         self.assertEqual(gun_fig.data[-1].name, "Trend Line")
         self.assertEqual(usd_fig.data[-1].name, "Trend Line")
-        self.assertEqual(list(gun_fig.data[-1].y), [100.0, 102.0])
-        self.assertEqual(list(usd_fig.data[-1].y), [3.0, 3.3])
+        self.assertEqual(list(gun_fig.data[-1].y), [99.9, 102.1])
+        self.assertEqual(list(usd_fig.data[-1].y), [2.985, 3.315])
 
     def test_logging_contains_no_sensitive_row_values(self):
         original = make_original(rows=3)
