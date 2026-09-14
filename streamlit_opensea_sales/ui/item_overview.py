@@ -22,6 +22,7 @@ from gunzscope_supply import get_item_supply_with_rank
 from item_paths import resolve_item_path
 from ui.gunzscope_attribution import inline_logo
 from ui.trader_overview import build_trader_card_contexts
+from trader_analytics import normalize_wallet
 from ui.item_chart_trade_overlay import build_item_chart_trade_overlay_html, render_item_chart_trade_overlay_wiring
 
 
@@ -676,8 +677,15 @@ def _render_item_chart(
 ):
     wallets = {str(v).strip() for col in ('seller', 'buyer') if col in filtered_df.columns for v in filtered_df[col].dropna() if str(v).strip()}
     contexts = build_trader_card_contexts(wallets, show_usd)
-    labels = {k: v.get('Profile', '') for k, v in contexts.items()}
-    keys = {str(v).strip(): k for k, v in contexts.items()}
+    labels = {}
+    keys = {}
+    for raw in wallets:
+        canonical = normalize_wallet(raw)
+        context = contexts.get(canonical) if canonical else None
+        if context:
+            raw_key = str(raw).strip()
+            labels[raw_key] = context.get('Profile', '')
+            keys[raw_key] = canonical
     st.markdown(build_item_chart_trade_overlay_html(contexts), unsafe_allow_html=True)
     fig = build_sales_chart(
         filtered_df,

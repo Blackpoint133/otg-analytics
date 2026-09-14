@@ -213,10 +213,13 @@ def build_sales_chart(
 
             buyer = str(row.get('buyer') or '').strip()
             seller = str(row.get('seller') or '').strip()
-            buyer_label = (participant_labels or {}).get(buyer, '')
-            seller_label = (participant_labels or {}).get(seller, '')
-            buyer_key = (participant_wallet_keys or {}).get(buyer, buyer.lower())
-            seller_key = (participant_wallet_keys or {}).get(seller, seller.lower())
+            def participant_value(mapping, value, default=''):
+                mapping = mapping or {}
+                return mapping.get(value, mapping.get(value.lower(), default))
+            buyer_label = participant_value(participant_labels, buyer)
+            seller_label = participant_value(participant_labels, seller)
+            buyer_key = participant_value(participant_wallet_keys, buyer, buyer.lower())
+            seller_key = participant_value(participant_wallet_keys, seller, seller.lower())
             customdata_list.append(["<br>".join(hover_lines), buyer_label, seller_label, buyer_key, seller_key])
 
         return customdata_list

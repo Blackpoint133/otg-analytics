@@ -288,3 +288,15 @@ def test_lower_trader_rows_have_viewport_safe_upward_fallback():
     assert ".trader-image-profile-trigger:hover .trader-profile-card" in source
     assert ".trader-image-profile-trigger:focus-within .trader-profile-card" in source
     assert ".trader-image-profile-trigger::after{{content:\"\";position:absolute;left:48px;top:0;width:16px;height:100%}}" in source
+def test_report_081_shared_wallet_copy_span_and_font_contract():
+    source = overview._build_trader_profile_card_html
+    wallet = '0x' + 'a' * 40
+    html = source({'_wallet': wallet, '_profile': {'username': 'alice'}, 'Profile': 'Alice', '_ranks': {}} , overview.metric_icon_data_uris())
+    assert '<span class="trader-wallet-copy"' in html
+    assert 'role="button"' in html
+    assert 'tabindex="0"' in html
+    assert 'aria-label="Copy wallet address"' in html
+    assert '<button class="trader-wallet-copy"' not in html
+    css = overview.trader_profile_card_styles()
+    assert '.trader-wallet-copy-label{font-size:11px' in css
+    assert 'font-size:10px' in css
