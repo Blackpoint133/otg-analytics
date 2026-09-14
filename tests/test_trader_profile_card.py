@@ -27,8 +27,9 @@ def test_shared_card_suppresses_mixed_case_wallet_like_username():
 
 
 def test_shared_card_preserves_human_username():
-    rendered = _direct_card({"username": "alice"}, "0x" + "b" * 40)
-    assert "<strong>alice" in rendered
+    rendered = overview._build_trader_profile_card_html({"Profile": "NoName1234", "_profile": {"username": "alice"}, "_wallet": "0x" + "b" * 40, "_ranks": {}}, {})
+    assert "<strong>NoName1234" in rendered
+    assert "@alice" in rendered
 
 
 def test_primary_wallet_identity_is_sanitized_in_shared_card():

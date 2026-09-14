@@ -8,7 +8,18 @@ SPEC = importlib.util.spec_from_file_location("profile_refresh", ROOT / "scripts
 refresh = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(refresh)
 
-from opensea_account_profiles import allocate_fallback_names, avatar_style_attribute, fallback_avatar_filename, fallback_name, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
+from opensea_account_profiles import allocate_fallback_names, avatar_style_attribute, fallback_avatar_filename, fallback_name, is_canonical_wallet_label, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
+
+
+def test_canonical_wallet_label_is_a_strict_predicate():
+    assert not is_canonical_wallet_label(None)
+    assert not is_canonical_wallet_label("")
+    assert not is_canonical_wallet_label("NoName1234")
+    assert not is_canonical_wallet_label("alice")
+    assert not is_canonical_wallet_label("Trader0xABC")
+    assert is_canonical_wallet_label("0x" + "a" * 40)
+    assert is_canonical_wallet_label("0xABCDEF" + "a" * 34)
+    assert not is_canonical_wallet_label("0x" + "a" * 39)
 
 
 def test_snapshot_rewrite_is_visible_without_cache_clear(tmp_path):

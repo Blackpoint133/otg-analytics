@@ -22,6 +22,11 @@ FALLBACK_AVATAR_COUNT = 94
 _CANONICAL_WALLET_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 
+def is_canonical_wallet_label(value: Any) -> bool:
+    candidate = str(value or "").strip()
+    return bool(candidate and _CANONICAL_WALLET_RE.fullmatch(candidate))
+
+
 def fallback_name(wallet: str) -> str:
     canonical = normalize_wallet(wallet) or str(wallet).strip().lower()
     return f"NoName{zlib.crc32(canonical.encode('utf-8')) % 10000:04d}"
@@ -66,7 +71,7 @@ def effective_fallback_names(wallets: list[str], existing: dict[str, Any] | None
 
 def _human_profile_label(value: Any) -> str:
     candidate = str(value or "").strip()
-    return candidate if candidate and not _CANONICAL_WALLET_RE.fullmatch(candidate) else ""
+    return candidate if candidate and not is_canonical_wallet_label(candidate) else ""
 
 
 def user_facing_username(profile: dict[str, Any] | None) -> str:

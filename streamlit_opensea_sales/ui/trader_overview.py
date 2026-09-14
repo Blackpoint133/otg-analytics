@@ -14,7 +14,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from trader_analytics import load_current_snapshot, normalize_wallet
-from opensea_account_profiles import avatar_style_attribute, effective_fallback_names, get_profile, load_profile_snapshot, profile_name, user_facing_username
+from opensea_account_profiles import avatar_style_attribute, effective_fallback_names, get_profile, is_canonical_wallet_label, load_profile_snapshot, profile_name, user_facing_username
 
 PANDL_MIN_MATCHED_SALES = 3
 PANDL_MIN_COVERAGE_PCT = 50.0
@@ -153,7 +153,7 @@ def _build_trader_profile_card_html(row: dict[str, Any], metric_icons: dict[str,
     profile = row.get("_profile") or {}
     wallet = str(row.get("_wallet") or "")
     candidate = str(row.get("Profile") or row.get("_profile_name") or "").strip()
-    display_name = profile_name(wallet, profile, getattr(render_trader_table, "fallback_names", {})) if normalize_wallet(candidate) else (candidate or profile_name(wallet, profile, getattr(render_trader_table, "fallback_names", {})))
+    display_name = profile_name(wallet, profile, getattr(render_trader_table, "fallback_names", {})) if not candidate or is_canonical_wallet_label(candidate) else candidate
     display = html.escape(display_name)
     wallet_html = html.escape(wallet, quote=True)
     username = user_facing_username(profile)
@@ -270,7 +270,7 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
         row = dict(row)
         wallet = row.get("_wallet") or row.get("wallet", "")
         candidate = str(row.get("Profile") or row.get("_profile_name") or "").strip()
-        row["Profile"] = profile_name(wallet, row.get("_profile") or {}, getattr(render_trader_table, "fallback_names", {})) if normalize_wallet(candidate) else candidate
+        row["Profile"] = profile_name(wallet, row.get("_profile") or {}, getattr(render_trader_table, "fallback_names", {})) if not candidate or is_canonical_wallet_label(candidate) else candidate
         cells = []
         for column in columns:
             value = html.escape(str(row.get(column, "")))
