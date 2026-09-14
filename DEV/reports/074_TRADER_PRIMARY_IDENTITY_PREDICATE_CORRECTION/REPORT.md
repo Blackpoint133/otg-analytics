@@ -1,0 +1,70 @@
+# Report 074 — Trader Primary Identity Predicate Correction
+
+REPORT_SEQUENCE=074
+RESULT=PASS
+HEAD_BEFORE=ed0b2e51c674b60be27d692f42197c89ff1e4585
+MAIN_HEAD_BEFORE=dacee4c675419dea127ceb5e8a70e1a7ffc36a0
+SOURCE_AUDIT=PASS
+
+NORMALIZE_WALLET_IS_PREDICATE=NO
+NORMALIZE_WALLET_NON_WALLET_TEXT_TRUTHY=YES
+REPORT_073_STATUS=SUPERSEDED_FOR_PRIMARY_IDENTITY_PREDICATE
+REPORT_073_SECONDARY_USERNAME_FIX_STILL_VALID=YES
+REPORT_073_PRIMARY_IDENTITY_PREDICATE_CORRECTED_BY_074=YES
+CANONICAL_WALLET_PREDICATE_ADDED=YES
+
+EXISTING_NONAME_PRIMARY_PRESERVED=YES
+HUMAN_PRIMARY_PRESERVED=YES
+HUMAN_SECONDARY_USERNAME_PRESERVED=YES
+RAW_WALLET_PRIMARY_DISPLAY_LEAKS_AFTER=0
+WALLET_LIKE_SECONDARY_USERNAME_LEAKS_AFTER=0
+CURRENT_NON_HUMAN_TRADERS_WITHOUT_NONAME=0
+CURRENT_DUPLICATE_NONAME_ALIASES=0
+CURRENT_EXISTING_NONAME_CHANGED_BY_RENDERER=0
+CURRENT_HUMAN_PRIMARY_CHANGED_BY_RENDERER=0
+
+MISSING_AVATAR_FACTORY_FALLBACK=PASS
+EMPTY_AVATAR_FACTORY_FALLBACK=PASS
+INVALID_AVATAR_FACTORY_FALLBACK=PASS
+VALID_REMOTE_AVATAR_PRESERVED=PASS
+AVATAR_IMPLEMENTATION_CHANGED=NO
+
+REPORT_072_GUIDE_FIX_PRESERVED=YES
+REPORT_072_PD_NA_FIX_PRESERVED=YES
+REPORT_072_SILENCE_HAT_FIX_PRESERVED=YES
+
+TARGETED_TESTS=104 passed
+FULL_TESTS=582 passed, 4 unchanged unrelated pre-existing failures, 5 subtests passed
+FULL_TEST_FAILURE_SET_UNCHANGED=YES
+COMPILE=PASS
+PIP_CHECK=PASS
+DIFF_CHECK=PASS
+
+IMPLEMENTATION_FILES=streamlit_opensea_sales/opensea_account_profiles.py;streamlit_opensea_sales/ui/trader_overview.py;tests/test_opensea_account_profiles.py;tests/test_trader_profile_card.py
+IMPLEMENTATION_COMMIT_SHA=551b2aff2399d4298b75c4c75dcb457104c9847b
+
+STAGING_RESTART_RESULT=PASS
+STAGING_PID=175112
+STAGING_HEAD=551b2aff2399d4298b75c4c75dcb457104c9847b
+STAGING_PORT=8504
+STAGING_SUPPLY_SOURCE=v3
+
+APPLICATION_VISUAL_VALIDATION=HUMAN_VALIDATION_REQUIRED
+PRODUCTION_DATABASE_CHANGED=NO
+PRODUCTION_APPLICATION_CHANGED=NO
+PRODUCTION_ENVIRONMENT_CHANGED=NO
+PRODUCTION_DATA_CHANGED=NO
+PRODUCTION_RESTARTED=NO
+MAIN_CHANGED=NO
+
+The defect was caused by using the truthiness of normalize_wallet() as a
+wallet predicate. Because that function preserves arbitrary non-empty text,
+ordinary aliases were incorrectly routed through profile_name(). The new
+single shared canonical-wallet predicate detects only complete EVM addresses;
+blank or canonical-wallet candidates resolve through the existing effective
+fallback map, while ordinary approved primary labels remain unchanged.
+
+The shared card continues to use user_facing_username() for secondary labels.
+The explicit wallet field, copy target, and OpenSea URL remain based on the
+actual wallet. Avatar behavior was audited across table, shared-card, mobile,
+and selected paths and remains centralized through avatar_style_attribute().
