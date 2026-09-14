@@ -15,6 +15,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from analytics_config import analytics_writes_enabled, strict_env_bool
+from site_analytics import RECORDED_KEY, SESSION_ID_KEY
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ENV_PATH = PROJECT_ROOT / ".env"
@@ -66,6 +67,37 @@ def _normalize(value: Any) -> str | None:
     return str(value).strip().lower()
 
 
+def _safe_product_sequence() -> int:
+    """Read a non-negative sequence without trusting malformed session state."""
+    try:
+        value = st.session_state.get(PRODUCT_SEQUENCE_KEY, 0)
+        parsed = int(value)
+        return parsed if parsed >= 0 else 0
+    except Exception:
+        return 0
+
+
+def _safe_control_states() -> dict[str, tuple[str, str | None]]:
+    """Copy only structurally valid categorical control states."""
+    try:
+        raw = st.session_state.get(PRODUCT_CONTROL_STATES_KEY, {})
+        if not isinstance(raw, dict):
+            return {}
+        result: dict[str, tuple[str, str | None]] = {}
+        for key, value in raw.items():
+            if not isinstance(key, str) or not isinstance(value, (tuple, list)) or len(value) != 2:
+                continue
+            event_type, value_key = value
+            if not isinstance(event_type, str) or event_type not in VALID_EVENT_TYPES:
+                continue
+            if value_key is not None and not isinstance(value_key, str):
+                continue
+            result[key] = (event_type, value_key)
+        return result
+    except (AttributeError, TypeError, ValueError):
+        return {}
+
+
 def _shape(surface: Any, event_type: Any, control_key: Any, value_key: Any) -> tuple[str, str, str | None, str | None] | None:
     s, e, c, v = _normalize(surface), _normalize(event_type), _normalize(control_key), _normalize(value_key)
     if s not in VALID_SURFACES:
@@ -95,9 +127,9 @@ def _connect():
 
 
 def _parent_session_id() -> str | None:
-    if st.session_state.get("site_analytics_recorded") is not True:
+    if st.session_state.get(RECORDED_KEY) is not True:
         return None
-    value = st.session_state.get("site_analytics_session_id")
+    value = st.session_state.get(SESSION_ID_KEY)
     try:
         return str(uuid.UUID(str(value))) if value else None
     except (ValueError, TypeError, AttributeError):
@@ -109,7 +141,7 @@ def _advance(sequence: int, surface: str, event_type: str, control_key: str | No
     if event_type == "surface_open":
         st.session_state[PRODUCT_LAST_SURFACE_KEY] = surface
     else:
-        states = dict(st.session_state.get(PRODUCT_CONTROL_STATES_KEY, {}))
+        states = _safe_control_states()
         states[f"{surface}:{control_key}"] = (event_type, value_key)
         st.session_state[PRODUCT_CONTROL_STATES_KEY] = states
 
@@ -129,15 +161,15 @@ def record_product_event(surface: str, event_type: str, *, control_key: str | No
         return False
     if e == "surface_open" and st.session_state.get(PRODUCT_LAST_SURFACE_KEY) == s:
         return False
-    if e != "surface_open" and dict(st.session_state.get(PRODUCT_CONTROL_STATES_KEY, {})).get(f"{s}:{c}") == (e, v):
+    if e != "surface_open" and _safe_control_states().get(f"{s}:{c}") == (e, v):
         return False
-    sequence = int(st.session_state.get(PRODUCT_SEQUENCE_KEY, 0)) + 1
+    sequence = _safe_product_sequence() + 1
     conn = cur = None
     try:
         conn = _connect()
         cur = conn.cursor()
         cur.execute(_SQL, {"occurred_at_utc": occurred_at_utc or datetime.now(timezone.utc), "parent_session_id": parent, "surface": s, "event_type": e, "control_key": c, "value_key": v, "sequence_no": sequence})
-        cur.fetchone()
+        cur.fetchone()  # None is the expected duplicate outcome.
         conn.commit()
         _advance(sequence, s, e, c, v)
         return True
