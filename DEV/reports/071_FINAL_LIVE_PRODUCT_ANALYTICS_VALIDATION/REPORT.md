@@ -1,0 +1,59 @@
+REPORT_SEQUENCE=071
+RESULT=FAIL_NO_PARENT_SESSION
+
+HEAD_BEFORE=ac971c2de7fba94fe0bc42b48604c6603c6eaecf
+MAIN_HEAD_BEFORE=dacee4c675419dea127ceb5e8a70e1a7ffc36a0
+SOURCE_AUDIT=PASS
+
+SESSION_ANALYTICS_PARENT_CHAIN_RESTORED_UTC=2026-09-14T08:53:09.7652561Z
+STAGING_DB_TARGET_VERIFICATION=DISTINCT_FROM_PRODUCTION
+
+LIVE_HUMAN_SESSION_ROWS=0
+LIVE_SESSION_MODE_ITEM=0
+LIVE_SESSION_MODE_MARKET=0
+LIVE_SESSION_MODE_TOP_ITEMS=0
+LIVE_SESSION_MODE_TRADER=0
+
+LIVE_PRODUCT_EVENT_ROWS=0
+LIVE_PRODUCT_EVENT_GROUPS=NONE
+
+LIVE_PRODUCT_EVENTS_WITH_VALID_PARENT=0
+LIVE_PRODUCT_EVENTS_WITHOUT_PARENT=0
+
+PRODUCT_AGGREGATE_ALL_ROWS=0
+PRODUCT_AGGREGATE_ALL_EVENTS=0
+PRODUCT_AGGREGATE_24H_ROWS=0
+PRODUCT_AGGREGATE_24H_EVENTS=0
+
+LIVE_PRODUCT_EVENT_PRIVACY_CONTRACT=PASS
+LIVE_ITEM_EVENT_ROWS=0
+ITEM_SELECT_DUPLICATED_IN_PRODUCT_EVENTS=NO
+PRODUCT_USAGE_DASHBOARD_DATA_READY=NO
+LIVE_PRODUCT_ANALYTICS_RESULT=FAIL_NO_PARENT_SESSION
+
+APPLICATION_FILES_CHANGED=NO
+TEST_FILES_CHANGED=NO
+SQL_FILES_CHANGED=NO
+ENV_CHANGED=NO
+DATABASE_WRITES_PERFORMED=NO
+STAGING_RESTARTED=NO
+
+PRODUCTION_DATABASE_CHANGED=NO
+PRODUCTION_APPLICATION_CHANGED=NO
+PRODUCTION_ENVIRONMENT_CHANGED=NO
+PRODUCTION_RESTARTED=NO
+MAIN_CHANGED=NO
+VISUAL_VALIDATION=HUMAN_VALIDATION_REQUIRED
+
+The remote baseline and main branch matched the required SHAs. The current
+staging listener was verified on port 8504 with the staging application
+command line. Read-only database checks confirmed a distinct staging target,
+the product-event table, and the parent-session relationship. No connection
+details or identity values were exposed.
+
+After the parent-chain restoration boundary, no human site_visit_sessions rows
+were present, so no product-event parent could be established. Consequently
+there were no product-event groups, no orphan rows, and no event data for the
+ALL or 24H aggregate loader to expose. The aggregate layer returned the
+expected empty result consistently with the database. No files, environment
+values, database rows, processes, or production systems were changed.
