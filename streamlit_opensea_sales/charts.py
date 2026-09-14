@@ -256,9 +256,8 @@ def build_sales_chart(
             mode='markers',
             name='GUN',
             marker=dict(size=12, color=wallet_point_colors(sales_df, 'GUN', highlight_wallet), opacity=0.9, line=dict(color=wallet_point_outline_colors(sales_df, 'GUN', highlight_wallet), width=1.5)),
-            hovertemplate=hover_template_sales,
+            hoverinfo='none',
             customdata=customdata_sales,
-            hoverlabel=dict(bgcolor='#080808', bordercolor='#5A5A62', font=dict(color='#FFFFFF')),
             showlegend=False
             , meta=dict(otg_point_kind='trade')
         ))
@@ -271,9 +270,8 @@ def build_sales_chart(
             mode='markers',
             name='WGUN',
             marker=dict(size=12, color=wallet_point_colors(offers_df, 'WGUN', highlight_wallet), opacity=0.85, line=dict(color=wallet_point_outline_colors(offers_df, 'WGUN', highlight_wallet), width=1.5)),
-            hovertemplate=hover_template_offers,
+            hoverinfo='none',
             customdata=customdata_offers,
-            hoverlabel=dict(bgcolor='#080808', bordercolor='#5A5A62', font=dict(color='#FFFFFF')),
             showlegend=False
             , meta=dict(otg_point_kind='trade')
         ))
