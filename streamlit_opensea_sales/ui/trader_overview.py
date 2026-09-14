@@ -170,7 +170,7 @@ def _build_trader_profile_card_html(row: dict[str, Any], metric_icons: dict[str,
         rank_lines.append(f'<div>{icon_html}<span>{label}</span><b>{html.escape("#" + str(rank) if rank else "—")}</b><em>{html.escape(entry.get("value", "N/A"))}</em></div>')
     ens = str(profile.get("ens_name") or "").strip()
     ens_html = f'<div class="trader-profile-muted">ENS: {html.escape(ens)}</div>' if ens else ""
-    copy_html = f'<button class="trader-wallet-copy" type="button" data-wallet="{wallet_html}"><span class="trader-wallet-short">{html.escape(wallet)}</span><span class="trader-wallet-copy-label">COPY</span></button>'
+    copy_html = f'<span class="trader-wallet-copy" role="button" tabindex="0" data-wallet="{wallet_html}" aria-label="Copy wallet address"><span class="trader-wallet-short">{html.escape(wallet)}</span><span class="trader-wallet-copy-label">COPY</span></span>'
     return f'<div class="trader-profile-card"><div class="trader-profile-card-grid"><div class="trader-profile-avatar"><span class="trader-avatar trader-avatar-large"{avatar_style}></span></div><div class="trader-profile-content"><div class="trader-profile-identity"><div><strong>{display}{verified}</strong>{secondary}<a class="trader-opensea-link" href="https://opensea.io/{wallet_html}" target="_blank" rel="noopener noreferrer">OpenSea profile ↗</a></div></div><div class="trader-profile-label">WALLET ADDRESS</div><div class="trader-wallet-row">{copy_html}</div>{ens_html}<div class="trader-profile-stats-title">TRADING STATS</div><div class="trader-profile-ranks">{"".join(rank_lines)}</div></div></div></div>'
 
 
@@ -285,6 +285,11 @@ def _render_trader_clipboard_wiring() -> None:
           if (!ok) { label.textContent = 'COPY FAILED'; window.setTimeout(restore, 1200); return; }
           label.textContent = 'COPIED'; window.setTimeout(restore, 1200);
         }).catch(function () { label.textContent = 'COPY FAILED'; window.setTimeout(restore, 1200); });
+      });
+      button.addEventListener('keydown', function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        button.click();
       });
     });
     return true;
