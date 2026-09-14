@@ -97,7 +97,10 @@ def _render_product_usage(product_data: pd.DataFrame | None) -> None:
             st.info("No feature interactions in this period.")
         else:
             grouped = interactions.copy()
-            grouped["label"] = grouped["surface"].map(surface_labels).fillna(grouped["surface"]) + "  " + grouped["control_key"].map(control_labels).fillna(grouped["control_key"])
+            grouped["label"] = [
+                f"{surface_labels.get(surface, surface)}  {control_labels.get(control, control)}"
+                for surface, control in zip(grouped["surface"], grouped["control_key"])
+            ]
             grouped = grouped.groupby("label", as_index=False)["events"].sum().sort_values(["events", "label"], ascending=[True, True]).tail(15)
             fig = go.Figure(go.Bar(x=grouped["events"], y=grouped["label"], orientation="h", marker_color="#62d9ff", text=grouped["events"], textposition="auto"))
             st.plotly_chart(_chart_layout(fig, showlegend=False), use_container_width=True)
@@ -109,7 +112,10 @@ def _render_product_usage(product_data: pd.DataFrame | None) -> None:
     detail["Surface"] = detail["surface"].map(surface_labels).fillna(detail["surface"])
     detail["Interaction"] = detail["event_type"].map(event_labels).fillna(detail["event_type"])
     detail["Feature"] = detail["control_key"].map(control_labels).fillna(detail["control_key"])
-    detail["Value"] = detail["value_key"].map(value_labels).fillna(detail["value_key"]).fillna("")
+    detail["Value"] = detail["value_key"].map(value_labels)
+    unknown_value = detail["Value"].isna() & detail["value_key"].notna()
+    detail.loc[unknown_value, "Value"] = detail.loc[unknown_value, "value_key"]
+    detail["Value"] = detail["Value"].fillna("")
     detail["Latest Event"] = detail["latest_event"].map(_fmt_time)
     st.dataframe(detail.rename(columns={"events": "Events", "unique_sessions": "Unique Sessions", "unique_v2_visitors": "Unique Visitors"})[["Surface", "Interaction", "Feature", "Value", "Events", "Unique Sessions", "Unique Visitors", "Latest Event"]], hide_index=True, use_container_width=True)
 

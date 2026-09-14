@@ -43,3 +43,27 @@ def test_product_usage_dashboard_is_separate_and_isolated():
     assert '"Unique Sessions"' in DASHBOARD and '"Unique Visitors"' in DASHBOARD
     render_source = DASHBOARD[DASHBOARD.index("def _render_dashboard"):]
     assert render_source.index('st.subheader("Post Performance")') < render_source.index("_render_product_usage(product_data)") < render_source.index('st.subheader("Item Interest")')
+
+
+def test_product_usage_feature_labels_use_exact_two_space_separator():
+    assert 'f"{surface_labels.get(surface, surface)}  {control_labels.get(control, control)}"' in DASHBOARD
+    assert ' + "  " +' not in DASHBOARD
+
+
+def test_product_usage_null_value_is_rendered_as_empty_string():
+    assert 'detail["Value"] = detail["Value"].fillna("")' in DASHBOARD
+    assert 'fillna(detail["value_key"])' not in DASHBOARD
+
+
+def test_product_usage_value_mappings_and_presentation_contract_remain_frozen():
+    for token in (
+        '"on": "ON"', '"off": "OFF"', '"market_strength": "MARKET STRENGTH"',
+        '"volume": "VOLUME"', '"liquidity": "LIQUIDITY"', '"total_supply": "TOTAL SUPPLY"',
+        '"earned": "EARNED"', '"invested": "INVESTED"', '"sold": "SOLD"', '"trades": "TRADES"',
+        '"all": "ALL"', '"12m": "12M"', '"6m": "6M"', '"3m": "3M"',
+        '"30d": "30D"', '"7d": "7D"', '"1d": "1D"', '"chart": "CHART"', '"table": "TABLE"',
+    ):
+        assert token in DASHBOARD
+    assert 'marker_color="#ff003a"' in DASHBOARD
+    assert 'marker_color="#62d9ff"' in DASHBOARD
+    assert '["Surface", "Interaction", "Feature", "Value", "Events", "Unique Sessions", "Unique Visitors", "Latest Event"]' in DASHBOARD
