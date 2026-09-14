@@ -83,7 +83,7 @@ def test_guides_describe_current_responsive_interactions():
     item = (ROOT / "streamlit_opensea_sales" / "ui" / "item_overview.py").read_text(encoding="utf-8")
     top_items = (ROOT / "streamlit_opensea_sales" / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
     trader = TRADER
-    assert "TREND LINE</b> adds the prepared price trend to the CHART" in item
+    assert "TREND LINE</b> Shows the prepared price trend across the full visible completed-trade history of the selected item." in item
     assert "MOBILE VIEW</b> On mobile, ITEM ANALYTICS displays the Item Card and CHART only" in item
     assert "ITEM PROFILE</b> On desktop, hover over an item's IMAGE" in top_items
     assert "standalone Item Profile Cards" in top_items
@@ -93,6 +93,17 @@ def test_guides_describe_current_responsive_interactions():
     assert "DESKTOP TABLE</b> COVERAGE" in trader
     assert "MATCHED SALES" in trader
     assert "Hover over a trader to open" not in trader
+
+def test_item_guide_describes_current_chart_table_and_shared_trader_card():
+    item = (ROOT / "streamlit_opensea_sales" / "ui" / "item_overview.py").read_text(encoding="utf-8")
+    assert "full visible completed-trade history" in item
+    assert "Hover over a point to inspect" in item
+    assert "Buyer and Seller" in item
+    assert "Click a point to pin the same trade tooltip" in item
+    assert "click the Buyer or Seller name" in item
+    assert "open that trader's Profile Card next to the trade details" in item
+    assert "Seller and Buyer are shown as trader profile names or stable NoName fallbacks" in item
+    assert "click either name to open the same Trader Profile Card" in item
 
 
 def test_market_guide_is_untouched_by_guide_content_audit():

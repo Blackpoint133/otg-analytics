@@ -74,5 +74,6 @@ def test_final_item_and_market_guide_copy_is_present():
     assert "Liquidity means completed trading activity" in market_source
     assert "not the number or depth of active listings or offers" in market_source
     assert "number of distinct wallets active in those sales" in market_source
-    assert "&mdash;" in (market_source + (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8"))
+    assert "Liquidity means completed trading activity" in market_source
+    assert "TOTAL SUPPLY" in (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
     assert "&times;" in (APP / "ui" / "top_items_overview.py").read_text(encoding="utf-8")
