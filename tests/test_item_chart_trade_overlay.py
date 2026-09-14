@@ -8,7 +8,8 @@ def test_overlay_uses_component_and_lifecycle_contract():
     assert 'components.html' in SOURCE
     assert 'st.components.v1.html' not in SOURCE
     for value in ('__otgItemChartTradeState', 'item-sales-chart', 'otg_point_kind',
-                  'nativePlotClickHandler', 'plotlyClickHandler', 'removeEventListener',
+                  'nativePlotClickHandler', 'capturePointer', 'pointermove', 'pointerdown',
+                  'clientX', 'clientY', 'resolvePointAnchor', 'plotlyClickHandler', 'removeEventListener',
                   "removeListener('plotly_click'", 'closePinnedTooltip', 'closeTraderCard',
                   'closeAll', 'getBoundingClientRect', 'offsetWidth', 'offsetHeight',
                   '320px', 'calc(100vw - 24px)', "setAttribute('role','button')", 'tabIndex=0',
@@ -16,6 +17,12 @@ def test_overlay_uses_component_and_lifecycle_contract():
         assert value in SOURCE
     assert 'removeAllListeners' not in SOURCE
     assert 'if(!tip)return' not in SOURCE
+    assert "addEventListener('pointermove',nativePlotClickHandler)" in SOURCE
+    assert "addEventListener('pointerdown',nativePlotClickHandler)" in SOURCE
+    assert "removeEventListener('pointermove',nativePlotClickHandler)" in SOURCE
+    assert "removeEventListener('pointerdown',nativePlotClickHandler)" in SOURCE
+    assert 'lastPointer?lastPointer.x:16' not in SOURCE
+    assert 'lastPointer?lastPointer.y:16' not in SOURCE
 
 def test_overlay_positioning_and_bounded_polling_are_present():
     assert 'viewportWidth' in SOURCE or 'w.innerWidth' in SOURCE
@@ -44,3 +51,10 @@ def test_unified_tooltip_and_profile_anchor_contract():
     assert 's.getBoundingClientRect()' not in SOURCE
     assert 'removeListener' in SOURCE
     assert 'removeAllListeners' not in SOURCE
+
+def test_anchor_resolution_is_shared_by_hover_and_click():
+    assert SOURCE.count('resolvePointAnchor(boundPlot,p)') == 2
+    assert 'plot.getBoundingClientRect()' in SOURCE
+    assert 'xaxis.l2p' in SOURCE
+    assert 'yaxis.l2p' in SOURCE
+    assert 'r.left+r.width/2' in SOURCE

@@ -380,6 +380,7 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
     @media (max-width:768px) {
         .trader-profile-card { --trader-profile-square:auto; }
         .trader-profile-content { display:block; height:auto; max-height:none; }
+        .trader-profile-stats-title { margin-top:16px; }
     }
     .trader-profile-stat-icon { background-size:contain; background-position:center; background-repeat:no-repeat; }
     """ + icon_css + """

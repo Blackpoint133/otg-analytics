@@ -240,6 +240,10 @@ def test_desktop_profile_content_bottom_anchor_contract_is_preserved():
     assert "height:var(--trader-profile-square)" in source
     assert "@media (max-width:768px)" in source
     assert ".trader-profile-content { display:block; height:auto; max-height:none; }" in source
+    mobile = source[source.index("@media (max-width:768px)"):]
+    assert ".trader-profile-stats-title { margin-top:16px; }" in mobile
+    assert ".trader-wallet-row { margin-top:0; }" in source
+    assert "trader-profile-stats-spacer" not in source
 
 
 def test_trader_card_uses_direct_square_outer_frame():
