@@ -385,6 +385,7 @@ def load_dashboard_data(range_key: str, now: datetime | None = None) -> dict[str
                    count(*) FILTER (WHERE s.mode = 'item')::bigint AS item,
                    count(*) FILTER (WHERE s.mode = 'market')::bigint AS market,
                    count(*) FILTER (WHERE s.mode = 'top_items')::bigint AS top_items,
+                   count(*) FILTER (WHERE s.mode = 'trader')::bigint AS trader,
                    max(s.started_at_utc) AS latest_visit
             FROM public.site_visit_sessions s
             LEFT JOIN profile_counts pc USING (browser_visitor_hash)
@@ -405,6 +406,7 @@ def load_dashboard_data(range_key: str, now: datetime | None = None) -> dict[str
                    count(*) FILTER (WHERE s.mode = 'item')::bigint AS item,
                    count(*) FILTER (WHERE s.mode = 'market')::bigint AS market,
                    count(*) FILTER (WHERE s.mode = 'top_items')::bigint AS top_items,
+                   count(*) FILTER (WHERE s.mode = 'trader')::bigint AS trader,
                    max(s.started_at_utc) AS latest_visit
             FROM public.site_visit_sessions s
             LEFT JOIN first_seen f USING (browser_visitor_hash)

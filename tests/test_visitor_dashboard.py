@@ -49,7 +49,18 @@ def test_invalid_period_is_rejected():
 
 def test_mode_labels_are_dashboard_safe():
     from visitor_dashboard import MODE_LABELS
-    assert set(MODE_LABELS) == {"item", "market", "top_items"}
+    assert set(MODE_LABELS) == {"item", "market", "top_items", "trader"}
+    assert MODE_LABELS["trader"] == "Top Traders Analytics"
+
+
+def test_dashboard_uses_initial_surface_terminology_and_trader_post_column():
+    source = (APP_DIR / "visitor_dashboard.py").read_text(encoding="utf-8")
+    queries = (APP_DIR / "visitor_dashboard_queries.py").read_text(encoding="utf-8")
+    assert 'st.subheader("Initial Analytics Surface")' in source
+    assert "One initial analytics surface per recorded Streamlit session; later navigation is not represented here." in source
+    assert '"trader": "Top Traders"' in source
+    assert "s.mode = 'trader'" in queries
+    assert queries.count("AS trader") >= 2
 
 
 def test_empty_post_frame_is_supported():

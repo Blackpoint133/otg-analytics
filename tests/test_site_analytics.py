@@ -343,6 +343,16 @@ class SiteAnalyticsTests(unittest.TestCase):
         record = self.build_record(mode="bad")
         self.assertEqual(record["mode"], "item")
 
+    def test_trader_mode_is_canonical_and_does_not_carry_item_context(self):
+        record = self.build_record(mode="trader", item_key="Some Item")
+        self.assertEqual(record["mode"], "trader")
+        self.assertIsNone(record["item_key"])
+
+    def test_trader_mode_ignores_item_query_parameter(self):
+        record = self.build_record(mode="trader", item_key=None)
+        self.assertEqual(record["mode"], "trader")
+        self.assertIsNone(record["item_key"])
+
     def test_invalid_item_key_becomes_null(self):
         self.assertIsNone(analytics.sanitize_item_key("bad<>item"))
 

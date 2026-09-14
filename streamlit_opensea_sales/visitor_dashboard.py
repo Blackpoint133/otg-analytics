@@ -23,7 +23,7 @@ from visitor_dashboard_queries import (
 
 AUTH_KEY = "visitor_dashboard_authenticated"
 RANGE_LABELS = ("24H", "7D", "30D", "ALL")
-MODE_LABELS = {"item": "Item Analytics", "market": "Market Analytics", "top_items": "Top Items Analytics"}
+MODE_LABELS = {"item": "Item Analytics", "market": "Market Analytics", "top_items": "Top Items Analytics", "trader": "Top Traders Analytics"}
 DISPLAY_ZONE = ZoneInfo(DISPLAY_TIMEZONE)
 
 
@@ -98,7 +98,8 @@ def _render_dashboard(data: dict) -> None:
             fig = go.Figure(go.Bar(x=values, y=["New", "Returning"], orientation="h", marker_color=["#62d9ff", "#ff003a"], text=values, textposition="auto"))
             st.plotly_chart(_chart_layout(fig, showlegend=False), use_container_width=True)
     with right:
-        st.subheader("Mode Usage")
+        st.subheader("Initial Analytics Surface")
+        st.caption("One initial analytics surface per recorded Streamlit session; later navigation is not represented here.")
         modes = data["modes"].copy()
         modes["label"] = modes["mode"].map(MODE_LABELS).fillna(modes["mode"])
         if modes.empty:
@@ -130,9 +131,9 @@ def _render_dashboard(data: dict) -> None:
     if posts.empty:
         st.info("No attributed campaign traffic in this period.")
     else:
-        display = posts.rename(columns={"post": "Post", "sessions": "Sessions", "stable_visitors": "Unique Visitors", "returning": "Returning", "item": "Item", "market": "Market", "top_items": "Top Items", "latest_visit": "Latest Visit"})
+        display = posts.rename(columns={"post": "Post", "sessions": "Sessions", "stable_visitors": "Unique Visitors", "returning": "Returning", "item": "Item", "market": "Market", "top_items": "Top Items", "trader": "Top Traders", "latest_visit": "Latest Visit"})
         display["Latest Visit"] = display["Latest Visit"].map(_fmt_time)
-        st.dataframe(display[["Post", "Sessions", "Unique Visitors", "Returning", "Item", "Market", "Top Items", "Latest Visit"]], hide_index=True, use_container_width=True)
+        st.dataframe(display[["Post", "Sessions", "Unique Visitors", "Returning", "Item", "Market", "Top Items", "Top Traders", "Latest Visit"]], hide_index=True, use_container_width=True)
 
     st.subheader("Item Interest")
     st.caption("Based on recorded item contexts from analytics sessions; this is not a complete item-view clickstream.")

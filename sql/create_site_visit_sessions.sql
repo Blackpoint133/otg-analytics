@@ -42,7 +42,7 @@ create table public.site_visit_sessions (
         check (identity_version <> 2 or browser_visitor_hash is not null),
 
     constraint site_visit_sessions_mode_chk
-        check (mode in ('item', 'market', 'top_items')),
+        check (mode in ('item', 'market', 'top_items', 'trader')),
 
     constraint site_visit_sessions_device_type_chk
         check (device_type in ('desktop', 'mobile', 'tablet', 'unknown')),

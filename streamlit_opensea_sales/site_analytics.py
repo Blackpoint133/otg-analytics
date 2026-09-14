@@ -37,7 +37,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ENV_PATH = PROJECT_ROOT / ".env"
 LOG_PATH = PROJECT_ROOT / "logs" / "site_analytics.log"
 
-VALID_MODES = {"item", "market", "top_items"}
+VALID_MODES = {"item", "market", "top_items", "trader"}
 ENABLED_VALUES = {"1", "true", "yes", "on"}
 CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 WHITESPACE_RE = re.compile(r"\s+")
