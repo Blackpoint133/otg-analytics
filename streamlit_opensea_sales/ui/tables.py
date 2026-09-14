@@ -7,6 +7,7 @@ technical diagnostic text technical diagnostic text technical diagnostic text te
 from typing import Dict
 import html
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 
 from config import ITEMS_PER_PAGE
@@ -144,7 +145,8 @@ def render_sales_table(
         table_html += '</tr>'
 
     table_html += '</tbody></table>'
-    st.markdown(trader_profile_card_styles() + _sales_trader_overlay_script() + table_html, unsafe_allow_html=True)
+    st.markdown(trader_profile_card_styles() + _sales_trader_overlay_css() + table_html, unsafe_allow_html=True)
+    render_sales_trader_overlay_wiring()
     render_trader_clipboard_wiring()
 
 
@@ -160,8 +162,12 @@ def _trader_identity_cell(wallet: str, contexts: dict, index: int) -> str:
             f'<div id="{card_id}" class="sales-trader-card-overlay" hidden>{card}</div>')
 
 
-def _sales_trader_overlay_script() -> str:
-    return '''<style>.sales-trader-identity-trigger{color:#FF003A;background:none;border:0;padding:0;font:inherit;cursor:pointer}.sales-trader-identity-trigger:hover,.sales-trader-identity-trigger:focus{color:#FFF}.sales-trader-card-overlay{position:fixed;z-index:10000;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto}.sales-trader-card-overlay[hidden]{display:none}</style><script>(function(){var open=null;function close(){if(!open)return;open.card.hidden=true;open.button.setAttribute("aria-expanded","false");open=null}document.addEventListener("click",function(e){var b=e.target.closest(".sales-trader-identity-trigger");if(b){e.preventDefault();var c=document.getElementById(b.getAttribute("data-card-target"));if(open&&open.card===c){close();return}close();var r=b.getBoundingClientRect();c.hidden=false;c.style.left=Math.max(16,Math.min(r.left,window.innerWidth-c.offsetWidth-16))+"px";var below=r.bottom+8;c.style.top=(below+c.offsetHeight<=window.innerHeight-16?below:Math.max(16,r.top-c.offsetHeight-8))+"px";b.setAttribute("aria-expanded","true");open={button:b,card:c};return}if(open&&!e.target.closest(".sales-trader-card-overlay"))close()});document.addEventListener("keydown",function(e){if(e.key==="Escape")close()})})();</script>'''
+def _sales_trader_overlay_css() -> str:
+    return '<style>.sales-trader-identity-trigger{color:#FF003A;background:none;border:0;padding:0;font:inherit;cursor:pointer}.sales-trader-identity-trigger:hover,.sales-trader-identity-trigger:focus{color:#FFF}.sales-trader-card-overlay{position:fixed;z-index:10000;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto}.sales-trader-card-overlay[hidden]{display:none}</style>'
+
+
+def render_sales_trader_overlay_wiring() -> None:
+    components.html('''<script>(function(){var parentDocument;try{parentDocument=window.parent.document}catch(e){return}var open=null;function close(){if(!open)return;open.card.hidden=true;open.button.setAttribute("aria-expanded","false");open=null}function wire(){var triggers=parentDocument.querySelectorAll(".sales-trader-identity-trigger");if(!triggers.length)return false;triggers.forEach(function(button){if(button.dataset.otgSalesTraderBound==="1")return;button.dataset.otgSalesTraderBound="1";button.addEventListener("click",function(e){e.preventDefault();var card=parentDocument.getElementById(button.getAttribute("data-card-target"));if(!card)return;if(open&&open.card===card){close();return}close();card.hidden=false;var rect=button.getBoundingClientRect();var left=Math.max(16,Math.min(rect.left,parentDocument.defaultView.innerWidth-card.offsetWidth-16));var below=rect.bottom+8;var top=below+card.offsetHeight<=parentDocument.defaultView.innerHeight-16?below:Math.max(16,rect.top-card.offsetHeight-8);card.style.left=left+"px";card.style.top=top+"px";button.setAttribute("aria-expanded","true");open={button:button,card:card}})});return true}parentDocument.addEventListener("click",function(e){if(open&&!e.target.closest(".sales-trader-card-overlay")&&!e.target.closest(".sales-trader-identity-trigger"))close()});parentDocument.addEventListener("keydown",function(e){if(e.key==="Escape")close()});wire();var attempts=0;var timer=parentDocument.defaultView.setInterval(function(){if(wire()||++attempts>=30)parentDocument.defaultView.clearInterval(timer)},100)})();</script>''', height=0, width=0)
 
 
 def render_sales_table_collapsible(

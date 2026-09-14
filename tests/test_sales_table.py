@@ -27,6 +27,8 @@ def test_sales_table_uses_shared_identity_cards_and_preserves_links(monkeypatch)
     monkeypatch.setattr(tables, "build_trader_card_contexts", lambda wallets, show_usd: contexts)
     monkeypatch.setattr(tables, "trader_profile_card_styles", lambda: "")
     monkeypatch.setattr(tables, "render_trader_clipboard_wiring", lambda: None)
+    runtime = []
+    monkeypatch.setattr(tables.components, "html", lambda value, **kwargs: runtime.append(value))
     monkeypatch.setattr(tables, "build_trader_profile_card_html", lambda row: f'<div data-wallet="{row["_wallet"]}">card</div>')
     captured = []
     monkeypatch.setattr(tables.st, "markdown", lambda value, **kwargs: captured.append(value))
@@ -41,16 +43,28 @@ def test_sales_table_uses_shared_identity_cards_and_preserves_links(monkeypatch)
     assert ">OpenSea</a>" in rendered
     assert "aria-expanded=\"false\"" in rendered
     assert "aria-controls" in rendered
-    assert "Escape" in rendered
-    assert "closest(\".sales-trader-card-overlay\")" in rendered
+    assert "<script>" not in rendered
+    assert runtime and "window.parent.document" in runtime[0]
+    script = runtime[0]
+    assert ".sales-trader-identity-trigger" in script
+    assert "otgSalesTraderBound" in script
+    assert "open&&open.card===card" in script
+    assert "aria-expanded" in script and "getBoundingClientRect()" in script
+    assert "card.hidden=false" in script and "offsetWidth" in script
+    assert "innerWidth-card.offsetWidth-16" in script
+    assert "setInterval" in script and "clearInterval" in script
+    assert "Escape" in script
+    assert ">GunzScan</a>" in rendered
 
 
 def test_sales_table_blank_transaction_hash_has_no_link(monkeypatch):
     monkeypatch.setattr(tables, "build_trader_card_contexts", lambda wallets, show_usd: {})
     monkeypatch.setattr(tables, "trader_profile_card_styles", lambda: "")
     monkeypatch.setattr(tables, "render_trader_clipboard_wiring", lambda: None)
+    monkeypatch.setattr(tables.components, "html", lambda value, **kwargs: None)
     captured = []
     monkeypatch.setattr(tables.st, "markdown", lambda value, **kwargs: captured.append(value))
     tables.render_sales_table(_frame("0x" + "b" * 40, "0x" + "c" * 40, ""), True, 1.0)
     rendered = captured[0]
     assert ">GunzScan</a>" not in rendered
+    assert 'transaction_hash' not in rendered
