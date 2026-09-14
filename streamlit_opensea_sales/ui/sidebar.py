@@ -20,7 +20,7 @@ from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
 from data_access import load_item_data
 from item_paths import resolve_item_path
 from trader_analytics import load_current_snapshot, normalize_wallet
-from opensea_account_profiles import get_profile, load_profile_snapshot, profile_name
+from opensea_account_profiles import effective_fallback_names, get_profile, load_profile_snapshot, profile_name, user_facing_username
 from ui.trader_search import render_trader_search
 from ui.item_search import render_item_search
 from ui.item_wallet_search import render_item_wallet_search
@@ -55,7 +55,7 @@ def _top_items_class_filter_event(display_classes: list[str]) -> None:
         _record_product_event_safe("top_items", "filter_apply", control_key="item_class_filter")
 
 def _trader_search_records(rows: list[dict[str, Any]], profile_snapshot: dict[str, Any]) -> list[dict[str, str]]:
-    fallback_names = profile_snapshot.get("fallback_names", {})
+    fallback_names = effective_fallback_names([str(row.get("wallet") or "") for row in rows], profile_snapshot.get("fallback_names", {}))
     records = []
     for row in rows:
         wallet = str(row.get("wallet") or "").strip()
@@ -63,7 +63,7 @@ def _trader_search_records(rows: list[dict[str, Any]], profile_snapshot: dict[st
             continue
         profile = get_profile(wallet, profile_snapshot)
         name = profile_name(wallet, profile, fallback_names)
-        records.append({"wallet": normalize_wallet(wallet) or wallet.lower(), "display_name": name, "username": str(profile.get("username") or "").strip()})
+        records.append({"wallet": normalize_wallet(wallet) or wallet.lower(), "display_name": name, "username": user_facing_username(profile)})
     return records
 
 

@@ -99,3 +99,10 @@ def test_market_guide_is_untouched_by_guide_content_audit():
     market = (ROOT / "streamlit_opensea_sales" / "ui" / "market_overview.py").read_text(encoding="utf-8")
     assert "MARKET SUMMARY" in market
     assert "UNIQUE WALLETS" in market
+
+
+def test_trader_guide_distinguishes_profile_ranks_from_sidebar_sorts():
+    assert 'TRADER_VISIBLE_SORT_OPTIONS = ("EARNED", "INVESTED", "SOLD", "TRADES")' in SIDEBAR
+    assert "ROI and WIN RATE are Profile Card ranks only; they are not sidebar SORT BY options." in TRADER
+    assert "WIN RATE RANKING" not in TRADER
+    assert "WIN RATE PROFILE RANK" in TRADER

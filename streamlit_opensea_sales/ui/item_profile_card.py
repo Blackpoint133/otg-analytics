@@ -3,6 +3,8 @@
 from html import escape
 from typing import Any, Mapping
 
+import pandas as pd
+
 from ui.gunzscope_attribution import inline_logo
 from formatters import get_rarity_style
 
@@ -19,10 +21,21 @@ _METRICS = (
 )
 
 
+def _is_missing_scalar(value: Any) -> bool:
+    """Return whether a scalar is missing without coercing pandas.NA to bool."""
+    if value is None:
+        return True
+    try:
+        result = pd.isna(value)
+        return isinstance(result, bool) and result
+    except (TypeError, ValueError):
+        return False
+
+
 def _value(row: Mapping[str, Any], key: str, spec: str) -> str:
     value = row.get(key)
     try:
-        if value is None or value != value:
+        if _is_missing_scalar(value):
             return "N/A"
         return format(value, spec)
     except (TypeError, ValueError):
@@ -30,7 +43,7 @@ def _value(row: Mapping[str, Any], key: str, spec: str) -> str:
 
 
 def _rank_value(value: Any) -> str:
-    if value is None or value != value:
+    if _is_missing_scalar(value):
         return "-"
     try:
         rank = int(float(str(value).lstrip('#')))
@@ -53,7 +66,7 @@ def build_item_profile_card_html(row: Mapping[str, Any], presentation: str = "st
     link_close = "</a>" if item_url else "</div>"
     supply = _value(row, "_supply", ",.0f")
     supply_rank = row.get("_supply_rank")
-    supply_rank_text = "-" if supply_rank is None or supply_rank != supply_rank else str(supply_rank)
+    supply_rank_text = "-" if _is_missing_scalar(supply_rank) else str(supply_rank)
     filter_rank = _rank_value(row.get('_filter_rank'))
     global_rank = _rank_value(row.get('_global_rank', row.get('display_rank', row.get('rank'))))
     return f'''<article class="top-item-profile-card top-item-profile-card--{presentation}">

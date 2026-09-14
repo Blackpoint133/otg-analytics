@@ -18,7 +18,7 @@ def test_trader_search_option_contains_name_short_and_full_wallet():
     )
     assert records[0]["display_name"] == "B_rasengan"
     assert records[0]["wallet"] == wallet
-    assert records[0]["display_name"] == "B_rasengan"
+    assert records[0]["display_name"] != wallet
 
 
 def test_trader_search_options_keep_similar_names_unique():

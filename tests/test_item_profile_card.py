@@ -1,9 +1,11 @@
 from pathlib import Path
 import sys
 
+import pandas as pd
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "streamlit_opensea_sales"))
 
-from ui.item_profile_card import build_item_profile_card_html, item_profile_card_styles
+from ui.item_profile_card import _is_missing_scalar, build_item_profile_card_html, item_profile_card_styles
 
 
 def row(**overrides):
@@ -34,6 +36,20 @@ def test_missing_values_and_anomaly_rank_are_safe():
     assert "N/A" in html
     assert ">-</b>" in html
     assert "trader-profile" not in html
+
+
+def test_pandas_na_scalars_are_safe_and_zero_is_valid():
+    assert _is_missing_scalar(None)
+    assert _is_missing_scalar(float("nan"))
+    assert _is_missing_scalar(pd.NA)
+    assert not _is_missing_scalar(0)
+    assert not _is_missing_scalar(4)
+    assert not _is_missing_scalar(1.5)
+    assert not _is_missing_scalar("valid")
+    html = build_item_profile_card_html(row(_supply=pd.NA, _supply_rank=pd.NA, _filter_rank=pd.NA, _global_rank=pd.NA, market_strength_score=pd.NA), "overlay")
+    assert "N/A" in html and ">-</b>" in html
+    zero = build_item_profile_card_html(row(_supply=0, _supply_rank=0), "overlay")
+    assert ">0</b>" in zero
 
 
 def test_standalone_and_overlay_share_metric_content():

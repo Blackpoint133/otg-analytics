@@ -34,11 +34,17 @@ def publish_file(source: Path, target: Path) -> bool:
 
 
 def sync_sales(source: Path, target: Path) -> int:
-    source_dir, target_dir = source / "sales_enriched", target / "sales_enriched"
+    source_dir, target_dir = source / "sales", target / "sales"
+    enriched_source_dir, enriched_target_dir = source / "sales_enriched", target / "sales_enriched"
     if not source_dir.is_dir(): raise FileNotFoundError(source_dir)
+    if not enriched_source_dir.is_dir(): raise FileNotFoundError(enriched_source_dir)
     changed = 0
+    target_dir.mkdir(parents=True, exist_ok=True)
+    enriched_target_dir.mkdir(parents=True, exist_ok=True)
     for item in sorted(source_dir.glob("*.csv")):
         changed += publish_file(item, target_dir / item.name)
+    for item in sorted(enriched_source_dir.glob("*.csv")):
+        changed += publish_file(item, enriched_target_dir / item.name)
     return changed
 
 

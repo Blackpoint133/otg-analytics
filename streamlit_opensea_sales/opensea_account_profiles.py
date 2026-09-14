@@ -6,6 +6,7 @@ import base64
 import hashlib
 import html
 import json
+import re
 import zlib
 from functools import lru_cache
 from pathlib import Path
@@ -18,6 +19,7 @@ from trader_analytics import normalize_wallet
 SNAPSHOT_PATH = Path(__file__).parent / "data_opensea_sales" / "opensea_account_profiles_snapshot.json"
 FALLBACK_AVATAR_DIR = Path(__file__).parent.parent / "img" / "profile_avatar"
 FALLBACK_AVATAR_COUNT = 94
+_CANONICAL_WALLET_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 
 def fallback_name(wallet: str) -> str:
@@ -57,10 +59,25 @@ def allocate_fallback_names(wallets: list[str], existing: dict[str, Any] | None 
     return result
 
 
+def effective_fallback_names(wallets: list[str], existing: dict[str, Any] | None = None) -> dict[str, str]:
+    """Allocate stable aliases across the complete current trader universe."""
+    return allocate_fallback_names(wallets, existing)
+
+
+def _human_profile_label(value: Any) -> str:
+    candidate = str(value or "").strip()
+    return candidate if candidate and not _CANONICAL_WALLET_RE.fullmatch(candidate) else ""
+
+
+def user_facing_username(profile: dict[str, Any] | None) -> str:
+    """Return only a genuine human-readable username for secondary display."""
+    return _human_profile_label((profile or {}).get("username"))
+
+
 def profile_name(wallet: str, profile: dict[str, Any] | None, fallback_names: dict[str, str] | None = None) -> str:
     profile = profile or {}
-    display = str(profile.get("display_name") or "").strip()
-    username = str(profile.get("username") or "").strip()
+    display = _human_profile_label(profile.get("display_name"))
+    username = _human_profile_label(profile.get("username"))
     canonical = normalize_wallet(wallet) or str(wallet).strip().lower()
     persisted = (fallback_names or {}).get(canonical)
     return display or username or (persisted if valid_fallback_name(persisted) else fallback_name(wallet))

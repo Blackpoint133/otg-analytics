@@ -8,7 +8,7 @@ SPEC = importlib.util.spec_from_file_location("profile_refresh", ROOT / "scripts
 refresh = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(refresh)
 
-from opensea_account_profiles import allocate_fallback_names, avatar_style_attribute, fallback_avatar_filename, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
+from opensea_account_profiles import allocate_fallback_names, avatar_style_attribute, fallback_avatar_filename, fallback_name, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
 
 
 def test_snapshot_rewrite_is_visible_without_cache_clear(tmp_path):
@@ -116,6 +116,21 @@ def test_whitespace_profile_names_use_username_then_persisted_alias():
     wallet = "0x" + "a" * 40
     assert profile_name(wallet, {"display_name": "   ", "username": " TraderOne\t"}, {wallet: "NoName0001"}) == "TraderOne"
     assert profile_name(wallet, {"display_name": " ", "username": "\t"}, {wallet: "NoName0001"}) == "NoName0001"
+
+
+def test_wallet_like_profile_labels_are_rejected():
+    wallet = "0x" + "a" * 40
+    assert profile_name(wallet, {"display_name": wallet, "username": ""}, {}) == fallback_name(wallet)
+    assert profile_name(wallet, {"display_name": "", "username": wallet}, {}) == fallback_name(wallet)
+    assert profile_name(wallet, {"display_name": wallet, "username": "HumanName"}, {}) == "HumanName"
+
+
+def test_effective_aliases_preserve_existing_and_allocate_new_collisions():
+    wallets = ["0x" + "a" * 40, "0x" + "b" * 40]
+    aliases = allocate_fallback_names(wallets, {wallets[0]: "NoName0001"})
+    assert aliases[wallets[0]] == "NoName0001"
+    assert aliases[wallets[1]].startswith("NoName")
+    assert len(set(aliases.values())) == 2
 
 
 def test_rate_limit_stops_batch_without_overwriting_good_profile(monkeypatch, tmp_path):

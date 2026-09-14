@@ -27,12 +27,24 @@ def test_sync_requires_distinct_existing_paths(tmp_path):
 
 def test_sales_files_are_published_without_touching_unrelated_files(tmp_path, monkeypatch):
     source = tmp_path / "source"; target = tmp_path / "target"
+    (source / "sales").mkdir(parents=True); (target / "sales").mkdir(parents=True)
     (source / "sales_enriched").mkdir(parents=True); (target / "sales_enriched").mkdir(parents=True)
     (source / "sales_enriched" / "item.csv").write_text("new", encoding="utf-8")
     unrelated = target / "keep.txt"; unrelated.write_text("keep", encoding="utf-8")
     assert MODULE.sync_sales(source, target) == 1
     assert (target / "sales_enriched" / "item.csv").read_text(encoding="utf-8") == "new"
     assert unrelated.read_text(encoding="utf-8") == "keep"
+
+
+def test_sales_and_enriched_files_are_published(tmp_path):
+    source = tmp_path / "source"; target = tmp_path / "target"
+    for path in (source / "sales", source / "sales_enriched", target / "sales", target / "sales_enriched"):
+        path.mkdir(parents=True)
+    (source / "sales" / "item.csv").write_text("original", encoding="utf-8")
+    (source / "sales_enriched" / "item.csv").write_text("enriched", encoding="utf-8")
+    assert MODULE.sync_sales(source, target) == 2
+    assert (target / "sales" / "item.csv").read_text() == "original"
+    assert (target / "sales_enriched" / "item.csv").read_text() == "enriched"
 
 
 def test_no_production_default_and_atomic_publisher(tmp_path):
@@ -44,7 +56,10 @@ def test_no_production_default_and_atomic_publisher(tmp_path):
 
 def _dirs(tmp_path, source_date="2026-09-12T18:42:37Z", target_date=None):
     source = tmp_path / "source"; target = tmp_path / "target"
+    (source / "sales").mkdir(parents=True); (target / "sales").mkdir(parents=True)
     (source / "sales_enriched").mkdir(parents=True); (target / "sales_enriched").mkdir(parents=True)
+    (source / "sales" / "one.csv").write_text("sale_date\n2026-09-12T18:42:37Z\n", encoding="utf-8")
+    (target / "sales" / "one.csv").write_text("sale_date\n2026-09-12T18:42:37Z\n", encoding="utf-8")
     (source / "sales_enriched" / "one.csv").write_text(f"sale_date\n{source_date}\n", encoding="utf-8")
     if target_date is not None:
         (target / "sales_enriched" / "one.csv").write_text(f"sale_date\n{target_date}\n", encoding="utf-8")
