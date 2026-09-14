@@ -154,7 +154,7 @@ def _build_trader_profile_card_html(row: dict[str, Any], metric_icons: dict[str,
     display = html.escape(str(row.get("Profile") or row.get("_profile_name") or "Trader"))
     wallet = str(row.get("_wallet") or "")
     wallet_html = html.escape(wallet, quote=True)
-    username = str(profile.get("username") or "").strip()
+    username = user_facing_username(profile)
     secondary = f'<span class="trader-profile-secondary">@{html.escape(username)}</span>' if username and username != display else ""
     verified = " ✓" if profile.get("is_verified") is True else ""
     avatar_style = " " + avatar_style_attribute(profile, wallet)

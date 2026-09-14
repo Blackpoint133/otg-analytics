@@ -7,6 +7,41 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "streamlit_opensea_sales"))
 from ui import trader_overview as overview  # noqa: E402
 
 
+def _direct_card(profile, wallet):
+    row = {"Profile": "NoName1234", "_profile": profile, "_wallet": wallet, "_ranks": {}}
+    return overview._build_trader_profile_card_html(row, {})
+
+
+def test_shared_card_suppresses_wallet_like_username_but_preserves_wallet_surfaces():
+    wallet = "0x" + "a" * 40
+    rendered = _direct_card({"username": wallet}, wallet)
+    assert f"@{wallet}" not in rendered
+    assert f'data-wallet="{wallet}"' in rendered
+    assert f"https://opensea.io/{wallet}" in rendered
+
+
+def test_shared_card_suppresses_mixed_case_wallet_like_username():
+    wallet = "0xABCDEF" + "a" * 34
+    rendered = _direct_card({"username": wallet}, wallet)
+    assert f"@{wallet}" not in rendered
+
+
+def test_shared_card_preserves_human_username():
+    rendered = _direct_card({"username": "alice"}, "0x" + "b" * 40)
+    assert "@alice" in rendered
+
+
+def test_mobile_renderer_uses_shared_card_contract(monkeypatch):
+    wallet = "0x" + "c" * 40
+    captured = []
+    monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
+    monkeypatch.setattr(overview, "metric_icon_data_uris", lambda: {})
+    row = {"Profile": "NoName1234", "_profile": {"username": wallet}, "_wallet": wallet, "_ranks": {}}
+    overview.render_trader_mobile_cards([row])
+    assert f"@{wallet}" not in "".join(captured)
+    assert f'data-wallet="{wallet}"' in "".join(captured)
+
+
 def _rendered(monkeypatch, profile=None):
     captured = []
     monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
