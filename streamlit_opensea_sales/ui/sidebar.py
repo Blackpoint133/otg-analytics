@@ -15,6 +15,7 @@ from logging_compat import get_module_logger, info
 
 from ui.viewport import get_viewport_info
 from site_item_events import record_explicit_item_selection, record_initial_item_context
+from site_product_events import record_product_event
 from site_item_events import EVENT_INITIALIZED_KEY, LAST_ITEM_KEY, SEQUENCE_KEY
 from data_access import load_item_data
 from item_paths import resolve_item_path
@@ -31,6 +32,27 @@ SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytic
 SIDEBAR_LOGGER = get_module_logger("sidebar", log_file=SIDEBAR_LOG_PATH, module_tag="sidebar")
 
 TRADER_VISIBLE_SORT_OPTIONS = ("EARNED", "INVESTED", "SOLD", "TRADES")
+
+
+def _record_product_event_safe(*args, **kwargs) -> bool:
+    try:
+        return bool(record_product_event(*args, **kwargs))
+    except Exception:
+        return False
+
+
+def _checkbox_product_event(surface: str, control_key: str, state_key: str) -> None:
+    _record_product_event_safe(surface, "toggle_change", control_key=control_key,
+                               value_key="on" if bool(st.session_state.get(state_key)) else "off")
+
+
+def _top_items_class_filter_event(display_classes: list[str]) -> None:
+    defaults = {name: name in {"Customization Item", "Weapon"} or name == UNCLASSIFIED for name in display_classes}
+    selected = {name for name in display_classes if bool(st.session_state.get("top_items_class_" + name.lower().replace(" ", "_")))}
+    if selected == {name for name, enabled in defaults.items() if enabled}:
+        _record_product_event_safe("top_items", "filter_clear", control_key="item_class_filter")
+    else:
+        _record_product_event_safe("top_items", "filter_apply", control_key="item_class_filter")
 
 def _trader_search_records(rows: list[dict[str, Any]], profile_snapshot: dict[str, Any]) -> list[dict[str, str]]:
     fallback_names = profile_snapshot.get("fallback_names", {})
@@ -424,9 +446,12 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
         st.session_state.item_wallet_search_last_event = wallet_event["event_id"]
         if wallet_event["action"] == "clear":
             st.session_state[wallet_key] = "ALL WALLETS"
+            _record_product_event_safe("item", "filter_clear", control_key="wallet_filter")
         else:
             matched = _match_existing_wallet(wallet_event.get("wallet"), wallet_options)
             st.session_state[wallet_key] = matched or "ALL WALLETS"
+            if matched is not None:
+                _record_product_event_safe("item", "filter_apply", control_key="wallet_filter")
         st.rerun()
     highlight_wallet = st.session_state.get(wallet_key, "ALL WALLETS")
 
@@ -447,8 +472,8 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
     from ui.section_guide import section_guide_button_css
     st.sidebar.html(section_guide_button_css("item"))
     _render_sidebar_section_start("VALUE DISPLAY")
-    show_usd = st.sidebar.checkbox('USD Price', key='item_show_usd')
-    show_trend_line = st.sidebar.checkbox('Trend Line', key='item_show_trend_line')
+    show_usd = st.sidebar.checkbox('USD Price', key='item_show_usd', on_change=_checkbox_product_event, args=("item", "usd_price", "item_show_usd"))
+    show_trend_line = st.sidebar.checkbox('Trend Line', key='item_show_trend_line', on_change=_checkbox_product_event, args=("item", "trend_line", "item_show_trend_line"))
     
     # Initialize session state for item_view_mode if not present
     if 'item_view_mode' not in st.session_state:
@@ -469,8 +494,10 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
                 use_container_width=True,
                 type="primary" if current_item_view == 'chart' else "secondary"
             ):
-                st.session_state.item_view_mode = 'chart'
-                st.rerun()
+                if current_item_view != 'chart':
+                    _record_product_event_safe("item", "view_change", control_key="view", value_key="chart")
+                    st.session_state.item_view_mode = 'chart'
+                    st.rerun()
             
             if st.button(
                 "TABLE",
@@ -478,8 +505,10 @@ def render_sidebar(items_index: Dict[str, Any], browser_identity: Optional[Dict[
                 use_container_width=True,
                 type="primary" if current_item_view == 'table' else "secondary"
             ):
-                st.session_state.item_view_mode = 'table'
-                st.rerun()
+                if current_item_view != 'table':
+                    _record_product_event_safe("item", "view_change", control_key="view", value_key="table")
+                    st.session_state.item_view_mode = 'table'
+                    st.rerun()
     
     from ui.section_guide import render_section_guide_button
     _render_sidebar_section_start("GUIDE")
@@ -517,17 +546,20 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
     _render_sidebar_section_start("VALUE DISPLAY", transition=False)
     show_usd = st.sidebar.checkbox(
         'USD Price',
-        key='market_show_usd'
+        key='market_show_usd', on_change=_checkbox_product_event,
+        args=("market", "usd_price", "market_show_usd")
     )
     show_token_price = st.sidebar.checkbox(
         'Token Price',
         value=False,
-        key='market_show_token_price'
+        key='market_show_token_price', on_change=_checkbox_product_event,
+        args=("market", "token_price", "market_show_token_price")
     )
     show_unique_wallets = st.sidebar.checkbox(
         'Unique Wallets',
         value=False,
-        key='market_show_unique_wallets'
+        key='market_show_unique_wallets', on_change=_checkbox_product_event,
+        args=("market", "unique_wallets", "market_show_unique_wallets")
     )
 
     if 'market_time_range' not in st.session_state:
@@ -600,8 +632,10 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
             use_container_width=True,
             type="primary" if current_period == 'all' else "secondary"
         ):
-            st.session_state.market_time_range = 'all'
-            st.rerun()
+            if current_period != 'all':
+                _record_product_event_safe("market", "period_change", control_key="period", value_key="all")
+                st.session_state.market_time_range = 'all'
+                st.rerun()
 
         if st.button(
             "12 MONTH",
@@ -609,8 +643,10 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
             use_container_width=True,
             type="primary" if current_period == '12m' else "secondary"
         ):
-            st.session_state.market_time_range = '12m'
-            st.rerun()
+            if current_period != '12m':
+                _record_product_event_safe("market", "period_change", control_key="period", value_key="12m")
+                st.session_state.market_time_range = '12m'
+                st.rerun()
 
         if st.button(
             "6 MONTH",
@@ -618,8 +654,10 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
             use_container_width=True,
             type="primary" if current_period == '6m' else "secondary"
         ):
-            st.session_state.market_time_range = '6m'
-            st.rerun()
+            if current_period != '6m':
+                _record_product_event_safe("market", "period_change", control_key="period", value_key="6m")
+                st.session_state.market_time_range = '6m'
+                st.rerun()
 
         if st.button(
             "3 MONTH",
@@ -627,8 +665,10 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
             use_container_width=True,
             type="primary" if current_period == '3m' else "secondary"
         ):
-            st.session_state.market_time_range = '3m'
-            st.rerun()
+            if current_period != '3m':
+                _record_product_event_safe("market", "period_change", control_key="period", value_key="3m")
+                st.session_state.market_time_range = '3m'
+                st.rerun()
     
     from ui.section_guide import render_section_guide_button
     _render_sidebar_section_start("GUIDE")
@@ -755,7 +795,8 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
     show_usd = st.sidebar.checkbox(
         'USD Price',
         value=True,
-        key='top_items_show_usd'
+        key='top_items_show_usd', on_change=_checkbox_product_event,
+        args=("top_items", "usd_price", "top_items_show_usd")
     )
     _render_sidebar_section_start("FILTERS")
 
@@ -779,7 +820,7 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
         if key not in st.session_state:
             st.session_state[key] = defaults[name]
         label = "Unclassified" if name == UNCLASSIFIED else name
-        if st.sidebar.checkbox(label, key=key):
+        if st.sidebar.checkbox(label, key=key, on_change=_top_items_class_filter_event, args=(display_classes,)):
             selected_classes.append(name)
     
     # Wrap Top Items controls in stable container
@@ -795,8 +836,10 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             use_container_width=True,
             type="primary" if current_mode == 'market_strength' else "secondary"
         ):
-            st.session_state.top_items_ranking_mode = 'market_strength'
-            st.rerun()
+            if current_mode != 'market_strength':
+                _record_product_event_safe("top_items", "sort_change", control_key="sort", value_key="market_strength")
+                st.session_state.top_items_ranking_mode = 'market_strength'
+                st.rerun()
         
         if st.button(
             "VOLUME",
@@ -804,8 +847,10 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             use_container_width=True,
             type="primary" if current_mode == 'volume' else "secondary"
         ):
-            st.session_state.top_items_ranking_mode = 'volume'
-            st.rerun()
+            if current_mode != 'volume':
+                _record_product_event_safe("top_items", "sort_change", control_key="sort", value_key="volume")
+                st.session_state.top_items_ranking_mode = 'volume'
+                st.rerun()
         
         if st.button(
             "LIQUIDITY",
@@ -813,8 +858,10 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             use_container_width=True,
             type="primary" if current_mode == 'liquidity' else "secondary"
         ):
-            st.session_state.top_items_ranking_mode = 'liquidity'
-            st.rerun()
+            if current_mode != 'liquidity':
+                _record_product_event_safe("top_items", "sort_change", control_key="sort", value_key="liquidity")
+                st.session_state.top_items_ranking_mode = 'liquidity'
+                st.rerun()
 
         if st.button(
             "TOTAL SUPPLY",
@@ -822,8 +869,10 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             use_container_width=True,
             type="primary" if current_mode == 'total_supply' else "secondary"
         ):
-            st.session_state.top_items_ranking_mode = 'total_supply'
-            st.rerun()
+            if current_mode != 'total_supply':
+                _record_product_event_safe("top_items", "sort_change", control_key="sort", value_key="total_supply")
+                st.session_state.top_items_ranking_mode = 'total_supply'
+                st.rerun()
         
         _render_sidebar_section_start("PERIOD", target=top_items_filter_controls)
         
@@ -835,8 +884,10 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == 'all' else "secondary"),
             disabled=False
         ):
-            st.session_state.top_items_period = 'all'
-            st.rerun()
+            if current_period != 'all':
+                _record_product_event_safe("top_items", "period_change", control_key="period", value_key="all")
+                st.session_state.top_items_period = 'all'
+                st.rerun()
         
         if st.button(
             "30 DAY",
@@ -845,8 +896,10 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == '30d' else "secondary"),
             disabled=False
         ):
-            st.session_state.top_items_period = '30d'
-            st.rerun()
+            if current_period != '30d':
+                _record_product_event_safe("top_items", "period_change", control_key="period", value_key="30d")
+                st.session_state.top_items_period = '30d'
+                st.rerun()
         
         if st.button(
             "7 DAY",
@@ -855,8 +908,10 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == '7d' else "secondary"),
             disabled=False
         ):
-            st.session_state.top_items_period = '7d'
-            st.rerun()
+            if current_period != '7d':
+                _record_product_event_safe("top_items", "period_change", control_key="period", value_key="7d")
+                st.session_state.top_items_period = '7d'
+                st.rerun()
         
         if st.button(
             "1 DAY",
@@ -865,8 +920,10 @@ def render_top_items_sidebar_controls() -> Dict[str, Any]:
             type="secondary" if current_mode == 'total_supply' else ("primary" if current_period == '1d' else "secondary"),
             disabled=False
         ):
-            st.session_state.top_items_period = '1d'
-            st.rerun()
+            if current_period != '1d':
+                _record_product_event_safe("top_items", "period_change", control_key="period", value_key="1d")
+                st.session_state.top_items_period = '1d'
+                st.rerun()
         
     from ui.section_guide import render_section_guide_button
     _render_sidebar_section_start("GUIDE")
@@ -936,7 +993,7 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS + section_guide_button_css("trader") + TRADER_CONTROLS_CSS)
     st.sidebar.header("Display Options")
     _render_sidebar_section_start("VALUE DISPLAY", transition=False)
-    show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd")
+    show_usd = st.sidebar.checkbox("USD Price", value=True, key="trader_show_usd", on_change=_checkbox_product_event, args=("trader", "usd_price", "trader_show_usd"))
     _render_sidebar_section_start("FILTERS")
     with st.sidebar.container(key="trader_wallet_controls"):
         if "trader_selected_wallet" not in st.session_state:
@@ -951,12 +1008,14 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
             if event["action"] == "clear":
                 st.session_state.trader_selected_wallet = None
                 st.session_state.trader_search_query = ""
+                _record_product_event_safe("trader", "filter_clear", control_key="trader_filter")
             else:
                 wallet = normalize_wallet(event.get("wallet"))
                 valid = next((record for record in trader_records if record["wallet"] == wallet), None)
                 if valid:
                     st.session_state.trader_selected_wallet = wallet
                     st.session_state.trader_search_query = valid["display_name"]
+                    _record_product_event_safe("trader", "filter_apply", control_key="trader_filter")
             st.rerun()
         selected = _canonical_trader_wallet(st.session_state.get("trader_selected_wallet"), trader_records)
     if st.session_state.get("trader_sort_by") not in TRADER_VISIBLE_SORT_OPTIONS:
@@ -966,9 +1025,11 @@ def render_trader_sidebar_controls() -> Dict[str, Any]:
     with st.sidebar.container(key="trader_sort_controls"):
         for option in TRADER_VISIBLE_SORT_OPTIONS:
             if st.button(option, key=f"trader_sort_{option.lower().replace(' ', '_')}", use_container_width=True, type="primary" if st.session_state.trader_sort_by == option else "secondary"):
-                st.session_state.trader_sort_by = option
-                st.session_state.trader_page = 1
-                st.rerun()
+                if st.session_state.trader_sort_by != option:
+                    _record_product_event_safe("trader", "sort_change", control_key="sort", value_key=option.lower())
+                    st.session_state.trader_sort_by = option
+                    st.session_state.trader_page = 1
+                    st.rerun()
     from ui.section_guide import render_section_guide_button
     _render_sidebar_section_start("GUIDE")
     guide_open = render_section_guide_button("trader")

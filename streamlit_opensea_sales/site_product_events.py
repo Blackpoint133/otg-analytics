@@ -44,6 +44,7 @@ _SHAPES = {
     ("market", "toggle_change", "token_price"): {"on", "off"},
     ("market", "toggle_change", "unique_wallets"): {"on", "off"},
     ("top_items", "toggle_change", "usd_price"): {"on", "off"},
+    ("trader", "toggle_change", "usd_price"): {"on", "off"},
 }
 _SQL = """INSERT INTO public.site_product_events
  (occurred_at_utc, parent_session_id, surface, event_type, control_key, value_key, sequence_no)

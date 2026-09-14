@@ -77,6 +77,7 @@ from ui.trader_overview import render_trader_overview
 from ui.feedback import render_feedback_page
 from ui.sidebar import render_trader_sidebar_controls
 from site_analytics import record_current_session_once
+from site_product_events import record_product_event
 from visitor_identity import get_browser_identity
 from visitor_dashboard import render_visitor_dashboard
 
@@ -137,6 +138,11 @@ def main():
         item_key=st.query_params.get("item"),
         browser_identity=browser_identity,
     )
+    if current_mode in {"item", "market", "top_items", "trader"}:
+        try:
+            record_product_event(current_mode, "surface_open")
+        except Exception:
+            pass
 
     if current_mode == 'trader':
         trader_controls = render_trader_sidebar_controls()

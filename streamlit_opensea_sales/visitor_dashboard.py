@@ -19,6 +19,7 @@ from visitor_dashboard_queries import (
     load_visitor_timeline,
     load_visitor_item_activity,
 )
+from product_event_queries import load_product_event_aggregates
 
 
 AUTH_KEY = "visitor_dashboard_authenticated"
@@ -60,7 +61,60 @@ def _chart_layout(fig: go.Figure, showlegend: bool = True) -> go.Figure:
     return fig
 
 
-def _render_dashboard(data: dict) -> None:
+def _render_product_usage(product_data: pd.DataFrame | None) -> None:
+    st.subheader("Product Usage")
+    st.caption("Privacy-safe categorical interaction events. Wallets, usernames, search text, IPs and browser identifiers are not stored in product-event rows. Item selections remain in Item Activity.")
+    if product_data is None:
+        st.info("Product usage data is temporarily unavailable.")
+        return
+    if product_data.empty:
+        st.info("No product usage events in this period.")
+        return
+    surface_labels = {"item": "Item Analytics", "market": "Market Analytics", "top_items": "Top Items Analytics", "trader": "Top Traders Analytics"}
+    control_labels = {"wallet_filter": "Wallet Filter", "item_class_filter": "Item Class Filter", "trader_filter": "Trader Filter", "sort": "Sort", "period": "Period", "view": "View", "usd_price": "USD Price", "trend_line": "Trend Line", "token_price": "Token Price", "unique_wallets": "Unique Wallets"}
+    event_labels = {"filter_apply": "Filter Apply", "filter_clear": "Filter Clear", "sort_change": "Sort Change", "period_change": "Period Change", "view_change": "View Change", "toggle_change": "Toggle Change"}
+    value_labels = {"on": "ON", "off": "OFF", "market_strength": "MARKET STRENGTH", "volume": "VOLUME", "liquidity": "LIQUIDITY", "total_supply": "TOTAL SUPPLY", "earned": "EARNED", "invested": "INVESTED", "sold": "SOLD", "trades": "TRADES", "all": "ALL", "12m": "12M", "6m": "6M", "3m": "3M", "30d": "30D", "7d": "7D", "1d": "1D", "chart": "CHART", "table": "TABLE"}
+    opens = product_data[product_data["event_type"] == "surface_open"]
+    interactions = product_data[product_data["event_type"] != "surface_open"]
+    metrics = st.columns(4)
+    metrics[0].metric("Product Events", f"{int(product_data['events'].sum()):,}")
+    metrics[1].metric("Surface Opens", f"{int(opens['events'].sum()):,}")
+    metrics[2].metric("Feature Interactions", f"{int(interactions['events'].sum()):,}")
+    metrics[3].metric("Latest Product Event", _fmt_time(product_data["latest_event"].max()))
+    left, right = st.columns(2)
+    with left:
+        st.subheader("Surface Opens")
+        if opens.empty:
+            st.info("No surface-open events in this period.")
+        else:
+            grouped = opens.groupby("surface", as_index=False)["events"].sum()
+            grouped["label"] = grouped["surface"].map(surface_labels).fillna(grouped["surface"])
+            fig = go.Figure(go.Bar(x=grouped["events"], y=grouped["label"], orientation="h", marker_color="#ff003a", text=grouped["events"], textposition="auto"))
+            st.plotly_chart(_chart_layout(fig, showlegend=False), use_container_width=True)
+    with right:
+        st.subheader("Feature Interactions")
+        if interactions.empty:
+            st.info("No feature interactions in this period.")
+        else:
+            grouped = interactions.copy()
+            grouped["label"] = grouped["surface"].map(surface_labels).fillna(grouped["surface"]) + "  " + grouped["control_key"].map(control_labels).fillna(grouped["control_key"])
+            grouped = grouped.groupby("label", as_index=False)["events"].sum().sort_values(["events", "label"], ascending=[True, True]).tail(15)
+            fig = go.Figure(go.Bar(x=grouped["events"], y=grouped["label"], orientation="h", marker_color="#62d9ff", text=grouped["events"], textposition="auto"))
+            st.plotly_chart(_chart_layout(fig, showlegend=False), use_container_width=True)
+    if interactions.empty:
+        st.info("No feature interactions in this period.")
+        return
+    st.markdown("**Product Interaction Detail**")
+    detail = interactions.copy()
+    detail["Surface"] = detail["surface"].map(surface_labels).fillna(detail["surface"])
+    detail["Interaction"] = detail["event_type"].map(event_labels).fillna(detail["event_type"])
+    detail["Feature"] = detail["control_key"].map(control_labels).fillna(detail["control_key"])
+    detail["Value"] = detail["value_key"].map(value_labels).fillna(detail["value_key"]).fillna("")
+    detail["Latest Event"] = detail["latest_event"].map(_fmt_time)
+    st.dataframe(detail.rename(columns={"events": "Events", "unique_sessions": "Unique Sessions", "unique_v2_visitors": "Unique Visitors"})[["Surface", "Interaction", "Feature", "Value", "Events", "Unique Sessions", "Unique Visitors", "Latest Event"]], hide_index=True, use_container_width=True)
+
+
+def _render_dashboard(data: dict, product_data: pd.DataFrame | None = None) -> None:
     range_key = data["range_key"]
     st.title("Visitor Analytics")
     st.caption(f"Internal / read-only · Time zone: {DISPLAY_TIMEZONE} · Unique visitor metrics use V2 browser identity only.")
@@ -134,6 +188,8 @@ def _render_dashboard(data: dict) -> None:
         display = posts.rename(columns={"post": "Post", "sessions": "Sessions", "stable_visitors": "Unique Visitors", "returning": "Returning", "item": "Item", "market": "Market", "top_items": "Top Items", "trader": "Top Traders", "latest_visit": "Latest Visit"})
         display["Latest Visit"] = display["Latest Visit"].map(_fmt_time)
         st.dataframe(display[["Post", "Sessions", "Unique Visitors", "Returning", "Item", "Market", "Top Items", "Top Traders", "Latest Visit"]], hide_index=True, use_container_width=True)
+
+    _render_product_usage(product_data)
 
     st.subheader("Item Interest")
     st.caption("Based on recorded item contexts from analytics sessions; this is not a complete item-view clickstream.")
@@ -249,6 +305,7 @@ def _render_visitor_drilldown(range_key: str) -> None:
 def _clear_dashboard_cache() -> None:
     """Clear only the cached aggregate loader owned by this dashboard."""
     _cached_dashboard_data.clear()
+    _cached_product_event_data.clear()
 
 
 def render_visitor_dashboard() -> None:
@@ -270,9 +327,18 @@ def render_visitor_dashboard() -> None:
     except Exception:
         st.error("Visitor analytics data is temporarily unavailable.")
         return
-    _render_dashboard(data)
+    try:
+        product_data = _cached_product_event_data(selected)
+    except Exception:
+        product_data = None
+    _render_dashboard(data, product_data)
 
 
 @st.cache_data(ttl=120, show_spinner=False)
 def _cached_dashboard_data(range_key: str) -> dict:
     return load_dashboard_data(range_key)
+
+
+@st.cache_data(ttl=120, show_spinner=False)
+def _cached_product_event_data(range_key: str) -> pd.DataFrame:
+    return load_product_event_aggregates(range_key)

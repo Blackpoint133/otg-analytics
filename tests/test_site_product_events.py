@@ -23,6 +23,8 @@ def test_exact_allowlists_and_shape_contract():
     assert events._shape("top_items", "period_change", "period", "30d") is not None
     assert events._shape("item", "view_change", "view", "table") is not None
     assert events._shape("market", "toggle_change", "token_price", "on") is not None
+    assert events._shape("trader", "toggle_change", "usd_price", "on") is not None
+    assert events._shape("trader", "toggle_change", "usd_price", "off") is not None
     assert events._shape("trader", "sort_change", "sort", "0x1234") is None
     assert events._shape("item", "filter_apply", "trader_filter", None) is None
     assert events._shape("item", "item_select", None, None) is None
@@ -172,7 +174,7 @@ def test_every_finite_valid_shape_is_accepted(shape):
     ("unknown", "surface_open", None, None), ("item", "unknown", None, None),
     ("item", "item_select", None, None), ("item", "surface_open", "x", None),
     ("item", "surface_open", None, "x"), ("market", "sort_change", "sort", "trades"),
-    ("trader", "toggle_change", "usd_price", "on"), ("item", "filter_apply", "wallet_filter", "on"),
+    ("item", "filter_apply", "wallet_filter", "on"),
     ("item", "filter_clear", "wallet_filter", "x"), ("top_items", "sort_change", "sort", "bad"),
     ("market", "period_change", "period", "bad"), ("item", "toggle_change", "usd_price", "bad"),
     ("trader", "sort_change", "sort", "0x1234567890abcdef"),

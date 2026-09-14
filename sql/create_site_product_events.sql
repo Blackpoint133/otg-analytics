@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS public.site_product_events (
         OR (surface = 'item' AND event_type = 'toggle_change' AND control_key IN ('usd_price', 'trend_line') AND value_key IN ('on', 'off'))
         OR (surface = 'market' AND event_type = 'toggle_change' AND control_key IN ('usd_price', 'token_price', 'unique_wallets') AND value_key IN ('on', 'off'))
         OR (surface = 'top_items' AND event_type = 'toggle_change' AND control_key = 'usd_price' AND value_key IN ('on', 'off'))
+        OR (surface = 'trader' AND event_type = 'toggle_change' AND control_key = 'usd_price' AND value_key IN ('on', 'off'))
     )
 );
 

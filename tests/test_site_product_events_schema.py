@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = (ROOT / "sql/create_site_product_events.sql").read_text(encoding="utf-8")
+MIGRATION = (ROOT / "sql/add_site_product_events_trader_usd_toggle.sql").read_text(encoding="utf-8")
 
 
 def test_schema_is_transactional_idempotent_and_append_only():
@@ -24,3 +25,12 @@ def test_schema_has_parent_fk_allowlists_and_shape_defense():
     assert "browser_visitor_hash" not in SCHEMA
     assert "metadata" not in SCHEMA
     assert "json" not in SCHEMA.lower()
+
+
+def test_trader_usd_toggle_contract_and_migration():
+    assert "surface = 'trader' AND event_type = 'toggle_change' AND control_key = 'usd_price'" in SCHEMA
+    assert "value_key IN ('on', 'off')" in SCHEMA
+    assert MIGRATION.startswith("BEGIN;") and MIGRATION.rstrip().endswith("COMMIT;")
+    assert "pg_get_constraintdef" in MIGRATION
+    assert "DROP CONSTRAINT IF EXISTS site_product_events_shape_chk" in MIGRATION
+    assert "site_product_events_time_surface_idx" not in MIGRATION
