@@ -199,6 +199,7 @@ def _trader_profile_card_styles(metric_icons: dict[str, str | None]) -> str:
 .trader-profile-label{{color:#C8C8CD;font-size:9px;font-weight:700;letter-spacing:1.5px;margin-top:10px;margin-bottom:5px;}}
 .trader-wallet-row{{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border:1px solid #3a3a40;border-left:2px solid #FF003A;background:#090909;margin-top:0;}}
 .trader-wallet-copy{{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;background:transparent !important;border:0 !important;outline:none !important;box-shadow:none !important;border-radius:0 !important;appearance:none !important;-webkit-appearance:none !important;color:#FFF;padding:2px;margin:0;min-height:0;height:auto;font:inherit;line-height:inherit;cursor:pointer;text-align:left;}}
+.trader-wallet-copy-label{{font-size:11px;color:#FF003A;}}
 .trader-wallet-copy:hover,.trader-wallet-copy:focus,.trader-wallet-copy:focus-visible,.trader-wallet-copy:active{{background:transparent !important;border:0 !important;outline:none !important;box-shadow:none !important;}}.trader-wallet-copy span{{color:#FF003A;margin-left:0;}}.trader-wallet-short{{white-space:nowrap;overflow:visible;font-size:10px;letter-spacing:0;}}
 .trader-profile-stats-title{{display:flex;justify-content:space-between;color:#FF003A;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-top:auto;border:1px solid #FF003A;border-bottom:0;padding:6px 8px;}}
 .trader-profile-ranks{{border:1px solid #303035;margin-top:0;padding:0;font-size:10px;background:#080808;}}

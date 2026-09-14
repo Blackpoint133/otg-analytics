@@ -225,11 +225,11 @@ class ItemUsdReconciliationTests(unittest.TestCase):
         gun_fig = charts.build_sales_chart(df, False, False, 0.002842)
         usd_fig = charts.build_sales_chart(df, False, True, 0.002842)
 
-        self.assertTrue(str(gun_fig.data[0].customdata[0]).startswith("GUN paid: 100"))
-        self.assertIn("USD at sale: $3.00", gun_fig.data[0].customdata[0])
-        self.assertTrue(str(usd_fig.data[0].customdata[0]).startswith("USD at sale: $3.00"))
-        self.assertIn("GUN paid: 100", usd_fig.data[0].customdata[0])
-        self.assertIn("GUN/USD at sale: $0.03000000", usd_fig.data[0].customdata[0])
+        self.assertTrue(str(gun_fig.data[0].customdata[0][0]).startswith("GUN paid: 100"))
+        self.assertIn("USD at sale: $3.00", gun_fig.data[0].customdata[0][0])
+        self.assertTrue(str(usd_fig.data[0].customdata[0][0]).startswith("USD at sale: $3.00"))
+        self.assertIn("GUN paid: 100", usd_fig.data[0].customdata[0][0])
+        self.assertIn("GUN/USD at sale: $0.03000000", usd_fig.data[0].customdata[0][0])
 
     def test_chart_token_type_traces_remain_distinct(self):
         df = make_enriched(make_original(rows=2))
@@ -240,8 +240,8 @@ class ItemUsdReconciliationTests(unittest.TestCase):
         fig = charts.build_sales_chart(df, False, True, 0.002842)
 
         self.assertEqual([trace.name for trace in fig.data], ["GUN", "WGUN"])
-        self.assertIn("Token type: GUN", fig.data[0].customdata[0])
-        self.assertIn("Token type: WGUN", fig.data[1].customdata[0])
+        self.assertIn("Token type: GUN", fig.data[0].customdata[0][0])
+        self.assertIn("Token type: WGUN", fig.data[1].customdata[0][0])
 
     def test_mobile_chart_exposes_currency_with_annotation(self):
         df = make_enriched(make_original(rows=3))

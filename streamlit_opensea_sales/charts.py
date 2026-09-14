@@ -70,7 +70,7 @@ def build_sales_chart(
     trend_df: pd.DataFrame = None,
     mobile_layout: bool = False,
     compact_vertical_margins: bool = False
-    , highlight_wallet: str = None
+    , highlight_wallet: str = None, participant_labels=None, participant_wallet_keys=None
 ) -> go.Figure:
     """
     technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text technical diagnostic text.
@@ -211,10 +211,13 @@ def build_sales_chart(
                     calc_usd = price_gun_numeric * current_gun_price if pd.notna(price_gun_numeric) else None
                     hover_lines.append(f"USD (current estimate): {format_usd_amount(calc_usd)}")
 
-            if highlight_wallet and role != 'OTHER':
-                hover_lines.append(f"ROLE: {role.replace('_', '-')}")
-
-            customdata_list.append("<br>".join(hover_lines))
+            buyer = str(row.get('buyer') or '').strip()
+            seller = str(row.get('seller') or '').strip()
+            buyer_label = (participant_labels or {}).get(buyer, '')
+            seller_label = (participant_labels or {}).get(seller, '')
+            buyer_key = (participant_wallet_keys or {}).get(buyer, buyer.lower())
+            seller_key = (participant_wallet_keys or {}).get(seller, seller.lower())
+            customdata_list.append(["<br>".join(hover_lines), buyer_label, seller_label, buyer_key, seller_key])
 
         return customdata_list
 
@@ -239,8 +242,8 @@ def build_sales_chart(
     y_offers = get_y_values(offers_df, show_usd, has_historical_usd)
 
     # Hover template technical implementation note (customdata technical implementation note technical implementation note technical implementation note technical implementation note)
-    hover_template_sales = "%{customdata}<extra></extra>"
-    hover_template_offers = "%{customdata}<extra></extra>"
+    hover_template_sales = "%{customdata[0]}<br>Buyer: %{customdata[1]}<br>Seller: %{customdata[2]}<extra></extra>"
+    hover_template_offers = hover_template_sales
 
     # technical implementation note technical implementation note technical implementation note technical implementation note technical implementation note (GUN)
     if not sales_df.empty and not historical_usd_unavailable:
@@ -254,6 +257,7 @@ def build_sales_chart(
             customdata=customdata_sales,
             hoverlabel=dict(bgcolor='#080808', bordercolor='#5A5A62', font=dict(color='#FFFFFF')),
             showlegend=False
+            , meta=dict(otg_point_kind='trade')
         ))
 
     # technical implementation note technical implementation note technical implementation note technical implementation note technical implementation note (WGUN)
@@ -268,6 +272,7 @@ def build_sales_chart(
             customdata=customdata_offers,
             hoverlabel=dict(bgcolor='#080808', bordercolor='#5A5A62', font=dict(color='#FFFFFF')),
             showlegend=False
+            , meta=dict(otg_point_kind='trade')
         ))
 
     # technical implementation note technical implementation note backend Trend Line
@@ -496,6 +501,7 @@ def build_sales_chart(
         yaxis2=yaxis2_config,
         annotations=annotations,
         margin=chart_margin
+        , meta=dict(otg_chart_id='item-sales-chart')
     )
 
     return fig

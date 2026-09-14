@@ -100,8 +100,8 @@ def test_selected_wallet_does_not_filter_points_and_adds_role_tooltip():
     fig = charts.build_sales_chart(df, False, False, 0.03, highlight_wallet="0xBUY")
     assert len(fig.data) == 2
     assert sum(len(trace.x) for trace in fig.data) == len(df)
-    assert "ROLE: BUY" in str(fig.data[0].customdata[0])
-    assert "ROLE: SELL" in str(fig.data[1].customdata[0])
+    assert "ROLE:" not in str(fig.data[0].customdata[0])
+    assert "ROLE:" not in str(fig.data[1].customdata[0])
     assert "Token type: WGUN" in str(fig.data[1].customdata[0])
 
 
@@ -110,7 +110,7 @@ def test_self_trade_tooltip_and_usd_trend_trace_preserved():
     trend = pd.DataFrame([{"start_date": "2026-01-01", "end_date": "2026-01-04", "trend_start_price_gun": 1.0, "trend_end_price_gun": 4.0}])
     fig = charts.build_sales_chart(df, False, False, 0.03, show_trend_line=True, trend_df=trend, highlight_wallet="0xSELL")
     assert len(fig.data) == 3
-    assert "ROLE: SELF-TRADE" in str(fig.data[0].customdata[1])
+    assert "ROLE:" not in str(fig.data[0].customdata[1])
 
 
 def test_chart_source_has_no_external_client_or_table_mutation():

@@ -30,5 +30,6 @@ def test_axis_polish_preserves_wallet_highlight_and_trend_trace():
     trend = pd.DataFrame([{"start_date": "2026-01-01", "end_date": "2026-01-02", "trend_start_price_gun": 1.0, "trend_end_price_gun": 2.0}])
     fig = charts.build_sales_chart(_sales(), False, False, 0.03, show_trend_line=True, trend_df=trend, highlight_wallet="a")
     assert len(fig.data) == 3
-    assert "ROLE: BUY" in str(fig.data[0].customdata[0])
+    assert "ROLE:" not in str(fig.data[0].customdata[0])
+    assert "Buyer:" in fig.data[0].hovertemplate
     assert charts.wallet_point_outline_colors(_sales().iloc[[1]], "WGUN") == "#B8860B"

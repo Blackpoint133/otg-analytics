@@ -21,6 +21,8 @@ from ui.tables import render_sales_table, paginate_dataframe, get_current_page
 from gunzscope_supply import get_item_supply_with_rank
 from item_paths import resolve_item_path
 from ui.gunzscope_attribution import inline_logo
+from ui.trader_overview import build_trader_card_contexts
+from ui.item_chart_trade_overlay import build_item_chart_trade_overlay_html, render_item_chart_trade_overlay_wiring
 
 
 # Image URL normalization
@@ -672,6 +674,11 @@ def _render_item_chart(
     mobile_layout: bool,
     highlight_wallet: Optional[str] = None
 ):
+    wallets = {str(v).strip() for col in ('seller', 'buyer') if col in filtered_df.columns for v in filtered_df[col].dropna() if str(v).strip()}
+    contexts = build_trader_card_contexts(wallets, show_usd)
+    labels = {k: v.get('Profile', '') for k, v in contexts.items()}
+    keys = {str(v).strip(): k for k, v in contexts.items()}
+    st.markdown(build_item_chart_trade_overlay_html(contexts), unsafe_allow_html=True)
     fig = build_sales_chart(
         filtered_df,
         show_volume,
@@ -681,13 +688,14 @@ def _render_item_chart(
         trend_df=trend_df,
         mobile_layout=mobile_layout,
         compact_vertical_margins=not mobile_layout
-        , highlight_wallet=highlight_wallet
+        , highlight_wallet=highlight_wallet, participant_labels=labels, participant_wallet_keys=keys
     )
     if not mobile_layout:
         fig.update_layout(height=ITEM_ANALYTICS_DESKTOP_CHART_HEIGHT)
     if mobile_layout:
         fig.update_layout(showlegend=False)
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    render_item_chart_trade_overlay_wiring()
 
 
 def _render_item_sales_table(
