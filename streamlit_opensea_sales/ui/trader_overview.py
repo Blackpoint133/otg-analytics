@@ -188,7 +188,7 @@ def _trader_profile_card_styles(metric_icons: dict[str, str | None]) -> str:
 .trader-profile-card .trader-avatar-large{{aspect-ratio:1/1;}}
 .trader-profile-avatar::before{{content:"OFF\\A THE\\A GRID";white-space:pre;color:#7b7b82;font-size:9px;line-height:1.05;letter-spacing:2px;position:absolute;left:10px;top:10px;z-index:1;pointer-events:none;}}
 .trader-profile-avatar::after{{content:"TRADERS\\A BUILD\\A DIFFERENT";white-space:pre;color:#7b7b82;font-size:8px;line-height:1.05;letter-spacing:1px;position:absolute;right:10px;bottom:10px;text-align:right;z-index:1;pointer-events:none;}}
-.trader-profile-content{{min-width:0;height:var(--trader-profile-square);max-height:var(--trader-profile-square);position:relative;}}
+.trader-profile-content{{min-width:0;height:var(--trader-profile-square);max-height:var(--trader-profile-square);position:relative;display:flex;flex-direction:column;}}
 .trader-profile-content::before{{content:"TRADER\\A PROFILE";white-space:pre;position:absolute;right:0;top:-2px;color:#77777d;font-size:9px;line-height:1.1;letter-spacing:2px;text-align:right;}}
 .trader-profile-identity{{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-right:92px;}}
 .trader-profile-identity strong{{display:block;color:#FFF;font-size:32px;line-height:1.05;overflow-wrap:anywhere;}}
@@ -200,7 +200,7 @@ def _trader_profile_card_styles(metric_icons: dict[str, str | None]) -> str:
 .trader-wallet-row{{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border:1px solid #3a3a40;border-left:2px solid #FF003A;background:#090909;margin-top:0;}}
 .trader-wallet-copy{{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;background:transparent;border:0;color:#FFF;padding:2px;font:inherit;cursor:pointer;text-align:left;}}
 .trader-wallet-copy:hover{{color:#FFF;}}.trader-wallet-copy span{{color:#FF003A;margin-left:0;}}.trader-wallet-short{{white-space:nowrap;overflow:visible;font-size:10px;letter-spacing:0;}}
-.trader-profile-stats-title{{display:flex;justify-content:space-between;color:#FF003A;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-top:10px;border:1px solid #FF003A;border-bottom:0;padding:6px 8px;}}
+.trader-profile-stats-title{{display:flex;justify-content:space-between;color:#FF003A;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-top:auto;border:1px solid #FF003A;border-bottom:0;padding:6px 8px;}}
 .trader-profile-ranks{{border:1px solid #303035;margin-top:0;padding:0;font-size:10px;background:#080808;}}
 .trader-profile-ranks div{{display:grid;grid-template-columns:22px minmax(70px,1fr) 44px minmax(100px,1fr);gap:6px;align-items:center;border:0;border-bottom:1px solid #303035;background:#0b0b0b;padding:4px 6px;margin:0;min-height:18px;}}
 .trader-profile-ranks div:last-child{{border-bottom:0;}}
@@ -210,7 +210,7 @@ def _trader_profile_card_styles(metric_icons: dict[str, str | None]) -> str:
 .trader-profile-stat-icon{{width:18px;height:18px;object-fit:contain;object-position:center;display:block;background-size:contain;background-position:center;background-repeat:no-repeat;}}
 .trader-profile-stat-icon-fallback{{color:#FF003A;font-size:9px;line-height:18px;}}
 {icon_rules}
-@media (max-width:768px){{.trader-profile-card{{--trader-profile-square:auto;width:min(560px,calc(100vw - 24px));}}.trader-profile-card-grid{{grid-template-columns:1fr;height:auto;}}.trader-profile-avatar{{width:100%;max-width:none;height:auto;aspect-ratio:1/1;}}.trader-profile-content{{height:auto;max-height:none;}}.trader-profile-identity strong{{font-size:24px;}}.trader-wallet-copy-label{{display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:28px;padding:0 8px;box-sizing:border-box;border:1px solid #FF003A;background:#050505;color:#FF003A !important;font-size:10px;font-weight:700;line-height:1;letter-spacing:1px;white-space:nowrap;}}.trader-wallet-copy:hover .trader-wallet-copy-label{{background:rgba(255,0,58,.08);}}.trader-wallet-short{{min-width:0;overflow-wrap:anywhere;white-space:normal;}}}}
+@media (max-width:768px){{.trader-profile-card{{--trader-profile-square:auto;width:min(560px,calc(100vw - 24px));}}.trader-profile-card-grid{{grid-template-columns:1fr;height:auto;}}.trader-profile-avatar{{width:100%;max-width:none;height:auto;aspect-ratio:1/1;}}.trader-profile-content{{display:block;height:auto;max-height:none;}}.trader-profile-identity strong{{font-size:24px;}}.trader-wallet-copy-label{{display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:28px;padding:0 8px;box-sizing:border-box;border:1px solid #FF003A;background:#050505;color:#FF003A !important;font-size:10px;font-weight:700;line-height:1;letter-spacing:1px;white-space:nowrap;}}.trader-wallet-copy:hover .trader-wallet-copy-label{{background:rgba(255,0,58,.08);}}.trader-wallet-short{{min-width:0;overflow-wrap:anywhere;white-space:normal;}}}}
 </style>'''
 
 
