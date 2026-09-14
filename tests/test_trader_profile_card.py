@@ -240,10 +240,15 @@ def test_desktop_profile_content_bottom_anchor_contract_is_preserved():
     assert "height:var(--trader-profile-square)" in source
     assert "@media (max-width:768px)" in source
     assert ".trader-profile-content { display:block; height:auto; max-height:none; }" in source
-    mobile = source[source.index("@media (max-width:768px)"):]
-    assert ".trader-profile-stats-title { margin-top:16px; }" in mobile
-    assert ".trader-wallet-row { margin-top:0; }" in source
-    assert "trader-profile-stats-spacer" not in source
+    shared_css = overview._trader_profile_card_styles({})
+    assert "@media (max-width:768px)" in shared_css
+    assert ".trader-profile-content{display:block;height:auto;max-height:none;}" in shared_css
+    assert ".trader-profile-stats-title{margin-top:16px;}" in shared_css
+    assert "margin-top:auto" in shared_css
+    assert "--trader-profile-square:350px" in shared_css
+    assert ".trader-wallet-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;" in shared_css
+    assert "trader-profile-stats-spacer" not in shared_css
+    assert ".trader-profile-stats-title { margin-top:16px; }" not in source
 
 
 def test_trader_card_uses_direct_square_outer_frame():
