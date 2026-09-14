@@ -71,7 +71,6 @@ def test_final_item_and_market_guide_copy_is_present():
     assert "buyer proposed a price" in item_source
     assert "seller accepted the offer" in item_source
     assert "show how many completed sales occurred over time" in market_source
-    assert "Liquidity means completed trading activity" in market_source
     assert "not the number or depth of active listings or offers" in market_source
     assert "number of distinct wallets active in those sales" in market_source
     assert "Liquidity means completed trading activity" in market_source

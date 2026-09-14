@@ -104,6 +104,17 @@ def test_item_guide_describes_current_chart_table_and_shared_trader_card():
     assert "open that trader's Profile Card next to the trade details" in item
     assert "Seller and Buyer are shown as trader profile names or stable NoName fallbacks" in item
     assert "click either name to open the same Trader Profile Card" in item
+    assert "GUN sales represent direct purchases of listed items" in item
+    assert "WGUN sales represent accepted offers" in item
+    assert "buyer proposed a price" in item
+    assert "seller accepted the offer" in item
+    assert "GunzScan opens the blockchain transaction" in item
+    assert "OpenSea opens the item on OpenSea" in item
+    assert "copyable wallet address" in item
+    assert "Earned, Invested, Sold, Trades, ROI and Win Rate" in item
+    assert "MOBILE VIEW</b> On mobile, ITEM ANALYTICS displays the Item Card and CHART only" in item
+    assert "<b>SUPPLY DATA</b> Current supply data is provided by GUNZscope." in item
+    assert "with links to seller and buyer OpenSea profiles" not in item
 
 
 def test_market_guide_is_untouched_by_guide_content_audit():
