@@ -1,11 +1,14 @@
-# Report 073 — Trader Profile Secondary Username Sanitization Correction
+# Report 073 — Trader Profile Identity/Fallback Correction
 
 REPORT_SEQUENCE=073
 RESULT=PASS
-HEAD_BEFORE=0eeaae7c706919d482b45d4e74c024ac82bd7599
+HEAD_BEFORE=6a3ac65a542ec273588d2cfcc2f7105c401b9017
 MAIN_HEAD_BEFORE=dacee4c675419dea127ceb5e8a70e1a7ffc36a0
 SOURCE_AUDIT=PASS
 BASELINE_VERIFICATION=PASS
+
+ROOT_CAUSE=render_trader_table and the shared card accepted a precomputed Profile value without rejecting a raw wallet primary identity; avatar fallback itself was already centralized through avatar_style_attribute.
+BUG_SCOPE=PRIMARY_DISPLAY_AND_SECONDARY_AUDIT;AVATAR_FALLBACK_NOT_DEFECTIVE
 
 REPORT_072_PRIMARY_DISPLAY_FIX=PASS
 REPORT_072_SECONDARY_USERNAME_GAP=CONFIRMED
@@ -15,16 +18,20 @@ RAW_USERNAME_ACCESS_IN_SHARED_CARD_BEFORE=YES
 SHARED_CARD_USES_USER_FACING_USERNAME_AFTER=YES
 
 WALLET_LIKE_USERNAMES_CURRENT=3
-WALLET_LIKE_SECONDARY_USERNAME_LEAKS_BEFORE=3
+WALLET_LIKE_SECONDARY_USERNAME_LEAKS_BEFORE=0
 WALLET_LIKE_SECONDARY_USERNAME_LEAKS_AFTER=0
+RAW_WALLET_PRIMARY_DISPLAY_LEAKS_BEFORE=3
 RAW_WALLET_PRIMARY_DISPLAY_LEAKS_AFTER=0
 CURRENT_NON_HUMAN_TRADERS_WITHOUT_NONAME=0
 CURRENT_DUPLICATE_NONAME_ALIASES=0
+TRADERS_MISSING_AVATAR_FALLBACK_BEFORE=0
+TRADERS_MISSING_AVATAR_FALLBACK_AFTER=0
 
 VALID_HUMAN_SECONDARY_USERNAME_PRESERVED=YES
 EXPLICIT_WALLET_FIELD_PRESERVED=YES
 COPY_WALLET_PRESERVED=YES
 OPENSEA_WALLET_URL_PRESERVED=YES
+AVATAR_FALLBACK_CONTRACT=PASS_CENTRALIZED_DEFAULT_FACTORY_ASSET
 
 REPORT_072_GUIDE_FIX_PRESERVED=YES
 REPORT_072_PD_NA_FIX_PRESERVED=YES
@@ -32,18 +39,18 @@ REPORT_072_SILENCE_HAT_FIX_PRESERVED=YES
 REPORT_072_PRIMARY_NONAME_FIX_PRESERVED=YES
 CURRENT_PRICE_USED_AS_HISTORICAL_FALLBACK=NO
 
-TARGETED_TESTS=143 passed
-FULL_TESTS=580 passed, 4 unrelated pre-existing failures, 5 subtests passed
+TARGETED_TESTS=103 passed
+FULL_TESTS=582 passed, 4 unrelated pre-existing failures, 5 subtests passed
 FULL_TEST_FAILURE_SET_UNCHANGED=YES
 COMPILE=PASS
 PIP_CHECK=PASS
 DIFF_CHECK=PASS
 
 IMPLEMENTATION_FILES=streamlit_opensea_sales/ui/trader_overview.py;tests/test_trader_profile_card.py
-IMPLEMENTATION_COMMIT_SHA=0b2829222a3b7b363e9bae2589637f86de5266ea
+IMPLEMENTATION_COMMIT_SHA=6ce87b3bd5d9def38b289157dc931a606c6e19e3
 
 STAGING_RESTART_RESULT=PASS
-STAGING_HEAD=0b2829222a3b7b363e9bae2589637f86de5266ea
+STAGING_HEAD=6ce87b3bd5d9def38b289157dc931a606c6e19e3
 STAGING_PORT=8504
 STAGING_SUPPLY_SOURCE=v3
 
@@ -55,15 +62,16 @@ PRODUCTION_DATA_CHANGED=NO
 PRODUCTION_RESTARTED=NO
 MAIN_CHANGED=NO
 
-The shared profile-card builder now obtains its secondary username through
-`user_facing_username(profile)`. This covers both desktop hover cards and
-mobile standalone cards. Canonical wallet-like usernames are suppressed while
-the explicit wallet address, copy-wallet data attribute, and OpenSea URL remain
-unchanged; a human username such as `alice` remains visible as `@alice`.
+The fix normalizes raw wallet candidates at the public table/card boundary
+through the existing profile-name contract, while retaining human-readable
+names and persisted NoName#### aliases. The shared profile-card helper uses
+user_facing_username(profile), so desktop hover and mobile cards suppress
+wallet-like secondary usernames. The wallet remains in the explicit wallet
+field, copy control, and OpenSea URL. Existing avatar rendering already uses
+the centralized remote-or-factory fallback path and required no change.
 
-The four full-suite failures are unchanged unrelated legacy contracts:
-`tests/test_item_analytics_panel.py::test_final_item_and_market_guide_copy_is_present`,
-`tests/test_market_visual_refinement.py::test_all_desktop_mode_containers_share_pre_trader_zero_offset`,
-`tests/test_top_items_supply.py::test_total_supply_render_does_not_require_market_rank`,
-and `tests/test_trader_profile_sync.py::test_trader_visible_title_is_renamed`.
-No reports, snapshots, analytics, SQL, or production resources were changed.
+The four full-suite failures remain unchanged and unrelated:
+tests/test_item_analytics_panel.py::test_final_item_and_market_guide_copy_is_present,
+tests/test_market_visual_refinement.py::test_all_desktop_mode_containers_share_pre_trader_zero_offset,
+tests/test_top_items_supply.py::test_total_supply_render_does_not_require_market_rank,
+and tests/test_trader_profile_sync.py::test_trader_visible_title_is_renamed.
