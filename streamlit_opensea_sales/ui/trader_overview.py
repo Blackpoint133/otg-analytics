@@ -151,8 +151,10 @@ def consolidated_table_rows(rows: Iterable[dict[str, Any]], show_usd: bool = Tru
 
 def _build_trader_profile_card_html(row: dict[str, Any], metric_icons: dict[str, str | None]) -> str:
     profile = row.get("_profile") or {}
-    display = html.escape(str(row.get("Profile") or row.get("_profile_name") or "Trader"))
     wallet = str(row.get("_wallet") or "")
+    candidate = str(row.get("Profile") or row.get("_profile_name") or "").strip()
+    display_name = profile_name(wallet, profile, getattr(render_trader_table, "fallback_names", {})) if normalize_wallet(candidate) else (candidate or profile_name(wallet, profile, getattr(render_trader_table, "fallback_names", {})))
+    display = html.escape(display_name)
     wallet_html = html.escape(wallet, quote=True)
     username = user_facing_username(profile)
     secondary = f'<span class="trader-profile-secondary">@{html.escape(username)}</span>' if username and username != display else ""
@@ -265,6 +267,10 @@ def render_trader_table(rows: list[dict[str, Any]]) -> None:
     metric_icons = metric_icon_data_uris()
     body = []
     for row_number, row in enumerate(rows, 1):
+        row = dict(row)
+        wallet = row.get("_wallet") or row.get("wallet", "")
+        candidate = str(row.get("Profile") or row.get("_profile_name") or "").strip()
+        row["Profile"] = profile_name(wallet, row.get("_profile") or {}, getattr(render_trader_table, "fallback_names", {})) if normalize_wallet(candidate) else candidate
         cells = []
         for column in columns:
             value = html.escape(str(row.get(column, "")))

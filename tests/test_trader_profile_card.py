@@ -28,7 +28,25 @@ def test_shared_card_suppresses_mixed_case_wallet_like_username():
 
 def test_shared_card_preserves_human_username():
     rendered = _direct_card({"username": "alice"}, "0x" + "b" * 40)
-    assert "@alice" in rendered
+    assert "<strong>alice" in rendered
+
+
+def test_primary_wallet_identity_is_sanitized_in_shared_card():
+    wallet = "0x" + "d" * 40
+    rendered = _direct_card({"display_name": wallet, "username": ""}, wallet)
+    assert f'<strong>{wallet}' not in rendered
+    assert "NoName" in rendered
+
+
+def test_table_primary_wallet_identity_is_sanitized(monkeypatch):
+    wallet = "0x" + "e" * 40
+    captured = []
+    monkeypatch.setattr(overview.st, "markdown", lambda value, **kwargs: captured.append(value))
+    row = {"Profile": wallet, "_profile": {"display_name": wallet}, "_wallet": wallet, "_ranks": {}}
+    overview.render_trader_table([row])
+    rendered = "".join(captured)
+    assert f'<strong>{wallet}' not in rendered
+    assert "NoName" in rendered
 
 
 def test_mobile_renderer_uses_shared_card_contract(monkeypatch):
@@ -86,8 +104,8 @@ def test_profile_card_copies_full_wallet_and_escapes_wallet(monkeypatch):
     rows[0]["_profile"] = {"bio": "<script>alert(1)</script>"}
     rows[0]["Profile"] = "<img src=x onerror=alert(1)>"
     overview.render_trader_table(rows)
-    rendered = captured[0]
-    assert "&lt;img" in rendered
+    rendered = "".join(captured)
+    assert "<img" not in rendered
     assert "&lt;script&gt;" not in rendered
     assert f'data-wallet="{wallet}"' in rendered
     assert wallet in rendered
