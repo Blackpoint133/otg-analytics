@@ -26,6 +26,8 @@ AUTH_KEY = "visitor_dashboard_authenticated"
 RANGE_LABELS = ("24H", "7D", "30D", "ALL")
 MODE_LABELS = {"item": "Item Analytics", "market": "Market Analytics", "top_items": "Top Items Analytics", "trader": "Top Traders Analytics"}
 DISPLAY_ZONE = ZoneInfo(DISPLAY_TIMEZONE)
+PRODUCT_USAGE_LABEL_SEPARATOR = " · "
+PRODUCT_USAGE_NULL_VALUE = "—"
 
 
 def _password_configured() -> str:
@@ -98,7 +100,7 @@ def _render_product_usage(product_data: pd.DataFrame | None) -> None:
         else:
             grouped = interactions.copy()
             grouped["label"] = [
-                f"{surface_labels.get(surface, surface)}  {control_labels.get(control, control)}"
+                f"{surface_labels.get(surface, surface)}{PRODUCT_USAGE_LABEL_SEPARATOR}{control_labels.get(control, control)}"
                 for surface, control in zip(grouped["surface"], grouped["control_key"])
             ]
             grouped = grouped.groupby("label", as_index=False)["events"].sum().sort_values(["events", "label"], ascending=[True, True]).tail(15)
@@ -115,7 +117,7 @@ def _render_product_usage(product_data: pd.DataFrame | None) -> None:
     detail["Value"] = detail["value_key"].map(value_labels)
     unknown_value = detail["Value"].isna() & detail["value_key"].notna()
     detail.loc[unknown_value, "Value"] = detail.loc[unknown_value, "value_key"]
-    detail["Value"] = detail["Value"].fillna("")
+    detail["Value"] = detail["Value"].fillna(PRODUCT_USAGE_NULL_VALUE)
     detail["Latest Event"] = detail["latest_event"].map(_fmt_time)
     st.dataframe(detail.rename(columns={"events": "Events", "unique_sessions": "Unique Sessions", "unique_v2_visitors": "Unique Visitors"})[["Surface", "Interaction", "Feature", "Value", "Events", "Unique Sessions", "Unique Visitors", "Latest Event"]], hide_index=True, use_container_width=True)
 

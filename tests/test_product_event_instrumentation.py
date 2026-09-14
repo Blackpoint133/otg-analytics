@@ -45,13 +45,15 @@ def test_product_usage_dashboard_is_separate_and_isolated():
     assert render_source.index('st.subheader("Post Performance")') < render_source.index("_render_product_usage(product_data)") < render_source.index('st.subheader("Item Interest")')
 
 
-def test_product_usage_feature_labels_use_exact_two_space_separator():
-    assert 'f"{surface_labels.get(surface, surface)}  {control_labels.get(control, control)}"' in DASHBOARD
+def test_product_usage_feature_labels_use_middle_dot_separator_constant():
+    assert 'PRODUCT_USAGE_LABEL_SEPARATOR = " · "' in DASHBOARD
+    assert 'f"{surface_labels.get(surface, surface)}{PRODUCT_USAGE_LABEL_SEPARATOR}{control_labels.get(control, control)}"' in DASHBOARD
     assert ' + "  " +' not in DASHBOARD
 
 
-def test_product_usage_null_value_is_rendered_as_empty_string():
-    assert 'detail["Value"] = detail["Value"].fillna("")' in DASHBOARD
+def test_product_usage_null_value_uses_em_dash_constant():
+    assert 'PRODUCT_USAGE_NULL_VALUE = "—"' in DASHBOARD
+    assert 'detail["Value"] = detail["Value"].fillna(PRODUCT_USAGE_NULL_VALUE)' in DASHBOARD
     assert 'fillna(detail["value_key"])' not in DASHBOARD
 
 
@@ -67,3 +69,4 @@ def test_product_usage_value_mappings_and_presentation_contract_remain_frozen():
     assert 'marker_color="#ff003a"' in DASHBOARD
     assert 'marker_color="#62d9ff"' in DASHBOARD
     assert '["Surface", "Interaction", "Feature", "Value", "Events", "Unique Sessions", "Unique Visitors", "Latest Event"]' in DASHBOARD
+    assert 'Privacy-safe categorical interaction events.' in DASHBOARD
