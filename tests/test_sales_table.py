@@ -47,11 +47,15 @@ def test_sales_table_uses_shared_identity_cards_and_preserves_links(monkeypatch)
     assert runtime and "window.parent.document" in runtime[0]
     script = runtime[0]
     assert ".sales-trader-identity-trigger" in script
-    assert "otgSalesTraderBound" in script
-    assert "open&&open.card===card" in script
+    assert "__otgSalesTraderOverlayState" in script
+    assert "old&&old.destroy" in script
+    assert "removeEventListener(\"click\"" in script
+    assert "removeEventListener(\"keydown\"" in script
+    assert "clearInterval(timer)" in script
+    assert "open&&open.card===c" in script
     assert "aria-expanded" in script and "getBoundingClientRect()" in script
-    assert "card.hidden=false" in script and "offsetWidth" in script
-    assert "innerWidth-card.offsetWidth-16" in script
+    assert "c.hidden=false" in script and "offsetWidth" in script
+    assert "w-c.offsetWidth-16" in script
     assert "setInterval" in script and "clearInterval" in script
     assert "Escape" in script
     assert ">GunzScan</a>" in rendered
