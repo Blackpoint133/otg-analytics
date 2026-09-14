@@ -177,6 +177,14 @@ def test_mobile_card_polish_is_scoped_to_mobile_css():
     assert "navigator.clipboard" in source
 
 
+def test_shared_wallet_copy_control_has_no_native_chrome():
+    css = overview._trader_profile_card_styles({})
+    assert ".trader-wallet-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border:1px solid #3a3a40;border-left:2px solid #FF003A;background:#090909" in css
+    for token in ("background:transparent !important", "border:0 !important", "outline:none !important", "box-shadow:none !important", "border-radius:0 !important", "appearance:none !important", "-webkit-appearance:none !important", "margin:0", "min-height:0", "height:auto"):
+        assert token in css
+    assert ".trader-wallet-copy:hover,.trader-wallet-copy:focus,.trader-wallet-copy:focus-visible,.trader-wallet-copy:active" in css
+
+
 def test_trader_table_splits_image_and_trader_and_scopes_avatar_border(monkeypatch):
     rendered = _rendered(monkeypatch)
     header = rendered.split("<thead>", 1)[1].split("</thead>", 1)[0]
