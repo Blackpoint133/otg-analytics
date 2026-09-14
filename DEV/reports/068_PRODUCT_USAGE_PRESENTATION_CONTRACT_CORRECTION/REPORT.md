@@ -1,0 +1,78 @@
+REPORT_SEQUENCE=068
+RESULT=PASS
+
+HEAD_BEFORE=9f012cf0758af6c596efb74a29e96c6ad88e4c2f
+MAIN_HEAD_BEFORE=dacee4c675419dea127ceb5e8a70e1a7ffc36a0
+
+SOURCE_AUDIT=PASS
+
+REPORT_067_OPERATIONAL_ACTIVATION=PASS
+REPORT_067_PRESENTATION_CONTRACT=SUPERSEDED_BY_REPORT_068
+
+FEATURE_LABEL_SEPARATOR= · 
+FEATURE_LABEL_SEPARATOR_CODEPOINT=U+00B7
+NULL_VALUE_DISPLAY=—
+NULL_VALUE_CODEPOINT=U+2014
+DOUBLE_SPACE_FEATURE_SEPARATOR_PRESENT=NO
+EMPTY_STRING_NULL_DISPLAY_PRESENT=NO
+UNKNOWN_NON_NULL_VALUE_PRESERVED=YES
+PRODUCT_USAGE_PRESENTATION_FIX=PASS
+
+EVENT_VOCABULARY_CHANGED=NO
+INSTRUMENTATION_CHANGED=NO
+PRODUCT_USAGE_AGGREGATION_CHANGED=NO
+PUBLIC_PRODUCT_UI_CHANGED=NO
+PUBLIC_CALCULATIONS_CHANGED=NO
+
+DATABASE_MIGRATION_REQUIRED=NO
+
+STAGING_GLOBAL_ANALYTICS_GATE=true
+STAGING_PRODUCT_EVENTS_GATE=true
+PRODUCT_EVENTS_STAGING_TRUST_BOUNDARY_UTC=2026-09-14T08:10:16.6876283Z
+TRUST_BOUNDARY_CHANGED=NO
+TRADER_USD_SCHEMA_STILL_VALID=YES
+
+DASHBOARD_FIX_TEST_COUNT=35
+OTHER_RELEVANT_TEST_COUNT=189
+TOTAL_RELEVANT_TEST_COUNT=224
+
+PYTEST_RESULT=224 passed
+COMPILE=PASS
+PIP_CHECK=PASS
+DIFF_CHECK=PASS
+
+IMPLEMENTATION_COMMIT_SHA=1053e1c9f99957dc04510fc18534f4f41dd49498
+IMPLEMENTATION_REMOTE_HEAD_VERIFIED=YES
+
+STAGING_RESTART_RESULT=PASS
+STAGING_PID=20000
+STAGING_EXPECTED_HEAD=1053e1c9f99957dc04510fc18534f4f41dd49498
+STAGING_SUPPLY_SOURCE=v3
+STAGING_PORT=8504
+STAGING_ANALYTICS_LOG_HEALTH=PASS
+
+VISUAL_VALIDATION=HUMAN_VALIDATION_REQUIRED
+LIVE_EVENT_HUMAN_VALIDATION=REQUIRED
+
+PRODUCTION_DATABASE_CHANGED=NO
+PRODUCTION_APPLICATION_CHANGED=NO
+PRODUCTION_ENVIRONMENT_CHANGED=NO
+MAIN_CHANGED=NO
+
+Report 067 successfully activated staging, but its two presentation
+assertions were superseded: Product Usage feature labels now use the exact
+`space + U+00B7 + space` separator, and NULL value_key displays as em dash
+U+2014. Known friendly categorical mappings, privacy caption, chart colors,
+detail columns, and Product Usage placement remain unchanged.
+
+Only `streamlit_opensea_sales/visitor_dashboard.py` and
+`tests/test_product_event_instrumentation.py` changed in the implementation.
+No event vocabulary, instrumentation, aggregation, public UI, or calculation
+semantics changed. Staging `.env` flags were verified true without rewriting
+the file. No migration or production action was performed.
+
+The staging service restarted successfully at the remotely verified
+implementation SHA. The protected dashboard route was healthy. Existing log
+matches were confined to an older unrelated top-items validation log; no new
+visitor-dashboard, product-event, import, schema, or constraint errors were
+observed.
