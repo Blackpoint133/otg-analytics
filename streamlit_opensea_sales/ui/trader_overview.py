@@ -153,7 +153,7 @@ def _build_trader_profile_card_html(row: dict[str, Any], metric_icons: dict[str,
     profile = row.get("_profile") or {}
     wallet = str(row.get("_wallet") or "")
     candidate = str(row.get("Profile") or row.get("_profile_name") or "").strip()
-    display_name = profile_name(wallet, profile, getattr(render_trader_table, "fallback_names", {})) if not candidate or is_canonical_wallet_label(candidate) else candidate
+    display_name = profile_name(wallet, profile, row.get("_fallback_names") or getattr(render_trader_table, "fallback_names", {})) if not candidate or is_canonical_wallet_label(candidate) else candidate
     display = html.escape(display_name)
     wallet_html = html.escape(wallet, quote=True)
     username = user_facing_username(profile)
@@ -212,6 +212,40 @@ def _trader_profile_card_styles(metric_icons: dict[str, str | None]) -> str:
 {icon_rules}
 @media (max-width:768px){{.trader-profile-card{{--trader-profile-square:auto;width:min(560px,calc(100vw - 24px));}}.trader-profile-card-grid{{grid-template-columns:1fr;height:auto;}}.trader-profile-avatar{{width:100%;max-width:none;height:auto;aspect-ratio:1/1;}}.trader-profile-content{{height:auto;max-height:none;}}.trader-profile-identity strong{{font-size:24px;}}.trader-wallet-copy-label{{display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:28px;padding:0 8px;box-sizing:border-box;border:1px solid #FF003A;background:#050505;color:#FF003A !important;font-size:10px;font-weight:700;line-height:1;letter-spacing:1px;white-space:nowrap;}}.trader-wallet-copy:hover .trader-wallet-copy-label{{background:rgba(255,0,58,.08);}}.trader-wallet-short{{min-width:0;overflow-wrap:anywhere;white-space:normal;}}}}
 </style>'''
+
+
+def build_trader_profile_card_html(row: dict[str, Any], metric_icons: dict[str, str | None] | None = None) -> str:
+    return _build_trader_profile_card_html(row, metric_icons or metric_icon_data_uris())
+
+
+def trader_profile_card_styles(metric_icons: dict[str, str | None] | None = None) -> str:
+    return _trader_profile_card_styles(metric_icons or metric_icon_data_uris())
+
+
+def render_trader_clipboard_wiring() -> None:
+    _render_trader_clipboard_wiring()
+
+
+def build_trader_card_contexts(wallets: Iterable[str], show_usd: bool = True) -> dict[str, dict[str, Any]]:
+    payload = load_current_snapshot() or {}
+    trader_rows = payload.get("wallets", [])
+    profile_snapshot = load_profile_snapshot()
+    requested = [str(wallet or "") for wallet in wallets]
+    universe = [str(row.get("wallet") or "") for row in trader_rows] + requested
+    fallback_names = effective_fallback_names(universe, profile_snapshot.get("fallback_names", {}))
+    rank_maps = _rank_maps(trader_rows, show_usd)
+    contexts = {}
+    for wallet in requested:
+        canonical = normalize_wallet(wallet)
+        if not canonical:
+            continue
+        source = next((row for row in trader_rows if normalize_wallet(row.get("wallet")) == canonical), {})
+        profile = get_profile(wallet, profile_snapshot)
+        context = dict(source)
+        context.update({"_wallet": wallet, "_profile": profile, "_ranks": {metric: rank_maps[metric].get(str(source.get("wallet")), {}) for metric in SORT_OPTIONS}, "_fallback_names": fallback_names})
+        context["Profile"] = profile_name(wallet, profile, fallback_names)
+        contexts[canonical] = context
+    return contexts
 
 
 def _render_trader_clipboard_wiring() -> None:

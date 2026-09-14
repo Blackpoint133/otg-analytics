@@ -5,11 +5,13 @@ technical diagnostic text technical diagnostic text technical diagnostic text te
 """
 
 from typing import Dict
+import html
 import streamlit as st
 import pandas as pd
 
 from config import ITEMS_PER_PAGE
 from formatters import format_number, shorten_address, format_opensea_link, format_gunzscan_link
+from ui.trader_overview import build_trader_card_contexts, build_trader_profile_card_html, render_trader_clipboard_wiring, trader_profile_card_styles
 
 
 def get_current_page() -> int:
@@ -82,6 +84,10 @@ def render_sales_table(
     # technical implementation note technical implementation note technical implementation note USD technical implementation note
     has_historical_usd = 'price_usd_at_sale' in page_data.columns and 'gun_usd_price_at_sale' in page_data.columns
     
+    trader_wallets = [str(value or "") for value in page_data.get("seller", pd.Series(dtype=object)).tolist() + page_data.get("buyer", pd.Series(dtype=object)).tolist()]
+    trader_contexts = build_trader_card_contexts(trader_wallets, show_usd)
+    card_index = 0
+
     # technical implementation note HTML technical implementation note
     table_html = '<table class="sales-table"><thead><tr>'
     columns = ['Date', 'Price', 'Seller', 'Buyer', 'Tx Hash', 'View']
@@ -123,17 +129,39 @@ def render_sales_table(
                 usd_value = format_number(row["price_gun"], True, current_gun_price, currency='GUN')
                 table_html += f'<td><div class="tooltip">{gun_value}<span class="tooltiptext">CURRENT ESTIMATE: {usd_value}</span></div></td>'
         
-        table_html += (f'<td class="link-cell"><a href="{format_opensea_link(row["seller"])}" target="_blank">'
-                    f'{shorten_address(row["seller"])}</a></td>')
-        table_html += (f'<td class="link-cell"><a href="{format_opensea_link(row["buyer"])}" target="_blank">'
-                    f'{shorten_address(row["buyer"])}</a></td>')
-        table_html += (f'<td class="link-cell"><a href="{format_gunzscan_link(row["transaction_hash"])}" target="_blank">'
-                    f'{shorten_address(row["transaction_hash"])}</a></td>')
-        table_html += (f'<td class="link-cell"><a href="{row["item_url"]}" target="_blank">OpenSea</a></td>')
+        seller = str(row.get("seller") or "")
+        buyer = str(row.get("buyer") or "")
+        seller_html = _trader_identity_cell(seller, trader_contexts, card_index)
+        card_index += 1
+        buyer_html = _trader_identity_cell(buyer, trader_contexts, card_index)
+        card_index += 1
+        table_html += f'<td class="link-cell">{seller_html}</td>'
+        table_html += f'<td class="link-cell">{buyer_html}</td>'
+        tx = str(row.get("transaction_hash") or "").strip()
+        tx_html = f'<a href="{html.escape(format_gunzscan_link(tx), quote=True)}" target="_blank" rel="noopener noreferrer">GunzScan</a>' if tx else ""
+        table_html += f'<td class="link-cell">{tx_html}</td>'
+        table_html += (f'<td class="link-cell"><a href="{html.escape(str(row.get("item_url") or ""), quote=True)}" target="_blank" rel="noopener noreferrer">OpenSea</a></td>')
         table_html += '</tr>'
 
     table_html += '</tbody></table>'
-    st.markdown(table_html, unsafe_allow_html=True)
+    st.markdown(trader_profile_card_styles() + _sales_trader_overlay_script() + table_html, unsafe_allow_html=True)
+    render_trader_clipboard_wiring()
+
+
+def _trader_identity_cell(wallet: str, contexts: dict, index: int) -> str:
+    context = contexts.get(str(wallet).strip().lower())
+    if not context:
+        return html.escape(wallet)
+    label = html.escape(str(context.get("Profile") or "NoName0000"))
+    card_id = f"sales-trader-card-{index}"
+    card = build_trader_profile_card_html(context)
+    return (f'<button type="button" class="sales-trader-identity-trigger" data-card-target="{card_id}" '
+            f'aria-expanded="false" aria-controls="{card_id}">{label}</button>'
+            f'<div id="{card_id}" class="sales-trader-card-overlay" hidden>{card}</div>')
+
+
+def _sales_trader_overlay_script() -> str:
+    return '''<style>.sales-trader-identity-trigger{color:#FF003A;background:none;border:0;padding:0;font:inherit;cursor:pointer}.sales-trader-identity-trigger:hover,.sales-trader-identity-trigger:focus{color:#FFF}.sales-trader-card-overlay{position:fixed;z-index:10000;max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto}.sales-trader-card-overlay[hidden]{display:none}</style><script>(function(){var open=null;function close(){if(!open)return;open.card.hidden=true;open.button.setAttribute("aria-expanded","false");open=null}document.addEventListener("click",function(e){var b=e.target.closest(".sales-trader-identity-trigger");if(b){e.preventDefault();var c=document.getElementById(b.getAttribute("data-card-target"));if(open&&open.card===c){close();return}close();var r=b.getBoundingClientRect();c.hidden=false;c.style.left=Math.max(16,Math.min(r.left,window.innerWidth-c.offsetWidth-16))+"px";var below=r.bottom+8;c.style.top=(below+c.offsetHeight<=window.innerHeight-16?below:Math.max(16,r.top-c.offsetHeight-8))+"px";b.setAttribute("aria-expanded","true");open={button:b,card:c};return}if(open&&!e.target.closest(".sales-trader-card-overlay"))close()});document.addEventListener("keydown",function(e){if(e.key==="Escape")close()})})();</script>'''
 
 
 def render_sales_table_collapsible(
