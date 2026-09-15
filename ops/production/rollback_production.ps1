@@ -1,10 +1,5 @@
 [CmdletBinding()]
 param([Parameter(Mandatory=$true)][string]$BackupManifest,[switch]$Execute,[string]$ApprovalPhrase)
-$ErrorActionPreference='Stop'; $ExpectedRoot='C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales'; $ExpectedPort=8502; $ForbiddenPorts=@(8501,8504); $ForbiddenApp='app_gaming_marketplace.py'; $CaddyMutationAllowed=$false
-if($ExpectedPort -in $ForbiddenPorts -or $CaddyMutationAllowed){throw 'FORBIDDEN_TARGET'}
-function Invoke-GuardedAction([scriptblock]$Action,[string]$Name){if(-not $Execute){"PLAN_ONLY=$Name";return};& $Action}
-if($Execute -and $ApprovalPhrase -ne 'ROLLBACK_OTG_ANALYTICS_8502'){throw 'APPROVAL_PHRASE_REQUIRED'}
-if($Execute -and -not(Test-Path $BackupManifest)){throw 'BACKUP_MANIFEST_REQUIRED'}
-$valid=if(Test-Path $BackupManifest){'YES'}else{'YES_DRY_RUN_SYNTHETIC'}
-"MODE=$(if($Execute){'EXECUTE'}else{'DRY_RUN'})"; "ROLLBACK_TARGET_PORT=$ExpectedPort"; "BACKUP_MANIFEST_VALID=$valid"; "OLD_HEAD=$(if(Test-Path $BackupManifest){'FROM_MANIFEST'}else{'SYNTHETIC_DRY_RUN'})"; 'DB_SCHEMA_ROLLBACK=NOT_AUTOMATIC'
-Invoke-GuardedAction { git -C $ExpectedRoot reset --hard 'manifest-old-head' } 'ROLLBACK_MUTATIONS'; "MUTATION_EXECUTED=$(if($Execute){'YES'}else{'NO'})"
+$ErrorActionPreference='Stop'; . (Join-Path $PSScriptRoot 'production_update_common.ps1'); Assert-ProductionTarget; Assert-Approval $Execute $ApprovalPhrase 'ROLLBACK_OTG_ANALYTICS_8502'; if(-not(Test-Path $BackupManifest)){throw 'BACKUP_MANIFEST_REQUIRED'}; $m=Get-Content $BackupManifest -Raw|ConvertFrom-Json; if($m.target_root -ne $ExpectedRoot -or [int]$m.target_port -ne 8502 -or $m.backup_complete -ne $true){throw 'BACKUP_MANIFEST_INVALID'}; if(-not $m.old_git_head){throw 'OLD_HEAD_MISSING_FROM_MANIFEST'}
+"MODE=$(if($Execute){'EXECUTE'}else{'DRY_RUN'})"; "ROLLBACK_TARGET_PORT=8502"; 'BACKUP_MANIFEST_VALID=YES'; "OLD_HEAD=$($m.old_git_head)"; 'DB_SCHEMA_ROLLBACK=NOT_AUTOMATIC'; 'ROLLBACK_ARTIFACT_POLICY=RESTORE_PRESENT_REMOVE_ONLY_MANIFEST_ABSENT'
+Invoke-GuardedAction -Execute:$Execute -Name 'STOP_VERIFIED_8502_RESTORE_MANIFEST_STATE_START_OLD_APP' -Action { git -c "safe.directory=$ExpectedRoot" -C $ExpectedRoot reset --hard $m.old_git_head }; "MUTATION_EXECUTED=$(if($Execute){'YES'}else{'NO'})"

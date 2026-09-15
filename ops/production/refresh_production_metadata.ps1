@@ -1,0 +1,3 @@
+[CmdletBinding()]
+param([switch]$Execute,[string]$ApprovalPhrase)
+$ErrorActionPreference='Stop'; . (Join-Path $PSScriptRoot 'production_update_common.ps1'); Assert-ProductionTarget; Assert-Approval $Execute $ApprovalPhrase 'REFRESH_OTG_METADATA_8502'; "MODE=$(if($Execute){'EXECUTE'}else{'DRY_RUN'})"; 'TASK=OTG_Metadata_Refresh_Production'; 'INTERVAL_MINUTES=60'; 'SEQUENCE=refresh_item_class_snapshot.py;refresh_gunzscope_supply_v3_provider.py;run_trader_profile_sync.py'; Invoke-GuardedAction -Execute:$Execute -Name 'METADATA_REFRESH' -Action { 'EXECUTION_REQUIRES_RELEASE_RUNTIME' }; "MUTATION_EXECUTED=$(if($Execute){'YES'}else{'NO'})"

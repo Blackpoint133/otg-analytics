@@ -1,34 +1,47 @@
-# Report 105 production update preparation
+# OTG Analytics production update preparation — Report 106
 
-STATUS=BLOCKED_PG_DUMP_UNAVAILABLE
+STATUS=BLOCKED_EXECUTION_SEMANTICS_NOT_COMPLETE
 
-AUTHORITATIVE_TARGET
+## AUTHORITATIVE_TARGET
 
-- Root: `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`
-- App: `streamlit_opensea_sales\app_opensea_sales.py`
-- Port: `8502`
-- 8501 gaming marketplace and 8504 staging are out of scope.
-- Caddy mutation is prohibited.
+Production is `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`,
+`streamlit_opensea_sales\app_opensea_sales.py`, port `8502`, branch `main`.
+Port 8501 is the separate gaming marketplace and port 8504 is staging.
+Neither may be touched. Caddy is out of scope and must not change.
 
-DATABASE_MIGRATION_PLAN
+## DATABASE
 
-The exact future migrations are `sql/add_site_visit_trader_mode.sql`,
-`sql/create_site_product_events.sql`, and `sql/create_user_feedback.sql`.
-The trader-USD alter migration is excluded. A full database backup is a
-mandatory precondition, but `pg_dump` was not discoverable during Report 105.
+PostgreSQL tools are available at `C:\Program Files\PostgreSQL\18\bin`,
+version 18.3. The backup is a full custom-format `pg_dump`, validated with
+`pg_restore --list`, and is mandatory before deployment. The exact additive
+migrations are:
 
-SCRIPTS
+1. `sql/add_site_visit_trader_mode.sql`
+2. `sql/create_site_product_events.sql`
+3. `sql/create_user_feedback.sql`
 
-`backup_production.ps1`, `deploy_production.ps1`, and
-`rollback_production.ps1` default to DRY_RUN, require exact approval phrases
-for execution, guard the 8502 target, reject 8501/8504/gaming/Caddy targets,
-and do not authorize deployment by themselves.
+The trader-USD alter migration is excluded. Database rollback is
+`NOT_AUTOMATIC`.
 
-OWNER_AUTHORIZATION_STILL_REQUIRED
+## AUTOMATION
 
-Owner authorization, main promotion, maintenance window, backup capability,
-and final production GO/NO-GO remain required. Report 105 did not execute a
-production update.
+`OTG_Derived_Data_Refresh_Production` runs every 15 minutes and sequences
+market period summaries, expansion metrics, and trader analytics.
+`OTG_Metadata_Refresh_Production` runs every 60 minutes and sequences item
+class, GUNZscope v3, and quota-safe trader profile refresh. Registration is
+guarded, collision-fail-closed, and dry-run by default.
 
-ANY NEW DEVELOP COMMIT AFTER REPORT 105 INVALIDATES THE PREPARED RELEASE SHA.
-NO PRODUCTION UPDATE WAS EXECUTED BY REPORT 105.
+## SCRIPTS
+
+The scripts default to DRY_RUN and require exact approval phrases, but Report
+106 has not accepted them as execution-ready until sandbox Execute-branch
+simulation proves the complete backup/deploy/rollback behavior.
+
+## OWNER_AUTHORIZATION_STILL_REQUIRED
+
+Owner must authorize the maintenance window, main fast-forward, backup,
+production stop/start, and final GO/NO-GO. Public visual/domain validation
+remains owner work.
+
+ANY NEW DEVELOP COMMIT AFTER REPORT 106 INVALIDATES THE PREPARED RELEASE SHA.
+NO PRODUCTION UPDATE WAS EXECUTED BY REPORT 106.

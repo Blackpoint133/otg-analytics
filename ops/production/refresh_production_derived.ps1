@@ -1,0 +1,3 @@
+[CmdletBinding()]
+param([switch]$Execute,[string]$ApprovalPhrase)
+$ErrorActionPreference='Stop'; . (Join-Path $PSScriptRoot 'production_update_common.ps1'); Assert-ProductionTarget; Assert-Approval $Execute $ApprovalPhrase 'REFRESH_OTG_DERIVED_8502'; "MODE=$(if($Execute){'EXECUTE'}else{'DRY_RUN'})"; 'TASK=OTG_Derived_Data_Refresh_Production'; 'INTERVAL_MINUTES=15'; 'SEQUENCE=build_market_period_summaries.py;build_market_expansion_metrics.py;build_trader_analytics.py'; Invoke-GuardedAction -Execute:$Execute -Name 'DERIVED_REFRESH' -Action { 'EXECUTION_REQUIRES_RELEASE_RUNTIME' }; "MUTATION_EXECUTED=$(if($Execute){'YES'}else{'NO'})"
