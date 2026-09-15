@@ -19,6 +19,13 @@ def read_env(path):
             if line and not line.lstrip().startswith('#') and '=' in line:
                 k,v=line.split('=',1); values[k.strip()]=v.strip()
     return {k:env_state(values.get(k)) for k in ENV_NAMES}
+def load_env_values(path):
+    values={}
+    if Path(path).exists():
+        for line in Path(path).read_text(errors='replace').splitlines():
+            if line and not line.lstrip().startswith('#') and '=' in line:
+                k,v=line.split('=',1); values[k.strip()]=v.strip()
+    return values
 def csv_meta(directory):
     files=list(Path(directory).rglob('*.csv')) if Path(directory).is_dir() else []
     dates=[]
@@ -66,7 +73,12 @@ def db_audit(env):
         return schema
     finally: conn.close()
 def main(root):
-    root=Path(root); print('ENV='+json.dumps(read_env(root/'.env'))); print('SALES='+json.dumps(csv_meta(root/'streamlit_opensea_sales/data_opensea_sales/sales'))); print('SALES_ENRICHED='+json.dumps(csv_meta(root/'streamlit_opensea_sales/data_opensea_sales/sales_enriched')))
+    root=Path(root); raw=load_env_values(root/'.env'); print('ENV='+json.dumps({k:env_state(raw.get(k)) for k in ENV_NAMES}));
+    try: print('DB='+json.dumps(db_audit(raw)))
+    except Exception as exc: print('DB_AUDIT=BLOCKED_'+type(exc).__name__)
+    print('SALES='+json.dumps(csv_meta(root/'streamlit_opensea_sales/data_opensea_sales/sales'))); print('SALES_ENRICHED='+json.dumps(csv_meta(root/'streamlit_opensea_sales/data_opensea_sales/sales_enriched')))
+    base=root/'streamlit_opensea_sales/data_opensea_sales'
     for name in ('market_overview_enriched_manifest.json','market_period_summaries.json','market_expansion_metrics.json','trader_analytics_snapshot.json','item_class_snapshot.json','gunzscope_supply_snapshot.json','gunzscope_supply_snapshot_v2_shadow.json','gunzscope_supply_snapshot_v3_provider.json','opensea_account_profiles_snapshot.json'):
-        print('JSON_'+name+'='+json.dumps(json_meta(root/'streamlit_opensea_sales/data_opensea_sales'/name)))
+        path=base/'market_overview_enriched'/name if name in ('market_overview_enriched_manifest.json','market_period_summaries.json','market_expansion_metrics.json') else base/name
+        print('JSON_'+name+'='+json.dumps(json_meta(path)))
 if __name__=='__main__': main(sys.argv[1] if len(sys.argv)>1 else '.')
