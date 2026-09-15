@@ -4,9 +4,9 @@
 
 - Production root: `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`
 - Runtime root: `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales\streamlit_opensea_sales`
-- Production port: `8502`, bound to `127.0.0.1`
+- Public production upstream: `8501`; local non-public production instance: `8502`; staging: `8504`.
 - Production Git: branch `main`, SHA `dacee4c675419dea127ceb5e8a70e1a7ffc36a0`, clean at audit time.
-- Audit baseline develop SHA: `5985620cbbd6ea3dd497cbe9a247df2514dcac3f`.
+- Audit baseline develop SHA: `6c196bb0278b507cb6318e0c482670a87f0a00b4`.
 - `main` is the merge base; develop is 321 commits ahead and 0 behind at the Report 095 baseline.
 - The process is Python 3.11 launching `streamlit run app_opensea_sales.py --server.port 8502 --server.address 127.0.0.1`; the command uses the application filename but does not expose an absolute root path.
 - The production `.venv` exists, but the live process uses the system Python executable. Observed versions: Streamlit 1.31.1, pandas 2.2.0, Plotly 5.18.0, NumPy 1.26.4, psycopg2 2.9.12.
