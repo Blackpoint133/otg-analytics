@@ -1,30 +1,64 @@
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
-SCRIPTS = [ROOT / "ops/production" / n for n in ("backup_production.ps1", "deploy_production.ps1", "rollback_production.ps1")]
+OPS = ROOT / "ops" / "production"
 
-def test_scripts_have_dry_run_guard_and_approval():
-    for path in SCRIPTS:
-        text = path.read_text(encoding="utf-8")
+
+def ps1(name, *args):
+    return subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(OPS / name), *map(str, args)],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_public_entrypoints_dispatch_to_one_orchestrator():
+    orchestrator = (OPS / "production_update_orchestrator.ps1").read_text(encoding="utf-8")
+    common = (OPS / "production_update_common.ps1").read_text(encoding="utf-8")
+    for name in (
+        "backup_production.ps1",
+        "deploy_production.ps1",
+        "rollback_production.ps1",
+        "refresh_production_derived.ps1",
+        "refresh_production_metadata.ps1",
+        "configure_production_refresh_tasks.ps1",
+    ):
+        text = (OPS / name).read_text(encoding="utf-8")
+        assert "production_update_orchestrator.ps1" in text
         assert "[switch]$Execute" in text
-        assert "PLAN_ONLY" in text or "PLAN_ONLY" in (ROOT / "ops/production/production_update_common.ps1").read_text(encoding="utf-8")
-        assert "Invoke-GuardedAction" in text
-        assert "ApprovalPhrase" in text
-        common = (ROOT / "ops/production/production_update_common.ps1").read_text(encoding="utf-8")
-        assert ("8501" in text and "8504" in text) or ("ForbiddenPorts" in common)
-        assert "app_gaming_marketplace.py" in text or "ForbiddenApp" in common
-        assert "C:\\VAMBAM\\Projects\\OTG\\data_streamlit\\opensea_sales" in text or "ExpectedRoot" in common
+    for core in (
+        "Invoke-BackupCore",
+        "Invoke-DerivedRefreshCore",
+        "Invoke-MetadataRefreshCore",
+        "Invoke-TaskConfigurationCore",
+        "Invoke-DeployCore",
+        "Invoke-RollbackCore",
+    ):
+        assert f"function {core}" in common
+        assert core in orchestrator
+    assert "PRODUCTION_EXECUTE_REQUIRES_COMPLETED_RELEASE_VALIDATION" not in common
+    assert "PRODUCTION_ROLLBACK_REQUIRES_MANIFEST_RESTORE_IMPLEMENTATION" not in common
 
-def test_deploy_contract_is_fail_closed():
-    text = SCRIPTS[1].read_text(encoding="utf-8")
-    assert "ExpectedOldHead" in text
-    assert "BackupManifest" in text
-    assert "merge --ff-only" in text
-    assert "MAIN_PROMOTION_REQUIRED" in text
-    assert "production_worktree_not_clean" in text.lower()
-    assert "git clean" not in text.lower()
 
-def test_rollback_does_not_automatically_restore_database():
-    text = SCRIPTS[2].read_text(encoding="utf-8")
-    assert "NOT_AUTOMATIC" in text
-    assert "git clean" not in text.lower()
+def test_default_real_entrypoints_are_read_only():
+    result = ps1("backup_production.ps1")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "MODE=DRY_RUN" in result.stdout
+    assert "MUTATION_EXECUTED=NO" in result.stdout
+
+
+def test_production_guards_and_exact_migration_contract_are_shared():
+    common = (OPS / "production_update_common.ps1").read_text(encoding="utf-8")
+    assert "ExpectedRoot" in common
+    assert "ForbiddenPorts" in common
+    assert "app_gaming_marketplace.py" in common
+    assert "8501" in common and "8504" in common
+    assert r"C:\Program Files\PostgreSQL\18\bin" in common
+    assert "sql/add_site_visit_trader_mode.sql" in common
+    assert "sql/create_site_product_events.sql" in common
+    assert "sql/create_user_feedback.sql" in common
+    assert "sql/add_site_product_events_trader_usd_toggle.sql" in common
+    assert "MIGRATION_ALLOWLIST_FAILED" in common
+    assert "git clean" not in common.lower()

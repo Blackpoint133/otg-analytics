@@ -1,50 +1,89 @@
-# OTG Analytics production migration runbook — Report 106
+# OTG Analytics future production update runbook
 
-STATUS=BLOCKED_PRODUCTION_EXECUTION_SEQUENCE_REQUIRES_COMPLETION
+This is a future owner-authorized runbook. Report 109 did not update
+production.
 
-## CURRENT_STATE
+## Scope and invariants
 
-Target: `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`,
-`app_opensea_sales.py`, `127.0.0.1:8502`, current old SHA
-`dacee4c675419dea127ceb5e8a70e1a7ffc36a0`. 8501 is a separate gaming
-marketplace, 8504 is staging, and Caddy is unchanged/out of scope.
+Production is C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales,
+streamlit_opensea_sales\app_opensea_sales.py, port 8502, branch main.
 
-## PRE-GO
+DO_NOT_TOUCH_8501_GAMING_MARKETPLACE
+DO_NOT_TOUCH_8504_STAGING
+DO_NOT_CHANGE_CADDY
 
-Verify the old SHA and clean tree. Discover PostgreSQL 18.3 tools. Run the
-backup script in dry-run, then after owner authorization execute it with
-`-Execute -ApprovalPhrase BACKUP_OTG_ANALYTICS_8502`. Confirm the resulting
-manifest contains the custom dump, environment hash, Git bundle, artifacts,
-process metadata, and task state. Promote main fast-forward-only to the
-prepared release SHA, then run deploy dry-run.
+The prepared release is PREPARED_RELEASE_HEAD. ANY NON-REPORT CHANGE AFTER
+PREPARED_RELEASE_HEAD INVALIDATES THE PREPARED RELEASE.
 
-## DEPLOY
+## Pre-go
 
-**DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE.** The authorized
-deploy performs new-runtime preparation, current-source artifact refresh,
-runtime readers, a foreground 8505 canary, backup validation, the three
-additive migrations, verified 8502 stop, Git fast-forward, fail-closed env
-gates, atomic artifact install, new-runtime 8502 start, local health, DB
-verification, and post-health task registration. Caddy, 8501, and 8504 are
-never modified.
+1. Verify the current develop SHA still equals PREPARED_RELEASE_HEAD, the
+   application/requirements/SQL content is unchanged, and production is at
+   the expected old SHA with a clean worktree.
+2. Obtain a maintenance window and owner authorization.
+3. Owner authorizes the production backup.
+4. From an elevated PowerShell session, run only after authorization:
 
-Example (authorization required):
-`deploy_production.ps1 -ExpectedOldHead <old> -ExpectedReleaseHead <release> -ReleaseCandidateRoot <candidate> -ReleasePython <python> -BackupManifest <manifest> -Execute -ApprovalPhrase UPDATE_OTG_ANALYTICS_8502`
+    .\ops\production\backup_production.ps1 -Execute -ApprovalPhrase BACKUP_OTG_ANALYTICS_8502
 
-## ROLLBACK
+DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE.
 
-**DO NOT RUN UNTIL OWNER AUTHORIZES ROLLBACK.** Execute rollback with the
-validated manifest and `ROLLBACK_OTG_ANALYTICS_8502`. It restores the actual
-manifest old Git SHA, environment, and artifact presence state, starts the
-old app, and checks localhost health. It never uses `git clean`; additive DB
-schema remains in place and the dump is retained for manual emergency use.
+5. Verify BACKUP_MANIFEST.json is schema version 2, complete, hash-valid,
+   target-bound to 8502, and has a valid custom dump.
+6. Owner explicitly authorizes main promotion. Promote only by fast-forward to
+   the prepared SHA. Do not run this during preparation:
 
-## TASKS AND OWNER GATES
+    git fetch origin main
+    git -C C:\VAMBAM\Projects\OTG\staging\opensea_sales checkout develop
+    git -C C:\VAMBAM\Projects\OTG\staging\opensea_sales push origin develop:main
 
-The two named production refresh tasks are collision-fail-closed, with 15 and
-60 minute triggers. Existing staging tasks are never changed. Owner approval
-of main promotion, maintenance window, production mutation, and final public
-validation is mandatory.
+## Deploy
 
-Report 107 does not authorize production deployment. Execute branches were
-exercised in simulation only; production-context cutover remains blocked.
+After origin/main equals PREPARED_RELEASE_HEAD, perform a final DRY_RUN and
+review its output. Then, only with separate owner deployment authorization:
+
+    .\ops\production\deploy_production.ps1 -ExpectedOldHead <old-production-sha> -ExpectedReleaseHead <PREPARED_RELEASE_HEAD> -ReleaseCandidateRoot C:\VAMBAM\Projects\OTG\DEV\prepared_release_109 -ReleasePython C:\VAMBAM\Projects\OTG\runtime\opensea_sales\releases\<PREPARED_RELEASE_HEAD>\.venv\Scripts\python.exe -BackupManifest <validated-backup-manifest> -Execute -ApprovalPhrase UPDATE_OTG_ANALYTICS_8502
+
+DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE.
+
+The script validates the runtime and current source artifacts, runs the
+foreground candidate canary, stops only the verified 8502 OTG process, fast
+forwards production, applies the three additive migrations, installs fresh
+validated dynamic artifacts, starts the new app with fail-closed gates, and
+registers refresh tasks only after local health passes.
+
+## Refresh tasks
+
+After new 8502 health succeeds, verify:
+
+- OTG_Derived_Data_Refresh_Production is every 15 minutes;
+- OTG_Metadata_Refresh_Production is every 60 minutes;
+- both invoke production refresh scripts with prepared Python;
+- IgnoreNew, StartWhenAvailable, SYSTEM/highest privilege, and production
+  working directory are correct;
+- all staging task definitions are unchanged.
+
+Raw sales ingestion remains the existing private parser/indexer pipeline.
+These tasks are downstream and must not duplicate raw ingestion.
+
+## Rollback
+
+If rollback is separately authorized:
+
+    .\ops\production\rollback_production.ps1 -BackupManifest <validated-backup-manifest> -Execute -ApprovalPhrase ROLLBACK_OTG_ANALYTICS_8502
+
+DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE.
+
+Rollback restores the manifest old Git SHA, exact .env, six artifact
+presence/hash states, active runtime pointer, and exact production refresh
+task state, then starts the old app and verifies local HTTP health. It never
+runs git clean, changes remote main, touches 8501/8504/Caddy, or automatically
+reverses the three additive migrations.
+
+## Final owner validation
+
+After local health, the owner must perform public/manual visual validation.
+Write-capable analytics, product-event, feedback, and Telegram gates remain
+disabled until a later explicit decision.
+
+FINAL_PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
