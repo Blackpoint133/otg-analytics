@@ -1,62 +1,34 @@
-# Report 098 OTG Analytics 8502 Release Preparation
+# Report 105 production update preparation
 
-## PRODUCTION_TARGET
+STATUS=BLOCKED_PG_DUMP_UNAVAILABLE
 
-OTG Analytics is `app_opensea_sales.py` at `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`, port 8502, current SHA `dacee4c675419dea127ceb5e8a70e1a7ffc36a0`. Port 8501 is the separate gaming marketplace; port 8504 is staging. Caddy is out of scope and requires no change.
+AUTHORITATIVE_TARGET
 
-## PREPARED_RELEASE_CANDIDATE
+- Root: `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`
+- App: `streamlit_opensea_sales\app_opensea_sales.py`
+- Port: `8502`
+- 8501 gaming marketplace and 8504 staging are out of scope.
+- Caddy mutation is prohibited.
 
-Candidate root: `C:\VAMBAM\Projects\OTG\DEV\release_candidate_098`; repo SHA `b9dbe3348f211d984aafbdb17cd39ff337250ddb`. Production data was copied read-only. Locked dependency installation was blocked before completion, so no artifact is claimed ready.
+DATABASE_MIGRATION_PLAN
 
-## DATABASE_MIGRATIONS
+The exact future migrations are `sql/add_site_visit_trader_mode.sql`,
+`sql/create_site_product_events.sql`, and `sql/create_user_feedback.sql`.
+The trader-USD alter migration is excluded. A full database backup is a
+mandatory precondition, but `pg_dump` was not discoverable during Report 105.
 
-Required future migrations: `sql/add_site_visit_trader_mode.sql`, `sql/create_site_product_events.sql`, `sql/create_user_feedback.sql`. The trader-USD alter migration is excluded.
+SCRIPTS
 
-## FIRST_BOOT_WRITE_GATES
+`backup_production.ps1`, `deploy_production.ps1`, and
+`rollback_production.ps1` default to DRY_RUN, require exact approval phrases
+for execution, guard the 8502 target, reject 8501/8504/gaming/Caddy targets,
+and do not authorize deployment by themselves.
 
-Analytics, product events, feedback, and Telegram writes remain disabled.
+OWNER_AUTHORIZATION_STILL_REQUIRED
 
-DO_NOT_TOUCH_8501_GAMING_MARKETPLACE
-DO_NOT_TOUCH_8504_STAGING
-DO_NOT_CHANGE_CADDY
-NO PRODUCTION UPDATE WAS EXECUTED BY REPORT 098
+Owner authorization, main promotion, maintenance window, backup capability,
+and final production GO/NO-GO remain required. Report 105 did not execute a
+production update.
 
-## CURRENT_STATE
-
-The public Caddy route currently targets `localhost:8501`, which is the separate gaming marketplace process. OTG Analytics is the OpenSea application on local port 8502 at `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`; staging is 8504. This distinction must be resolved by the owner before any cutover.
-
-## PREPARED_RELEASE_CANDIDATE
-
-Candidate workspace: `C:\VAMBAM\Projects\OTG\DEV\release_candidate_097`. Candidate virtualenv must be built from `requirements.lock.txt`; no candidate snapshot is generated in this report.
-
-## DATABASE_MIGRATION_PLAN
-
-Read-only schema facts: stable identity columns/checks/index are present; trader mode is not currently accepted; product events and user feedback are absent. Candidate migrations are `sql/add_site_visit_trader_mode.sql`, `sql/create_site_product_events.sql`, and `sql/create_user_feedback.sql`. The product-events trader-USD alter migration is excluded when the table is created from the current create script.
-
-## DATA_ARTIFACT_PLAN
-
-Production sales and enriched sales each contain 1,941 files and have max sale date `2026-09-14T23:59:54`. Missing trader, item-class, supply-v3 and profile snapshots are deferred until topology is confirmed. Market derived artifacts are read-only inputs and must be regenerated only in the candidate workspace if stale.
-
-## ENVIRONMENT_PLAN
-
-Keep analytics/product-event/feedback writes disabled on first boot. Secrets remain outside Git. The live 8502 process uses system Python 3.11.0; its existing venv is separate.
-
-## FUTURE_BACKUP_PLAN
-
-Back up the target checkout SHA/status, `.env`, replaceable data artifacts, database, process command line, Python environment, Caddy configuration, and relevant task definitions before authorization.
-
-## FUTURE_CUTOVER_SEQUENCE
-
-Owner confirms the target route and maintenance window; validate candidate artifacts; back up; apply approved migrations; stop/start only the authorized OTG Analytics target; update routing only if explicitly approved; validate local and public endpoints; enable write gates gradually.
-
-## ROLLBACK_PLAN
-
-Restore the prior application SHA/environment/data backup and reverse any approved database change using the approved backup procedure. Do not remove the prior state until validation completes.
-
-## OWNER_AUTHORIZATION_GATES
-
-Owner must confirm which process is the OTG Analytics public target, authorize backup/migrations/process changes, supply missing credentials, validate desktop/mobile UI and public routing, and make the final GO/NO-GO decision.
-
-SNAPSHOT_GENERATION_DEFERRED_UNTIL_TOPOLOGY_CONFIRMED=YES
-NO PRODUCTION UPDATE WAS EXECUTED BY REPORT 097
-REPORT_097_DOES_NOT_AUTHORIZE_PRODUCTION_DEPLOYMENT=YES
+ANY NEW DEVELOP COMMIT AFTER REPORT 105 INVALIDATES THE PREPARED RELEASE SHA.
+NO PRODUCTION UPDATE WAS EXECUTED BY REPORT 105.
