@@ -29,7 +29,9 @@ def _max_enriched_date(data_dir: Path) -> str:
             continue
     if not values:
         return ""
-    return max(values).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    # The current market builders publish source_latest_date at UTC-day
+    # precision even though source sales rows contain full timestamps.
+    return max(values).astimezone(timezone.utc).date().isoformat()
 
 
 def _sha256(path: Path) -> str:
