@@ -1,4 +1,25 @@
-# Report 097 Production Release Preparation
+# Report 098 OTG Analytics 8502 Release Preparation
+
+## PRODUCTION_TARGET
+
+OTG Analytics is `app_opensea_sales.py` at `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`, port 8502, current SHA `dacee4c675419dea127ceb5e8a70e1a7ffc36a0`. Port 8501 is the separate gaming marketplace; port 8504 is staging. Caddy is out of scope and requires no change.
+
+## PREPARED_RELEASE_CANDIDATE
+
+Candidate root: `C:\VAMBAM\Projects\OTG\DEV\release_candidate_098`; repo SHA `b9dbe3348f211d984aafbdb17cd39ff337250ddb`. Production data was copied read-only. Locked dependency installation was blocked before completion, so no artifact is claimed ready.
+
+## DATABASE_MIGRATIONS
+
+Required future migrations: `sql/add_site_visit_trader_mode.sql`, `sql/create_site_product_events.sql`, `sql/create_user_feedback.sql`. The trader-USD alter migration is excluded.
+
+## FIRST_BOOT_WRITE_GATES
+
+Analytics, product events, feedback, and Telegram writes remain disabled.
+
+DO_NOT_TOUCH_8501_GAMING_MARKETPLACE
+DO_NOT_TOUCH_8504_STAGING
+DO_NOT_CHANGE_CADDY
+NO PRODUCTION UPDATE WAS EXECUTED BY REPORT 098
 
 ## CURRENT_STATE
 
