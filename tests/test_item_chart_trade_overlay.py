@@ -17,6 +17,17 @@ def test_overlay_uses_component_and_lifecycle_contract():
         assert value in SOURCE
     assert 'removeAllListeners' not in SOURCE
     assert 'if(!tip)return' not in SOURCE
+
+def test_profile_card_portal_preserves_and_restores_existing_node():
+    for value in ('function portalCard', 'function restoreCard', 'd.body.appendChild(c)',
+                  '__otgOriginParent', '__otgOriginNextSibling', 'c.__otgPortaled=true',
+                  'c.scrollTop=0', 'p.isConnected', 's.parentNode===p',
+                  'p.insertBefore(c,s)', 'p.appendChild(c)', 'c.parentNode.removeChild(c)'):
+        assert value in SOURCE
+    assert 'cloneNode' not in SOURCE
+    assert SOURCE.index('portalCard(c)') < SOURCE.index('c.scrollTop=0')
+    assert SOURCE.index('c.hidden=false') < SOURCE.index('c.offsetWidth')
+    assert 'z-index:2147483000' in SOURCE
     assert "addEventListener('pointermove',nativePlotClickHandler)" in SOURCE
     assert "addEventListener('pointerdown',nativePlotClickHandler)" in SOURCE
     assert "removeEventListener('pointermove',nativePlotClickHandler)" in SOURCE
