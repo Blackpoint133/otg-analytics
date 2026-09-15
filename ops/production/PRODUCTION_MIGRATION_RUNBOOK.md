@@ -6,11 +6,11 @@
 - Runtime root: `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales\streamlit_opensea_sales`
 - Production port: `8502`, bound to `127.0.0.1`
 - Production Git: branch `main`, SHA `dacee4c675419dea127ceb5e8a70e1a7ffc36a0`, clean at audit time.
-- Candidate develop SHA: `e3df5bafc806d09a9f7ca3d558186c6c42ca8e84`.
-- `main` is the merge base; develop is 317 commits ahead and 0 behind.
+- Audit baseline develop SHA: `5985620cbbd6ea3dd497cbe9a247df2514dcac3f`.
+- `main` is the merge base; develop is 321 commits ahead and 0 behind at the Report 095 baseline.
 - The process is Python 3.11 launching `streamlit run app_opensea_sales.py --server.port 8502 --server.address 127.0.0.1`; the command uses the application filename but does not expose an absolute root path.
 - The production `.venv` exists, but the live process uses the system Python executable. Observed versions: Streamlit 1.31.1, pandas 2.2.0, Plotly 5.18.0, NumPy 1.26.4, psycopg2 2.9.12.
-- Caddy service is running locally. The repository Caddyfile is `deployment/windows_vps/Caddyfile`; configuration/upstream verification remains an owner review item.
+- Caddy service is running from `C:\caddy\caddy.exe`; the observed active Caddyfile reverse-proxies `localhost:8501`, so it does not point to production port 8502. This is a technical NO-GO blocker.
 - Relevant scheduled tasks observed: `OTG_Common_Data_Sync_Staging`, `OTG_GUNZscope_Supply_Sync_Staging`, `OTG_Item_Class_Sync_Staging`, `OTG_Item_Metadata_Current_Sync_Staging`, and `OTG_Trader_Profile_Sync_Staging`, all Ready. No task was changed or run.
 
 ## Environment and data readiness
@@ -26,10 +26,9 @@ A bounded read-only PostgreSQL connection with `default_transaction_read_only=on
 1. `sql/add_site_visit_stable_browser_identity.sql`
 2. `sql/add_site_visit_trader_mode.sql`
 3. `sql/create_site_product_events.sql`
-4. `sql/add_site_product_events_trader_usd_toggle.sql`
-5. `sql/create_user_feedback.sql`
+4. `sql/create_user_feedback.sql`
 
-These were not applied by Report 093.
+`sql/add_site_product_events_trader_usd_toggle.sql` is excluded because the current create script already includes the trader USD shape; no migration was applied by Reports 093-095.
 
 ## Future authorized deployment sequence
 
@@ -64,7 +63,7 @@ Technical readiness is **NO-GO pending owner review** because production runs th
 
 No production mutation command was executed by this audit.
 
-## Report 094 completion facts
+## Report 095 current audit facts
 
 - The live listener owner was PID `124284`; its interpreter was the system Python 3.11.0, while the separate production `.venv` is Python 3.11.0 with an independent package set and clean pip check. These environments must not be conflated.
 - Read-only task discovery found five relevant tasks, all classified as staging: `OTG_Common_Data_Sync_Staging`, `OTG_GUNZscope_Supply_Sync_Staging`, `OTG_Item_Class_Sync_Staging`, `OTG_Item_Metadata_Current_Sync_Staging`, and `OTG_Trader_Profile_Sync_Staging`.
