@@ -10,7 +10,13 @@ def test_preflight_has_safe_defaults_and_read_only_inventory():
     assert "status --short" in SOURCE
     assert "GUNZSCOPE_SUPPLY_SOURCE" in SOURCE
     assert "POSTGRES_PASSWORD" in SOURCE
-    assert "SCHEDULED_TASK_AUDIT=READ_ONLY_DISCOVERY_REQUIRED" in SOURCE
+    assert "Get-ScheduledTask" in SOURCE
+    assert "Get-ScheduledTaskInfo" in SOURCE
+    assert "Caddy" in SOURCE
+    assert "default_transaction_read_only=on" in SOURCE
+    assert "ConvertFrom-Json" in SOURCE
+    assert "READ_ONLY_DISCOVERY_REQUIRED" not in SOURCE
+    assert "ENV_AND_DRIVER_AVAILABLE_ONLY" not in SOURCE
 
 def test_preflight_contains_no_mutation_commands():
     forbidden = ('git pull', 'git merge', 'git reset', 'git clean', 'git checkout', 'git switch', 'git restore',

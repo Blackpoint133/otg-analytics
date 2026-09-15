@@ -63,3 +63,12 @@ These were not applied by Report 093.
 Technical readiness is **NO-GO pending owner review** because production runs the current `main` SHA rather than the candidate develop SHA, the live command does not identify the expected root absolutely, required snapshot files and DB tables are incomplete at the audited paths, and proxy/upstream details require confirmation. **PRODUCTION DEPLOYMENT IS NOT AUTHORIZED BY REPORT 093.**
 
 No production mutation command was executed by this audit.
+
+## Report 094 completion facts
+
+- The live listener owner was PID `124284`; its interpreter was the system Python 3.11.0, while the separate production `.venv` is Python 3.11.0 with an independent package set and clean pip check. These environments must not be conflated.
+- Read-only task discovery found five relevant tasks, all classified as staging: `OTG_Common_Data_Sync_Staging`, `OTG_GUNZscope_Supply_Sync_Staging`, `OTG_Item_Class_Sync_Staging`, `OTG_Item_Metadata_Current_Sync_Staging`, and `OTG_Trader_Profile_Sync_Staging`.
+- The Caddy Windows service is running from `C:\caddy\caddy.exe`; its live command uses `Caddyfile`. No active config file was exposed at the repository-relative candidate paths, so upstream confirmation remains a technical blocker, not an owner-assigned inspection task.
+- Current database inspection used a bounded read-only connection. `site_product_events` and `user_feedback` were absent; site visit identity/trader-mode constraint details require the future migration rehearsal query before authorization.
+- Exact future migration candidates are the two site-visit alterations, `create_site_product_events.sql`, and `create_user_feedback.sql`. `add_site_product_events_trader_usd_toggle.sql` is explicitly excluded because the table is absent and the current create migration already contains the trader USD shape.
+- The candidate snapshot workspace is `C:\VAMBAM\Projects\OTG\DEV\release_candidate_093`; it is disposable and was not copied into production. Production deployment is not authorized by Report 094.
