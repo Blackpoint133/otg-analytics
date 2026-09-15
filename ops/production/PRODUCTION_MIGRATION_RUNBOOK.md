@@ -1,6 +1,6 @@
 # OTG Analytics production migration runbook — Report 106
 
-STATUS=BLOCKED_EXECUTION_SEMANTICS_NOT_COMPLETE
+STATUS=BLOCKED_PRODUCTION_EXECUTION_SEQUENCE_REQUIRES_COMPLETION
 
 ## CURRENT_STATE
 
@@ -46,5 +46,5 @@ The two named production refresh tasks are collision-fail-closed, with 15 and
 of main promotion, maintenance window, production mutation, and final public
 validation is mandatory.
 
-Report 106 does not authorize production deployment. Execute-branch tooling
-requires non-production simulation and review before owner authorization.
+Report 107 does not authorize production deployment. Execute branches were
+exercised in simulation only; production-context cutover remains blocked.
