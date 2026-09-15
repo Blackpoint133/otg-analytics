@@ -1,89 +1,107 @@
-# OTG Analytics future production update runbook
+# OTG Analytics guarded production update runbook
 
-This is a future owner-authorized runbook. Report 109 did not update
-production.
+This runbook is for a future owner-authorized maintenance window. Every
+mutation example below is labeled DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION
+UPDATE. Report 110 does not execute any mutation.
 
-## Scope and invariants
+## Scope and immutable safety rules
 
-Production is C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales,
-streamlit_opensea_sales\app_opensea_sales.py, port 8502, branch main.
+Production is `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`,
+`app_opensea_sales.py`, port `8502`, branch `main`. The prepared release is an
+exact implementation SHA. Develop may have report-only descendants; it does
+not need to equal the prepared SHA. Any non-report tracked descendant
+invalidates the release.
 
-DO_NOT_TOUCH_8501_GAMING_MARKETPLACE
-DO_NOT_TOUCH_8504_STAGING
-DO_NOT_CHANGE_CADDY
+8501 gaming marketplace: DO NOT TOUCH.
 
-The prepared release is PREPARED_RELEASE_HEAD. ANY NON-REPORT CHANGE AFTER
-PREPARED_RELEASE_HEAD INVALIDATES THE PREPARED RELEASE.
+8504 staging: DO NOT TOUCH.
 
-## Pre-go
+Caddy: DO NOT CHANGE.
 
-1. Verify the current develop SHA still equals PREPARED_RELEASE_HEAD, the
-   application/requirements/SQL content is unchanged, and production is at
-   the expected old SHA with a clean worktree.
-2. Obtain a maintenance window and owner authorization.
-3. Owner authorizes the production backup.
-4. From an elevated PowerShell session, run only after authorization:
+## Pre-go verification
 
-    .\ops\production\backup_production.ps1 -Execute -ApprovalPhrase BACKUP_OTG_ANALYTICS_8502
+Read-only checks must confirm the prepared head, prepared manifest SHA,
+production old SHA, clean production worktree, unchanged `.env`, unchanged
+8501/8502/8504 PIDs, and unchanged main baseline. Confirm the prepared runtime
+workspace, 45-wheel contract, and validation logs are still present.
 
-DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE.
+## Future authorized sequence
 
-5. Verify BACKUP_MANIFEST.json is schema version 2, complete, hash-valid,
-   target-bound to 8502, and has a valid custom dump.
-6. Owner explicitly authorizes main promotion. Promote only by fast-forward to
-   the prepared SHA. Do not run this during preparation:
+1. Owner approves a maintenance window.
+2. Owner approves the backup.
+3. **DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE:**
 
-    git fetch origin main
-    git -C C:\VAMBAM\Projects\OTG\staging\opensea_sales checkout develop
-    git -C C:\VAMBAM\Projects\OTG\staging\opensea_sales push origin develop:main
+   ```powershell
+   .\ops\production\backup_production.ps1 -Execute `
+     -ApprovalPhrase BACKUP_OTG_ANALYTICS_8502
+   ```
 
-## Deploy
+4. Validate the emitted schema-version-2 `BACKUP_MANIFEST.json`, including
+   Git bundle, environment, custom `pg_dump`, six artifact states, active
+   runtime, and task hashes.
+5. Owner approves exact main promotion.
+6. **DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE:**
 
-After origin/main equals PREPARED_RELEASE_HEAD, perform a final DRY_RUN and
-review its output. Then, only with separate owner deployment authorization:
+   ```powershell
+   .\ops\production\promote_main_prepared_release.ps1 -Execute `
+     -ApprovalPhrase PROMOTE_OTG_ANALYTICS_MAIN `
+     -ExpectedMainHead <current-main-sha> `
+     -PreparedReleaseHead <PREPARED_RELEASE_HEAD> `
+     -PreparedReleaseManifest <prepared-manifest-path> `
+     -PreparedReleaseManifestSha256 <prepared-manifest-sha256>
+   ```
 
-    .\ops\production\deploy_production.ps1 -ExpectedOldHead <old-production-sha> -ExpectedReleaseHead <PREPARED_RELEASE_HEAD> -ReleaseCandidateRoot C:\VAMBAM\Projects\OTG\DEV\prepared_release_109 -ReleasePython C:\VAMBAM\Projects\OTG\runtime\opensea_sales\releases\<PREPARED_RELEASE_HEAD>\.venv\Scripts\python.exe -BackupManifest <validated-backup-manifest> -Execute -ApprovalPhrase UPDATE_OTG_ANALYTICS_8502
+   This pushes only `<PREPARED_RELEASE_HEAD>:refs/heads/main`. It never
+   promotes develop and never creates a merge commit.
+7. Verify `origin/main` equals the exact prepared head.
+8. **DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE:** run deploy DRY_RUN
+   with the exact old/release heads, prepared root/manifest/hash, and backup
+   manifest.
+9. Owner authorizes deployment.
+10. **DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE:** execute deploy:
 
-DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE.
+    ```powershell
+    .\ops\production\deploy_production.ps1 -Execute `
+      -ApprovalPhrase UPDATE_OTG_ANALYTICS_8502 `
+      -ExpectedOldHead <production-old-sha> `
+      -ExpectedReleaseHead <PREPARED_RELEASE_HEAD> `
+      -PreparedReleaseRoot <prepared-release-root> `
+      -PreparedReleaseManifest <prepared-manifest-path> `
+      -PreparedReleaseManifestSha256 <prepared-manifest-sha256> `
+      -BackupManifest <backup-manifest-path>
+    ```
 
-The script validates the runtime and current source artifacts, runs the
-foreground candidate canary, stops only the verified 8502 OTG process, fast
-forwards production, applies the three additive migrations, installs fresh
-validated dynamic artifacts, starts the new app with fail-closed gates, and
-registers refresh tasks only after local health passes.
+    Deploy prepares the deterministic final runtime, validates the fresh
+    artifacts/readers, runs the 8505 canary, then performs the guarded 8502
+    cutover. It registers refresh tasks only after local health passes.
+11. Verify local HTTP health, Supply v3, active runtime, database schema, and
+    exact task definitions.
+12. Owner performs public/manual visual validation.
+13. Keep the backup manifest and custom database dump available. Rollback is a
+    separately authorized action and does not reverse remote main or database
+    schema automatically.
 
-## Refresh tasks
+## Explicit rollback command
 
-After new 8502 health succeeds, verify:
+**DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE:**
 
-- OTG_Derived_Data_Refresh_Production is every 15 minutes;
-- OTG_Metadata_Refresh_Production is every 60 minutes;
-- both invoke production refresh scripts with prepared Python;
-- IgnoreNew, StartWhenAvailable, SYSTEM/highest privilege, and production
-  working directory are correct;
-- all staging task definitions are unchanged.
+```powershell
+.\ops\production\rollback_production.ps1 -Execute `
+  -ApprovalPhrase ROLLBACK_OTG_ANALYTICS_8502 `
+  -BackupManifest <exact-backup-manifest-path>
+```
 
-Raw sales ingestion remains the existing private parser/indexer pipeline.
-These tasks are downstream and must not duplicate raw ingestion.
+Rollback restores only the recorded old application, environment, dynamic
+artifact, task, and active-runtime state. It never uses a broad cleanup,
+changes 8501/8504/Caddy, moves remote main backward, or automatically restores
+the additive database schema.
 
-## Rollback
+## Exact migrations
 
-If rollback is separately authorized:
+Only these files may be applied, in order:
 
-    .\ops\production\rollback_production.ps1 -BackupManifest <validated-backup-manifest> -Execute -ApprovalPhrase ROLLBACK_OTG_ANALYTICS_8502
+1. `sql/add_site_visit_trader_mode.sql`
+2. `sql/create_site_product_events.sql`
+3. `sql/create_user_feedback.sql`
 
-DO NOT RUN UNTIL OWNER AUTHORIZES PRODUCTION UPDATE.
-
-Rollback restores the manifest old Git SHA, exact .env, six artifact
-presence/hash states, active runtime pointer, and exact production refresh
-task state, then starts the old app and verifies local HTTP health. It never
-runs git clean, changes remote main, touches 8501/8504/Caddy, or automatically
-reverses the three additive migrations.
-
-## Final owner validation
-
-After local health, the owner must perform public/manual visual validation.
-Write-capable analytics, product-event, feedback, and Telegram gates remain
-disabled until a later explicit decision.
-
-FINAL_PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
+The trader-USD alter migration is redundant and must not execute.
