@@ -40,5 +40,6 @@ def test_trader_visible_title_is_renamed():
     mode = (ROOT / "streamlit_opensea_sales" / "ui" / "mode_switch.py").read_text(encoding="utf-8")
     sidebar = (ROOT / "streamlit_opensea_sales" / "ui" / "sidebar.py").read_text(encoding="utf-8")
     assert "TOP TRADERS ANALYTICS" in trader
-    assert "TOP TRADERS ANALYTICS" in mode
-    assert "Top Traders Analytics Options" in sidebar
+    assert '>TOP TRADERS</a>' in mode
+    assert 'st.sidebar.header("Display Options")' in sidebar
+    assert 'TRADER_VISIBLE_SORT_OPTIONS = ("EARNED", "INVESTED", "SOLD", "TRADES")' in sidebar

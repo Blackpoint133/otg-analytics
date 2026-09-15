@@ -226,6 +226,10 @@ def test_total_supply_render_does_not_require_market_rank(monkeypatch):
         {"item_key": "b", "item_name": "b", "rarity": "Epic", "volume_gun": 1},
     ])
     snap = snapshot({"a": item(2), "b": item(5)})
+    monkeypatch.setattr(top_items_overview, "selected_supply_source", lambda: "v1")
+    state = SimpleNamespace()
+    state.get = lambda key, default=None: getattr(state, key, default)
+    monkeypatch.setattr(top_items_overview.st, "session_state", state)
     monkeypatch.setattr(top_items_overview.mda, "get_market_data_status", lambda: {"status": "OK"})
     monkeypatch.setattr(top_items_overview.mda, "_get_cache_buster", lambda: "test")
     monkeypatch.setattr(top_items_overview, "_load_global_total_supply_candidates", lambda: data)

@@ -70,7 +70,7 @@ def test_selectbox_outer_border_removed_inner_outline_preserved():
     assert 'border-color: var(--otg-border) !important' in source
 
 
-def test_all_desktop_mode_containers_share_pre_trader_zero_offset():
+def test_all_desktop_mode_containers_share_navigation_flow_offset():
     source = (APP / "ui" / "styles.py").read_text(encoding="utf-8")
     selectors = [
         ".st-key-item_main_content",
@@ -80,7 +80,7 @@ def test_all_desktop_mode_containers_share_pre_trader_zero_offset():
     ]
     block = source[source.index(selectors[0]):source.index("}", source.index(selectors[0]))]
     assert all(selector in block for selector in selectors)
-    assert "margin-top: 0 !important;" in block
+    assert "margin-top: -44px !important;" in block
     assert "margin-top: 41.6px" not in block
     app_source = (APP / "app_opensea_sales.py").read_text(encoding="utf-8")
     assert 'with st.container(key="item_main_content"):' in app_source
