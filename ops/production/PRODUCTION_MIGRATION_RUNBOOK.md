@@ -40,7 +40,9 @@ branch-to-branch shortcut such as `git push origin develop:main`.
 ```
 
 The preflight verifies PostgreSQL tool discovery, required production `.env`
-variables, a read-only DB connection, and the exact pre-migration schema.
+variables, a read-only DB connection, and either the untouched pre-migration
+schema or the complete additive schema already present after Report 119. A
+partial or unexpected schema state fails closed.
 
 ## Backup
 
@@ -120,6 +122,13 @@ OTG_FEEDBACK_WRITES_ENABLED=false
 OTG_FEEDBACK_TELEGRAM_ENABLED=false
 ```
 
+Each start uses a unique stdout/stderr log pair under the external runtime
+logs directory. The child owns those files and the wrapper performs no
+post-launch append. The process result identifies the exact pair; current
+launch validation reads it with shared-read semantics and therefore does not
+inspect stale logs or compete with the running child. Rollback uses the same
+start and log contract.
+
 If deploy fails after downtime begins, the same guarded rollback core is
 attempted automatically. The output must distinguish mutation, rollback, and
 restored-state telemetry. Do not improvise repairs or retry in the same
@@ -128,6 +137,12 @@ maintenance window.
 Production execution telemetry is kept under the external runtime logs area;
 it must not create an untracked file in the production checkout. A failed
 pre-cutover attempt still fails closed and must be reviewed before any retry.
+
+After Report 119 recovery, remote `main` and the live production checkout may
+legitimately differ: remote `main` is the promoted prior release while the
+live checkout is the restored old release. Validate each against its expected
+head and require the live old head to be an ancestor of the prepared release;
+do not require the two current heads to be equal.
 
 ## Database
 

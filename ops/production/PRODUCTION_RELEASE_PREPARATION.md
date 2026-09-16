@@ -44,6 +44,19 @@ The active pointer is written only after the new 8502 process starts and passes
 health and process-identity validation. It therefore always denotes a live,
 validated runtime.
 
+## Process and log contract
+
+Each application start creates a unique stdout/stderr pair under the external
+runtime log directory, for example
+`production_<launch-id>.out.log` and `production_<launch-id>.err.log`.
+The child owns those redirected streams; the start wrapper never appends
+metadata to either file after launch. The returned process/start object carries
+the PID and both exact paths. The deploy and rollback log gates read only that
+launch pair using an explicit shared-read handle, so a live child may continue
+writing while it is inspected and stale logs cannot satisfy or fail the current
+launch gate. Previous launch logs are retained as audit evidence and are not
+used for the current-launch gate.
+
 ## Corrected rollback contract
 
 Rollback resolves 8502 into exactly one of these states:
@@ -60,9 +73,11 @@ back automatically.
 
 ## Database plan
 
-The read-only preflight expectation is stable browser identity `READY`, trader
-mode `ABSENT`, `site_product_events` `ABSENT`, and `user_feedback` `ABSENT`.
-The only approved future migrations, in order, are:
+The post-Report-119 read-only preflight expectation is stable browser identity
+`READY` with the three additive objects already `PRESENT` in the live database.
+The pre-migration state with all three objects `ABSENT` remains an accepted
+initial state for an untouched target; a partial or otherwise different state
+fails closed. The only approved future migrations, in order, are:
 
 1. `sql/add_site_visit_trader_mode.sql`
 2. `sql/create_site_product_events.sql`
@@ -124,6 +139,11 @@ runtime, use the final runtime for both refresh classes, activate the pointer
 only after new-process health, and automatically restore old state after a
 failure with no 8502 listener. Real production calls remain dry-run/read-only
 until a fresh owner authorization is supplied.
+
+The post-Report-119 recovery baseline is intentionally split: remote `main`
+may be at the promoted release while the live production checkout remains at
+the restored old release. Future preparation validates ancestry from both
+baselines independently; it does not require them to be identical.
 
 ## Final authorization boundary
 

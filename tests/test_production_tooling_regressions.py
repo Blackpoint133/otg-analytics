@@ -254,3 +254,78 @@ def test_production_failure_telemetry_is_outside_checkout():
     orchestrator = (OPS / "production_update_orchestrator.ps1").read_text(encoding="utf-8")
     assert "Join-Path $context.RuntimeRoot 'logs\\EXECUTION_TELEMETRY.json'" in orchestrator
     assert "Join-Path $context.Root 'EXECUTION_TELEMETRY.json'" in orchestrator
+
+
+def _run_real_log_lock_probe(tmp_path: Path, fatal: bool = False, stale: bool = False):
+    common = str(OPS / "production_update_common.ps1").replace("'", "''")
+    temp = str(tmp_path).replace("'", "''")
+    powershell = os.environ.get("WINDIR", r"C:\Windows") + r"\System32\WindowsPowerShell\v1.0\powershell.exe"
+    child_script = tmp_path / "held_child.ps1"
+    child_script.write_text(
+        "Write-Output 'Traceback'; [Console]::Error.WriteLine('ImportError'); Start-Sleep -Seconds 20\n"
+        if fatal
+        else "Write-Output 'child_stdout'; [Console]::Error.WriteLine('child_stderr'); Start-Sleep -Seconds 20\n",
+        encoding="utf-8",
+    )
+    child_path = str(child_script).replace("'", "''")
+    script = f"""
+. '{common}';
+$out=Join-Path '{temp}' 'current.out.log';
+$err=Join-Path '{temp}' 'current.err.log';
+$stale=Join-Path '{temp}' 'older-launch.out.log';
+$pwsh=(Get-Process -Id $PID).Path;
+$launch=$null;
+try {{
+    if({'$true' if stale else '$false'}) {{ Write-AtomicText $stale 'Traceback from an older launch' }}
+    $launch=Start-RedirectedProcess $pwsh @('-NoProfile','-File','{child_path}') (Get-Location).Path $out $err;
+    for($i=0;$i -lt 30;$i++) {{
+        Start-Sleep -Milliseconds 100;
+        if((Read-SharedText $out).Trim().Length -gt 0) {{ break }}
+    }}
+    $stdout=Read-SharedText $out;
+    $stderr=Read-SharedText $err;
+    Write-Output ('PID='+$launch.Id);
+    Write-Output ('STDOUT='+$stdout.Trim());
+    Write-Output ('STDERR='+$stderr.Trim());
+    Assert-CurrentLaunchLogs $launch;
+    Write-Output 'LOG_GATE=PASS';
+}} finally {{
+    if($launch -and -not $launch.Process.HasExited) {{ Stop-Process -Id $launch.Id -Force -ErrorAction SilentlyContinue }}
+}}
+"""
+    return subprocess.run(
+        [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_real_windows_child_log_lock_and_current_launch_gate_pass(tmp_path):
+    result = _run_real_log_lock_probe(tmp_path)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PID=" in result.stdout
+    assert "STDOUT=child_stdout" in result.stdout
+    assert "STDERR=child_stderr" in result.stdout
+    assert "LOG_GATE=PASS" in result.stdout
+
+
+def test_current_launch_fatal_log_fails_closed(tmp_path):
+    result = _run_real_log_lock_probe(tmp_path, fatal=True)
+    assert result.returncode != 0
+    assert "CURRENT_LAUNCH_LOG_FAILED" in result.stdout + result.stderr
+
+
+def test_stale_fatal_log_does_not_fail_current_launch(tmp_path):
+    result = _run_real_log_lock_probe(tmp_path, stale=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "LOG_GATE=PASS" in result.stdout
+
+
+def test_start_context_process_has_no_competing_append_and_uses_unique_logs():
+    common = (OPS / "production_update_common.ps1").read_text(encoding="utf-8")
+    assert "Add-Content $log" not in common
+    assert "StdOutLogPath" in common
+    assert "StdErrLogPath" in common
+    assert "production_'+$launchId+'.out.log" in common
+    assert "production_'+$launchId+'.err.log" in common
