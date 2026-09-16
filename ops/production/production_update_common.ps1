@@ -58,15 +58,37 @@ function Get-DatabaseEnvironment([string]$EnvPath,[switch]$Required) {
     foreach($key in $map.Keys){$source=$map[$key];if($raw.ContainsKey($source) -and [string]$raw[$source] -ne ''){$out[$key]=[string]$raw[$source]}elseif($Required){throw ('REQUIRED_DB_ENV_MISSING:'+ $source)}}
     $out
 }
-function Get-PostgresTools {
+function Select-PostgresToolSet {
+    param([string[]]$Directories)
+    $toolNames=@('pg_dump','pg_restore','psql')
+    $candidateDirectories=@{}
+    foreach($directory in $Directories){if(-not[string]::IsNullOrWhiteSpace($directory)){$candidateDirectories[[IO.Path]::GetFullPath($directory).TrimEnd('\')]= $true}}
+    $valid=@()
+    foreach($directory in $candidateDirectories.Keys){
+        $paths=@{};$complete=$true
+        foreach($name in $toolNames){$path=Join-Path $directory ($name+'.exe');if(-not(Test-Path -LiteralPath $path -PathType Leaf)){$complete=$false;break};$paths[$name]=$path}
+        if($complete){$versionText=Split-Path -Leaf (Split-Path -Parent $directory);$version=[version]::new(0,0);try{$version=[version]($versionText+'.0')}catch{};$valid+=,[pscustomobject]@{Directory=$directory;Version=$version;Paths=$paths}}
+    }
+    $selected=$valid|Sort-Object -Property @{Expression='Version';Descending=$true},@{Expression='Directory';Descending=$false}|Select-Object -First 1
     $out=@{}
-    foreach($name in @('pg_dump','pg_restore','psql')){
+    if($selected){foreach($name in $toolNames){$out[$name]=$selected.Paths[$name]}}
+    $out
+}
+function Get-PostgresTools {
+    $toolNames=@('pg_dump','pg_restore','psql')
+    $candidateDirectories=@{}
+    foreach($name in $toolNames){
         $command=Get-Command ($name+'.exe') -ErrorAction SilentlyContinue
         if(-not$command){$command=Get-Command $name -ErrorAction SilentlyContinue}
-        if(-not$command){foreach($candidate in @('C:\Program Files\PostgreSQL\18\bin\'+$name+'.exe','C:\Program Files\PostgreSQL\17\bin\'+$name+'.exe')){if(Test-Path -LiteralPath $candidate -PathType Leaf){$command=Get-Item $candidate;break}}}
-        if($command){$sourceProperty=@($command.PSObject.Properties|Where-Object Name -eq 'Source');$out[$name]=if($sourceProperty.Count -gt 0 -and $command.Source){$command.Source}else{$command.FullName}}
+        if($command){$source=if($command.Source){$command.Source}else{$command.FullName};if($source){$candidateDirectories[(Split-Path -Parent $source)]=$true}}
     }
-    $out
+    foreach($base in @('C:\Program Files\PostgreSQL','C:\Program Files (x86)\PostgreSQL')){
+        if(Test-Path -LiteralPath $base -PathType Container){foreach($version in Get-ChildItem -LiteralPath $base -Directory -ErrorAction SilentlyContinue){$candidateDirectories[(Join-Path $version.FullName 'bin')]=$true}}
+    }
+    foreach($registryPath in @('HKLM:\SOFTWARE\PostgreSQL\Installations','HKLM:\SOFTWARE\WOW6432Node\PostgreSQL\Installations')){
+        foreach($install in Get-ChildItem -Path $registryPath -ErrorAction SilentlyContinue){$baseProperty=Get-ItemProperty -LiteralPath $install.PSPath -Name 'Base Directory' -ErrorAction SilentlyContinue;if($baseProperty.'Base Directory'){$candidateDirectories[(Join-Path ([string]$baseProperty.'Base Directory') 'bin')]=$true}}
+    }
+    Select-PostgresToolSet @($candidateDirectories.Keys)
 }
 
 function Get-FinalRuntimeRoot([string]$ReleaseHead,[object]$Context) { if(-not$ReleaseHead){throw 'RELEASE_HEAD_REQUIRED'};if($Context.Mode -eq 'PRODUCTION'){Join-Path $script:ExpectedRuntimeRoot ('releases\'+$ReleaseHead)}else{Join-Path $Context.RuntimeRoot ('releases\'+$ReleaseHead)} }
@@ -93,15 +115,37 @@ function Invoke-ChildProcess {
 function Get-ContextState([object]$Context) { Get-Content $Context.SimulationStatePath -Raw|ConvertFrom-Json }
 function Save-ContextState([object]$Context,[object]$State) { Add-Mutation $Context 'STATE_WRITE';Write-AtomicJson $Context.SimulationStatePath $State }
 function Get-DynamicArtifactDefinitions([object]$Context) {$d=$Context.DataRoot;@([pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\market_overview_enriched\market_period_summaries.json';Path=(Join-Path $d 'market_overview_enriched\market_period_summaries.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\market_overview_enriched\market_expansion_metrics.json';Path=(Join-Path $d 'market_overview_enriched\market_expansion_metrics.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\trader_analytics_snapshot.json';Path=(Join-Path $d 'trader_analytics_snapshot.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\item_class_snapshot.json';Path=(Join-Path $d 'item_class_snapshot.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\gunzscope_supply_snapshot_v3_provider.json';Path=(Join-Path $d 'gunzscope_supply_snapshot_v3_provider.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\opensea_account_profiles_snapshot.json';Path=(Join-Path $d 'opensea_account_profiles_snapshot.json')})}
-function Get-8502Process {$connection=Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort 8502 -State Listen -ErrorAction SilentlyContinue|Select-Object -First 1;if(-not$connection){return $null};$process=Get-CimInstance Win32_Process -Filter ('ProcessId='+$connection.OwningProcess);if(-not$process -or $process.CommandLine -notmatch '(?i)app_opensea_sales\.py' -or $process.CommandLine -match '(?i)app_gaming_marketplace\.py' -or $process.CommandLine -notmatch [regex]::Escape($script:ExpectedRoot)){throw '8502_PROCESS_IDENTITY_FAILED'};$process}
+function Test-8502ProcessIdentity {
+    param([object]$Listener,[object]$Process,[string]$ExpectedAppPath=$script:ExpectedApp,[string]$ExpectedRuntimeAppPath='')
+    if(-not$Listener -or $Listener.LocalAddress -ne '127.0.0.1' -or [int]$Listener.LocalPort -ne 8502 -or $Listener.State -ne 'Listen'){throw '8502_PROCESS_LISTENER_MISMATCH'}
+    if(-not$Process -or $Listener.OwningProcess -and [int]$Listener.OwningProcess -ne [int]$Process.ProcessId){throw '8502_PROCESS_OWNER_MISMATCH'}
+    if(-not$Process -or [string]::IsNullOrWhiteSpace([string]$Process.ExecutablePath) -or -not(Test-Path -LiteralPath $Process.ExecutablePath -PathType Leaf)){throw '8502_PROCESS_EXECUTABLE_MISSING'}
+    if([IO.Path]::GetFileName([string]$Process.ExecutablePath) -ine 'python.exe'){throw '8502_PROCESS_NOT_PYTHON'}
+    $command=[string]$Process.CommandLine;if([string]::IsNullOrWhiteSpace($command)){throw '8502_PROCESS_COMMANDLINE_MISSING'}
+    if($command -notmatch '(?i)(?:-m\s+streamlit\s+run|(?:^|\s)streamlit(?:\.exe)?\s+run)'){throw '8502_PROCESS_NOT_STREAMLIT'}
+    if($command -match '(?i)app_gaming_marketplace\.py'){throw '8502_PROCESS_FORBIDDEN_APP'}
+    if($command -match '(?i)--server\.port(?:\s+|=)8501(?:\s|$)' -or $command -match '(?i)--server\.port(?:\s+|=)8504(?:\s|$)'){throw '8502_PROCESS_FORBIDDEN_PORT'}
+    $portMatch=[regex]::Match($command,'(?i)--server\.port(?:\s+|=)(\d+)');if(-not$portMatch.Success -or [int]$portMatch.Groups[1].Value -ne 8502){throw '8502_PROCESS_PORT_MISMATCH'}
+    $addressMatch=[regex]::Match($command,'(?i)--server\.address(?:\s+|=)([^\s]+)');if($addressMatch.Success -and $addressMatch.Groups[1].Value.Trim('"') -ne '127.0.0.1'){throw '8502_PROCESS_ADDRESS_MISMATCH'}
+    $appMatch=[regex]::Match($command,'(?i)(?:"(?<quoted>[^"\r\n]*app_opensea_sales\.py)"|(?<bare>[^\s"\r\n]*app_opensea_sales\.py))');if(-not$appMatch.Success){throw '8502_PROCESS_APP_MISMATCH'};$appToken=if($appMatch.Groups['quoted'].Success){$appMatch.Groups['quoted'].Value}else{$appMatch.Groups['bare'].Value}
+    if($appToken -match '[\\/]'){$normalized=[IO.Path]::GetFullPath($appToken);$allowed=@([IO.Path]::GetFullPath($ExpectedAppPath));if($ExpectedRuntimeAppPath){$allowed+=[IO.Path]::GetFullPath($ExpectedRuntimeAppPath)};if($allowed -notcontains $normalized){throw '8502_PROCESS_ABSOLUTE_PATH_MISMATCH'}}elseif($appToken -notin @('app_opensea_sales.py','streamlit_opensea_sales\app_opensea_sales.py')){throw '8502_PROCESS_APP_MISMATCH'}
+    $Process
+}
+function Get-8502Process {
+    param([string]$ExpectedRuntimeAppPath='')
+    $connection=Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort 8502 -State Listen -ErrorAction SilentlyContinue|Where-Object {$_.LocalAddress -eq '127.0.0.1' -and [int]$_.LocalPort -eq 8502 -and $_.State -eq 'Listen'}|Select-Object -First 1
+    if(-not$connection){throw '8502_PROCESS_NOT_FOUND'}
+    $process=Get-CimInstance Win32_Process -Filter ('ProcessId='+$connection.OwningProcess)
+    Test-8502ProcessIdentity $connection $process $script:ExpectedApp $ExpectedRuntimeAppPath
+}
 function Assert-AllowedMigrationSet([string[]]$Migrations){if($Migrations.Count -ne 3){throw 'MIGRATION_ALLOWLIST_FAILED'};for($i=0;$i-lt 3;$i++){if($Migrations[$i] -ne $script:AllowedMigrations[$i]){throw 'MIGRATION_ALLOWLIST_FAILED'}};if($Migrations -contains 'sql/add_site_product_events_trader_usd_toggle.sql'){throw 'REDUNDANT_MIGRATION_FORBIDDEN'}}
 
 function Read-PreparedReleaseManifest {
     param([string]$Path,[string]$ExpectedHash,[string]$ExpectedHead,[object]$Context)
     if(-not(Test-Path $Path -PathType Leaf)){throw 'PREPARED_RELEASE_MANIFEST_MISSING'};if($ExpectedHash -and (Get-Sha256 $Path) -ne $ExpectedHash.ToLowerInvariant()){throw 'PREPARED_RELEASE_MANIFEST_HASH_MISMATCH'};$manifest=Get-Content $Path -Raw|ConvertFrom-Json
-    foreach($name in @('manifest_version','prepared_release_head','prepared_release_git_tree_sha','requirements_txt_sha256','requirements_lock_sha256','wheelhouse','runtime_contract','validation')){if($null -eq $manifest.$name){throw 'PREPARED_RELEASE_MANIFEST_INCOMPLETE'}};if([int]$manifest.manifest_version -notin @(1,2)){throw 'PREPARED_RELEASE_MANIFEST_VERSION_INVALID'};if($ExpectedHead -and $manifest.prepared_release_head -ne $ExpectedHead){throw 'PREPARED_RELEASE_HEAD_MISMATCH'}
-    $base=Split-Path $Path -Parent;$repo=if($manifest.prepared_repo_path){$manifest.prepared_repo_path}else{Join-Path $base 'repo'};if($Context.Mode -eq 'PRODUCTION'){if($Context.PreparedReleaseRoot -and [IO.Path]::GetFullPath($repo) -ne [IO.Path]::GetFullPath((Join-Path $Context.PreparedReleaseRoot 'repo'))){throw 'PREPARED_RELEASE_ROOT_MISMATCH'};$tree=(& git -c ('safe.directory='+$repo) -C $repo rev-parse ($manifest.prepared_release_head+'^{tree}')).Trim();if($tree -ne $manifest.prepared_release_git_tree_sha){throw 'PREPARED_RELEASE_TREE_MISMATCH'};if((Get-Sha256 (Join-Path $repo 'requirements.txt')) -ne $manifest.requirements_txt_sha256 -or (Get-Sha256 (Join-Path $repo 'requirements.lock.txt')) -ne $manifest.requirements_lock_sha256){throw 'PREPARED_RELEASE_REQUIREMENTS_HASH_MISMATCH'}}
-    if([int]$manifest.wheelhouse.package_count -ne 45 -or [string]$manifest.wheelhouse.manifest_sha256 -eq ''){throw 'PREPARED_RELEASE_WHEELHOUSE_INVALID'};$wheel=Join-Path $base $manifest.wheelhouse.manifest_path;if(-not(Test-Path $wheel -PathType Leaf) -or (Get-Sha256 $wheel) -ne $manifest.wheelhouse.manifest_sha256){throw 'PREPARED_RELEASE_WHEELHOUSE_HASH_MISMATCH'};if([int]$manifest.runtime_contract.locked_package_count -ne 45 -or [int]$manifest.runtime_contract.exact_lock_match -ne 45 -or $manifest.runtime_contract.pip_check -ne 'PASS' -or $manifest.runtime_contract.import_gate -ne 'PASS'){throw 'PREPARED_RELEASE_RUNTIME_GATES_FAILED'};if([int]$manifest.validation.full_tests_failure_count -ne 0 -or $manifest.validation.canary -ne 'PASS' -or $manifest.validation.application_readers -ne 'PASS'){throw 'PREPARED_RELEASE_VALIDATION_GATES_FAILED'};[pscustomobject]@{Manifest=$manifest;Base=$base;Repo=$repo;WheelManifest=$wheel}
+    foreach($name in @('manifest_version','prepared_release_head','prepared_release_git_tree_sha','requirements_txt_sha256','requirements_lock_sha256','wheelhouse','runtime_contract','validation')){if($null -eq $manifest.$name){throw 'PREPARED_RELEASE_MANIFEST_INCOMPLETE'}};if([int]$manifest.manifest_version -ne 2){throw 'PREPARED_RELEASE_MANIFEST_VERSION_INVALID'};if($ExpectedHead -and $manifest.prepared_release_head -ne $ExpectedHead){throw 'PREPARED_RELEASE_HEAD_MISMATCH'}
+    $base=Split-Path $Path -Parent;$repo=if($manifest.prepared_repo_path){$manifest.prepared_repo_path}else{Join-Path $base 'repo'};if($Context.Mode -eq 'PRODUCTION'){if($Context.PreparedReleaseRoot -and [IO.Path]::GetFullPath($repo) -ne [IO.Path]::GetFullPath((Join-Path $Context.PreparedReleaseRoot 'repo'))){throw 'PREPARED_RELEASE_ROOT_MISMATCH'};if(-not(Test-Path $repo -PathType Container)){throw 'PREPARED_RELEASE_REPO_MISSING'};$tree=(& git -c ('safe.directory='+$repo) -C $repo rev-parse ($manifest.prepared_release_head+'^{tree}')).Trim();if($LASTEXITCODE -ne 0 -or $tree.ToLowerInvariant() -ne ([string]$manifest.prepared_release_git_tree_sha).ToLowerInvariant()){throw 'PREPARED_RELEASE_TREE_MISMATCH'};$repoHead=(& git -c ('safe.directory='+$repo) -C $repo rev-parse HEAD).Trim();if($LASTEXITCODE -ne 0 -or $repoHead -ne $manifest.prepared_release_head){throw 'PREPARED_RELEASE_HEAD_MISMATCH'};if(((& git -c ('safe.directory='+$repo) -C $repo status --porcelain)-join '') -ne ''){throw 'PREPARED_RELEASE_REPO_NOT_CLEAN'};$req=(Join-Path $repo 'requirements.txt');$lock=(Join-Path $repo 'requirements.lock.txt');if(-not(Test-Path $req -PathType Leaf) -or -not(Test-Path $lock -PathType Leaf) -or (Get-Sha256 $req).ToLowerInvariant() -ne ([string]$manifest.requirements_txt_sha256).ToLowerInvariant() -or (Get-Sha256 $lock).ToLowerInvariant() -ne ([string]$manifest.requirements_lock_sha256).ToLowerInvariant()){throw 'PREPARED_RELEASE_REQUIREMENTS_HASH_MISMATCH'}}
+    if([int]$manifest.wheelhouse.package_count -ne 45 -or [string]::IsNullOrWhiteSpace([string]$manifest.wheelhouse.manifest_path) -or [string]$manifest.wheelhouse.manifest_sha256 -eq ''){throw 'PREPARED_RELEASE_WHEELHOUSE_INVALID'};$wheel=Join-Path $base $manifest.wheelhouse.manifest_path;if(-not(Test-Path $wheel -PathType Leaf) -or (Get-Sha256 $wheel).ToLowerInvariant() -ne ([string]$manifest.wheelhouse.manifest_sha256).ToLowerInvariant()){throw 'PREPARED_RELEASE_WHEELHOUSE_HASH_MISMATCH'};if([int]$manifest.runtime_contract.locked_package_count -ne 45 -or [int]$manifest.runtime_contract.exact_lock_match -ne 45 -or $manifest.runtime_contract.pip_check -ne 'PASS' -or $manifest.runtime_contract.import_gate -ne 'PASS'){throw 'PREPARED_RELEASE_RUNTIME_GATES_FAILED'};if([int]$manifest.validation.full_tests_failure_count -ne 0 -or $manifest.validation.canary -ne 'PASS' -or $manifest.validation.application_readers -ne 'PASS'){throw 'PREPARED_RELEASE_VALIDATION_GATES_FAILED'};[pscustomobject]@{Manifest=$manifest;Base=$base;Repo=$repo;WheelManifest=$wheel}
 }
 function Read-BackupManifest {
     param([string]$Path,[object]$Context)

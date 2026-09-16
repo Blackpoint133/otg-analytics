@@ -1,98 +1,118 @@
-# OTG Analytics production release preparation
+# OTG Analytics production preparation
 
-STATUS=TECHNICALLY_PREPARED_AWAITING_OWNER_AUTHORIZATION
+STATUS=TECHNICALLY_PREPARED_AWAITING_NEW_OWNER_AUTHORIZATION
+REPORT_112_DOES_NOT_AUTHORIZE_PRODUCTION_DEPLOYMENT
 
 ## Authoritative target
 
-- Production root: `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`
+Production is only:
+
+- Root: `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`
 - Application: `streamlit_opensea_sales\app_opensea_sales.py`
-- Production branch: `main`
-- Production port: `8502`
-- Final runtime family: `C:\VAMBAM\Projects\OTG\runtime\opensea_sales\releases\<PREPARED_RELEASE_HEAD>`
-- 8501 is the separate gaming marketplace: DO NOT TOUCH.
-- 8504 is staging: DO NOT TOUCH.
-- Caddy is outside scope: DO NOT CHANGE.
+- Branch: `main`
+- Port: `8502`
 
-## Frozen release model
+Port 8501 and `app_gaming_marketplace.py` are a separate service: DO NOT
+TOUCH. Port 8504 is staging: DO NOT TOUCH. Caddy is outside scope: DO NOT
+CHANGE.
 
-`PREPARED_RELEASE_HEAD` is the implementation commit, not the current develop
-tip. Report-only descendants under `DEV/reports/` do not change it. Any
-non-report tracked commit after the prepared head invalidates this preparation.
+The current valid Git SHA is read from the server and remote refs. The
+operator-supplied 39-character spelling `dacee4c675419dea127ceb5e8a70e1a7ffc36a0`
+is not a complete Git SHA; the valid fetched SHA is
+`dacee4c675419dea1277ceb5e8a70e1a7ffc36a0`.
 
-`promote_main_prepared_release.ps1` is the only promotion mechanism. It checks
-the expected current main, prepared manifest hash/head, local ancestry, and
-pushes exactly `<PREPARED_RELEASE_HEAD>:refs/heads/main`. No script pushes
-develop to main.
+## Report 111 outcome and release invalidation
 
-## Execution gates
+Report 111 was correctly blocked before its first mutation because the live
+8502 command uses the relative `app_opensea_sales.py` entrypoint. No backup,
+pg_dump, main promotion, process stop, migration, data, environment, task,
+or Caddy mutation occurred, and no rollback was required.
 
-The six operational entrypoints call the shared cores in
-`production_update_common.ps1`. Production and simulation use the same ordered
-orchestration; simulation substitutes only external adapters.
+The Report 111 owner authorization was consumed by that blocked attempt. A
+fresh owner authorization is required for any later cutover.
 
-Before production downtime, deploy validates both the prepared-release
-manifest and the production backup manifest, prepares the deterministic final
-runtime, runs the foreground-owned 8505 canary, and validates all six refreshed
-artifacts through current application readers. The canary precedes stopping
-8502. Runtime reuse is accepted only when its release, lock, wheelhouse, and
-pip gates match exactly; an unexpected runtime is rejected.
+The old prepared release `d173a818ee8a36f66cbd032784317359e5de3d76` is
+superseded by the Report 112 implementation release. The new prepared head,
+workspace, manifest, and manifest SHA are recorded in Report 112 after the
+implementation commit. Any non-report tracked commit after that prepared head
+invalidates it and requires revalidation.
 
-After a successful new 8502 health check, deploy writes
-`ACTIVE_RUNTIME.json` atomically. The two refresh tasks use the same runtime
-Python recorded by that active pointer. Mutation telemetry reports whether a
-mutation occurred even when automatic rollback restores the old state.
+## Corrected 8502 identity gate
 
-## Database
+`production_update_common.ps1` accepts the current relative entrypoint only
+when the listener is loopback `8502`, the owner is the inspected `python.exe`,
+the command is Streamlit `run`, the app is exactly OTG Analytics, the command
+targets port 8502, and it does not mention gaming or ports 8501/8504. An
+absolute app path must be the authoritative production app or an explicitly
+validated release-runtime app. The separate production Git root/branch/clean
+baseline gate remains required; app-name-only matching is not used.
 
-The only migrations are:
+## PostgreSQL and read-only preflight
+
+The tool discovery is read-only and does not alter PATH. It selects a complete
+same-bin installation from command resolution, PostgreSQL installation
+registry entries, or the standard 64-bit/32-bit Program Files locations. The
+current server resolves:
+
+`C:\Program Files\PostgreSQL\18\bin\pg_dump.exe`
+
+`C:\Program Files\PostgreSQL\18\bin\pg_restore.exe`
+
+`C:\Program Files\PostgreSQL\18\bin\psql.exe`
+
+All three report PostgreSQL 18.3. The strictly read-only preflight is:
+
+```powershell
+.\ops\production\validate_production_cutover_preflight.ps1 `
+  -ExpectedOldHead <current-valid-production-sha> `
+  -ExpectedReleaseHead <new-prepared-release-sha> `
+  -PreparedReleaseRoot C:\VAMBAM\Projects\OTG\DEV\prepared_release_112 `
+  -PreparedReleaseManifest C:\VAMBAM\Projects\OTG\DEV\prepared_release_112\PREPARED_RELEASE_MANIFEST.json `
+  -PreparedReleaseManifestSha256 <manifest-sha256> `
+  -ExpectedMainHead <current-valid-main-sha>
+```
+
+It verifies the exact production repository, current 8502 identity, complete
+PostgreSQL toolset, required DB environment, `transaction_read_only=on`, the
+pre-migration schema, prepared release gate, and current main baseline. It
+has no mutation switch and reports `MUTATION_EXECUTED=NO`.
+
+## Database contract
+
+The read-only pre-migration state is stable browser identity READY, trader mode
+absent, `site_product_events` absent, and `user_feedback` absent. The future
+migration set remains exactly, in order:
 
 1. `sql/add_site_visit_trader_mode.sql`
 2. `sql/create_site_product_events.sql`
 3. `sql/create_user_feedback.sql`
 
 `sql/add_site_product_events_trader_usd_toggle.sql` is redundant and excluded.
-Database rollback is `NOT_AUTOMATIC`; the additive schema remains in place and
-the custom-format dump is retained for separately authorized recovery.
+The three migrations are additive; database rollback is NOT AUTOMATIC. The
+custom-format database backup remains available for separately authorized
+manual recovery.
 
-## Backup and rollback
+## Future authorization boundary
 
-`backup_production.ps1` is DRY_RUN by default and requires its exact approval
-phrase for future execution. It creates schema-version-2 state containing the
-Git bundle, exact `.env`, custom PostgreSQL dump validated by `pg_restore`, all
-six artifact presence/hashes, active runtime state, and the two managed task
-definitions.
+The future cutover requires a fresh owner authorization and must use the new
+prepared-release manifest plus a newly created complete backup manifest. The
+Report 112 implementation changed operational tooling, so the old prepared
+workspace must not be reused.
 
-`rollback_production.ps1` consumes that backup manifest, restores only the
-recorded application/env/artifact/task/runtime state, restarts the old app,
-and leaves database schema and remote main unchanged.
+No write gate is enabled automatically. The initial production values remain:
 
-## Refresh automation
+`GUNZSCOPE_SUPPLY_SOURCE=v3`
 
-- `OTG_Derived_Data_Refresh_Production`: every 15 minutes; market period,
-  market expansion, trader analytics.
-- `OTG_Metadata_Refresh_Production`: every 60 minutes; item class, GUNZscope
-  v3, quota-safe trader profile sync.
+`OTG_ANALYTICS_WRITES_ENABLED=false`
 
-Both use `MultipleInstances=IgnoreNew`, `StartWhenAvailable=true`, the exact
-production root, and the active release runtime. Registration occurs only
-after new 8502 health passes. Existing staging tasks are never modified.
+`OTG_SITE_ANALYTICS_ENABLED=false`
 
-## Owner-authorized future sequence
+`OTG_PRODUCT_EVENTS_ENABLED=false`
 
-1. Verify the frozen release and unchanged production baseline.
-2. Obtain maintenance-window approval.
-3. Obtain backup approval and execute `backup_production.ps1 -Execute`.
-4. Validate the schema-version-2 backup manifest.
-5. Obtain exact-main-promotion approval.
-6. Execute `promote_main_prepared_release.ps1` with the exact prepared head
-   and manifest hash.
-7. Verify `origin/main == PREPARED_RELEASE_HEAD`.
-8. Run deploy DRY_RUN.
-9. Obtain deploy approval.
-10. Execute deploy, then verify local health and refresh-task definitions.
-11. Owner performs public/manual visual validation.
+`OTG_FEEDBACK_WRITES_ENABLED=false`
 
-Report 110 performs no production update, main promotion, backup execution,
-process stop/start, SQL, environment write, data write, or task registration.
+`OTG_FEEDBACK_TELEGRAM_ENABLED=false`
+
+No production update was executed by Report 112.
 
 FINAL_PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
