@@ -1,0 +1,124 @@
+# Report 113 — Production Cutover Blocked by Runtime Precondition
+
+REPORT_SEQUENCE=113
+RESULT=BLOCKED_PRECUTOVER_ACTIVE_RUNTIME_MISSING
+OWNER_PRODUCTION_DEPLOYMENT_AUTHORIZATION=YES
+
+## Pre-cutover audit
+
+DEVELOP_HEAD_AT_START=d366ead98753b65ac0aa82373b971ff3af053a61
+MAIN_HEAD_AT_START=dacee4c675419dea127ceb5e8a70e1a7ffc36a0
+AUTHORIZED_RELEASE_HEAD=18b3528c0b918aa8736422a017f022064ef57c47
+PREPARED_RELEASE_HEAD=18b3528c0b918aa8736422a017f022064ef57c47
+PREPARED_RELEASE_MANIFEST=C:\VAMBAM\Projects\OTG\DEV\prepared_release_112\PREPARED_RELEASE_MANIFEST.json
+PREPARED_RELEASE_MANIFEST_SHA256=0bebb0f2420f214f154718816bb6da30cb6981710a340ba19685f0e1e26ef919
+PREPARED_RELEASE_MANIFEST_GATE=PASS
+POST_PREPARED_RELEASE_NON_REPORT_CHANGES=NONE
+
+PRODUCTION_ROOT=C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales
+PRODUCTION_GIT_HEAD_BEFORE=dacee4c675419dea1277ceb5e8a70e1a7ffc36a0
+PRODUCTION_GIT_BRANCH=main
+PRODUCTION_GIT_CLEAN=YES
+OLD_PRODUCTION_PID=124284
+OLD_PRODUCTION_PROCESS_IDENTITY=PASS_RELATIVE_ENTRYPOINT
+OLD_PRODUCTION_COMMAND_LINE_SANITIZED="C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe" -m streamlit run app_opensea_sales.py --server.port 8502 --server.address 127.0.0.1 --server.fileWatcherType none --server.headless true --browser.gatherUsageStats false --theme.base="dark"
+LIVE_8501_PID=114920
+LIVE_8504_PID=123544
+DB_PRECUTOVER_SCHEMA_GATE=PASS
+POSTGRES_TOOL_DISCOVERY=PASS
+
+## Read-only dry-runs
+
+BACKUP_FINAL_DRY_RUN=PASS
+PROMOTION_FINAL_DRY_RUN=PASS
+DEPLOY_FINAL_DRY_RUN=PASS
+ROLLBACK_FINAL_DRY_RUN=PASS
+FINAL_DRY_RUN_MUTATION_COUNT=0
+
+## PostgreSQL
+
+PG_DUMP_PATH=C:\Program Files\PostgreSQL\18\bin\pg_dump.exe
+PG_RESTORE_PATH=C:\Program Files\PostgreSQL\18\bin\pg_restore.exe
+PSQL_PATH=C:\Program Files\PostgreSQL\18\bin\psql.exe
+PG_DUMP_VERSION=pg_dump (PostgreSQL) 18.3
+PG_RESTORE_VERSION=pg_restore (PostgreSQL) 18.3
+PSQL_VERSION=psql (PostgreSQL) 18.3
+DB_READ_ONLY_TRANSACTION=on
+DB_SCHEMA_STATE=stable_browser_identity_READY;trader_mode_ABSENT;site_product_events_ABSENT;user_feedback_ABSENT
+
+## Migration plan
+
+REQUIRED_SQL_MIGRATIONS=sql/add_site_visit_trader_mode.sql;sql/create_site_product_events.sql;sql/create_user_feedback.sql
+APPLIED_SQL_MIGRATIONS=NONE
+APPLIED_SQL_MIGRATION_COUNT=0
+REDUNDANT_SQL_MIGRATION_EXCLUDED=sql/add_site_product_events_trader_usd_toggle.sql
+
+## Blocking finding
+
+ACTIVE_RUNTIME_PATH=C:\VAMBAM\Projects\OTG\runtime\opensea_sales\ACTIVE_RUNTIME.json
+ACTIVE_RUNTIME_EXISTS=NO
+DEPLOY_REFRESH_RUNTIME_PRECONDITION=FAIL
+DEPLOY_REFRESH_FAILURE=ACTIVE_RUNTIME_MISSING
+DEPLOY_MUTATION_SEQUENCE_NOT_STARTED=YES
+
+The committed deploy core prepares a final runtime but does not activate it
+before invoking the production derived/metadata refresh cores. Those refresh
+cores resolve their production Python exclusively through ACTIVE_RUNTIME.json.
+Because the live production target has no ACTIVE_RUNTIME.json, the committed
+deploy would stop 8502 and then fail at the first production refresh phase.
+The committed automatic rollback path also calls Get-8502Process before it can
+restore state, so it cannot be accepted as a safe cutover path for this live
+state without a tooling correction and a newly validated prepared release.
+
+No production Execute branch was invoked after this finding.
+
+## Cutover state
+
+BACKUP_RESULT=NOT_STARTED_PRECUTOVER_BLOCKED
+BACKUP_MANIFEST_PATH=NONE
+BACKUP_MANIFEST_VALIDATION=NOT_RUN
+DB_BACKUP_RESULT=NOT_RUN
+MAIN_PROMOTION_EXECUTED=NO
+MAIN_PROMOTION_RESULT=NOT_RUN
+MAIN_HEAD_AFTER_PROMOTION=dacee4c675419dea127ceb5e8a70e1a7ffc36a0
+DEPLOY_EXECUTED=NO
+DEPLOY_RESULT=NOT_RUN
+PRODUCTION_DEPLOYMENT_EXECUTED=NO
+PRODUCTION_MUTATION_COUNT=0
+AUTO_ROLLBACK_ATTEMPTED=NO
+AUTO_ROLLBACK_RESULT=NOT_APPLICABLE
+STATE_RESTORED=NOT_APPLICABLE
+
+PRODUCTION_8502_HEALTH=PASS_UNCHANGED
+PRODUCTION_8502_LOG_GATE=NOT_APPLICABLE
+POST_DEPLOY_DYNAMIC_ARTIFACTS=NOT_APPLICABLE
+POST_DEPLOY_APPLICATION_READERS=NOT_APPLICABLE
+POST_DEPLOY_SUPPLY_SOURCE=NOT_APPLICABLE
+PRODUCTION_REFRESH_RUNTIME_MATCH=NOT_APPLICABLE
+PRODUCTION_DERIVED_REFRESH_TASK=UNCHANGED_ABSENT
+PRODUCTION_METADATA_REFRESH_TASK=UNCHANGED_ABSENT
+FINAL_RUNTIME_GATE=NOT_APPLICABLE
+
+GAMING_MARKETPLACE_8501_UNTOUCHED=YES
+STAGING_8504_UNTOUCHED=YES
+CADDY_STATUS=UNCHANGED_RUNNING
+UNRELATED_SERVICE_MUTATION_COUNT=0
+PRODUCTION_ENV_UNCHANGED=YES
+PRODUCTION_PROCESS_UNCHANGED=YES
+PRODUCTION_SCHEDULED_TASKS_UNCHANGED=YES
+PRODUCTION_DATA_UNCHANGED=YES
+PRODUCTION_DB_UNCHANGED=YES
+
+TARGETED_TESTS=NOT_RUN_AFTER_PRECUTOVER_BLOCK
+FULL_TESTS=NOT_RUN_AFTER_PRECUTOVER_BLOCK
+
+FINAL_PRODUCTION_DEPLOYMENT_STATUS=BLOCKED_PRECUTOVER
+OWNER_VISUAL_VALIDATION_PENDING=NO
+REPORT_113_CAUSED_PRODUCTION_WRITE=NO
+
+The existing prepared release cannot be deployed safely until the production
+tooling is corrected so that the prepared final runtime is available to the
+shared refresh cores before any downtime, and rollback can restore an app
+when no replacement process is running. That correction would change the
+prepared release and requires a newly authorized preparation/release cycle;
+this task does not retry the cutover.
