@@ -13,6 +13,15 @@ def ps(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def run_powershell(script: str):
+    return subprocess.run(
+        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
 def identity_case(command: str, *, listener_address="127.0.0.1", listener_port=8502, runtime_app="") -> str:
     python = str(Path(sys.executable))
     script = f"""
@@ -31,8 +40,26 @@ try {{ Test-8502ProcessIdentity $listener $process $script:ExpectedApp {ps(runti
     return result.stdout.strip().splitlines()[-1]
 
 
-def streamlit_command(app: str, port: int = 8502) -> str:
-    return f'python.exe -m streamlit run {app} --server.port {port} --server.address 127.0.0.1'
+def streamlit_command(app: str, port: int = 8502, theme: str = '--theme.base="dark"') -> str:
+    return (
+        f'python.exe -m streamlit run {app} --server.port {port} '
+        f'--server.address 127.0.0.1 --server.fileWatcherType none '
+        f'--server.headless true --browser.gatherUsageStats false {theme}'
+    ).strip()
+
+
+def test_canonical_production_launch_contract_is_dark_and_complete():
+    script = f"""
+. {ps(str(COMMON))}
+$parameters=Get-ProductionStreamlitLaunchParameters
+Write-Output $parameters
+$null=Assert-StreamlitLaunchContract $parameters 8502
+Write-Output 'CONTRACT=PASS'
+"""
+    result = run_powershell(script)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert '--theme.base="dark"' in result.stdout
+    assert "CONTRACT=PASS" in result.stdout
 
 
 def test_relative_entrypoint_is_accepted_with_strict_listener_identity():
@@ -42,6 +69,31 @@ def test_relative_entrypoint_is_accepted_with_strict_listener_identity():
 def test_expected_absolute_and_release_runtime_entrypoints_are_accepted():
     assert identity_case(streamlit_command(f'"{EXPECTED_APP}"')) == "ACCEPT"
     assert identity_case(streamlit_command(f'"{RUNTIME_APP}"'), runtime_app=RUNTIME_APP) == "ACCEPT"
+
+
+def test_theme_contract_accepts_supported_dark_syntaxes():
+    for theme in ('--theme.base dark', '--theme.base=dark', '--theme.base="dark"'):
+        assert identity_case(streamlit_command("app_opensea_sales.py", theme=theme)) == "ACCEPT"
+
+
+def test_theme_contract_rejects_missing_or_non_dark_values():
+    for theme in ('', '--theme.base=light', '--theme.base=blue', '--theme.base light --theme.base=dark'):
+        assert identity_case(streamlit_command("app_opensea_sales.py", theme=theme)).startswith("REJECT:")
+
+
+def test_supervisor_validation_accepts_generated_canonical_parameters(tmp_path):
+    root = str(tmp_path)
+    python = str(Path(sys.executable))
+    script = f"""
+. {ps(str(COMMON))}
+$ctx=[pscustomobject]@{{Mode='SIMULATION';Root={ps(root)};RuntimeRoot={ps(root)};AppPath={ps(str(tmp_path / 'app_opensea_sales.py'))};Port=18520;SupervisorServiceName='SANDBOX_NSSM';SupervisorAppDirectory={ps(root)}}}
+$parameters=(Get-ProductionStreamlitLaunchParameters).Replace('--server.port 8502','--server.port 18520')
+$configuration=[pscustomobject]@{{ServiceName='SANDBOX_NSSM';NssmExecutable='C:\\tools\\nssm\\win64\\nssm.exe';AppDirectory={ps(root)};Application={ps(python)};AppParameters=$parameters;ServiceState='Stopped'}}
+try {{ Assert-ProductionSupervisorIdentity $ctx $configuration; 'SUPERVISOR_CONTRACT=PASS' }} catch {{ 'SUPERVISOR_CONTRACT=REJECT:' + $_.Exception.Message }}
+"""
+    result = run_powershell(script)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "SUPERVISOR_CONTRACT=PASS" in result.stdout
 
 
 def test_forbidden_or_non_matching_processes_are_rejected():

@@ -86,6 +86,8 @@ $preparedPayload=[ordered]@{
     requirements_txt_sha256='req'
     requirements_lock_sha256='lock'
     prepared_repo_path=$prod
+    streamlit_theme_base='dark'
+    streamlit_theme_contract='PASS'
     wheelhouse=[ordered]@{package_count=45;manifest_path='wheelhouse\WHEELHOUSE_MANIFEST.json';manifest_sha256=$wheelHash}
     runtime_contract=[ordered]@{python_version='3.11';locked_package_count=45;exact_lock_match=45;pip_check='PASS';import_gate='PASS'}
     validation=[ordered]@{full_tests_failure_count=0;canary='PASS';application_readers='PASS'}
@@ -117,7 +119,9 @@ if($active.release_head -ne 'release' -or $active.health -ne 'PASS'){throw 'SAND
 if($newState.tasks.OTG_Derived_Data_Refresh_Production.arguments -notmatch [regex]::Escape((Join-Path $Sandbox 'runtime\releases\release\.venv\Scripts\python.exe'))){throw 'SANDBOX_TASK_RUNTIME_MISMATCH'}
 'SANDBOX_DERIVED_REFRESH_EXECUTION_TEST=PASS'
 'SANDBOX_METADATA_REFRESH_EXECUTION_TEST=PASS'
-'SANDBOX_DEPLOY_START_LOG_CONTRACT=PASS'
+    'SANDBOX_DEPLOY_START_LOG_CONTRACT=PASS'
+    $receipt=Get-Content -LiteralPath (Join-Path $Sandbox 'DEPLOYMENT_RECEIPT.json') -Raw|ConvertFrom-Json;if([string]$receipt.streamlit_theme_base -ne 'dark' -or [string]$receipt.theme_contract -ne 'PASS'){throw 'SANDBOX_THEME_CONTRACT_OUTPUT_FAILED'}
+    'SANDBOX_THEME_CONTRACT=PASS'
 'SANDBOX_TASK_REGISTRATION_TEST=PASS'
 'SANDBOX_DEPLOY_EXECUTION=PASS'
 'SANDBOX_NEW_STATE_VERIFY=PASS'

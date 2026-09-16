@@ -44,6 +44,32 @@ function Assert-Context([object]$Context) {
     else{throw 'UNKNOWN_EXECUTION_CONTEXT'}
     if($Context.Port -in $script:ForbiddenPorts -or $Context.AppPath -match [regex]::Escape($script:ForbiddenApp)){throw 'FORBIDDEN_TARGET_GUARD_FAILED'}
 }
+function Get-ProductionStreamlitLaunchParameters {
+    '-m streamlit run app_opensea_sales.py --server.address 127.0.0.1 --server.port 8502 --server.fileWatcherType none --server.headless true --browser.gatherUsageStats false --theme.base="dark"'
+}
+function Assert-StreamlitLaunchContract {
+    param([Parameter(Mandatory=$true)][string]$Parameters,[int]$ExpectedPort=8502)
+    if([string]::IsNullOrWhiteSpace($Parameters)){throw 'SUPERVISOR_PARAMETERS_NOT_STREAMLIT'}
+    $required=@(
+        '(?i)(?:^|\s)-m\s+streamlit\s+run(?:\s|$)',
+        '(?i)(?:^|\s)--server\.address(?:\s+|=)"?127\.0\.0\.1"?(?:\s|$)',
+        ('(?i)(?:^|\s)--server\.port(?:\s+|=)'+[regex]::Escape([string]$ExpectedPort)+'(?:\s|$)'),
+        '(?i)(?:^|\s)--server\.fileWatcherType(?:\s+|=)none(?:\s|$)',
+        '(?i)(?:^|\s)--server\.headless(?:\s+|=)true(?:\s|$)',
+        '(?i)(?:^|\s)--browser\.gatherUsageStats(?:\s+|=)false(?:\s|$)'
+    )
+    foreach($pattern in $required){if($Parameters -notmatch $pattern){throw 'SUPERVISOR_LAUNCH_CONTRACT_REQUIRED'}}
+    $themeMatches=[regex]::Matches($Parameters,'(?i)(?:^|\s)--theme\.base(?:\s+|=)(?:"(?<quoted>[^"\r\n]*)"|(?<bare>[^\s]+))(?=\s|$)')
+    if($themeMatches.Count -ne 1){throw 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'}
+    $themeMatch=$themeMatches[0]
+    $themeValue=if($themeMatch.Groups['quoted'].Success){$themeMatch.Groups['quoted'].Value}else{$themeMatch.Groups['bare'].Value}
+    if($themeValue -cne 'dark'){throw 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'}
+    $Parameters
+}
+function Assert-PreparedReleaseThemeContract([object]$Manifest) {
+    if(-not$Manifest -or [string]$Manifest.streamlit_theme_base -cne 'dark' -or [string]$Manifest.streamlit_theme_contract -cne 'PASS'){throw 'PREPARED_RELEASE_THEME_CONTRACT_FAILED'}
+    $null=Assert-StreamlitLaunchContract (Get-ProductionStreamlitLaunchParameters) $script:ExpectedPort
+}
 function Assert-Approval([switch]$Execute,[string]$Actual,[string]$Expected){if($Execute -and $Actual -ne $Expected){throw 'APPROVAL_PHRASE_REQUIRED'}}
 
 function Get-SafeEnv([string]$Path) {
@@ -155,6 +181,7 @@ function Assert-ProductionSupervisorIdentity([object]$Context,[object]$Configura
     if([IO.Path]::GetFullPath([string]$Configuration.AppDirectory) -ne [IO.Path]::GetFullPath((Get-SupervisorAppDirectory $Context))){throw 'SUPERVISOR_APP_DIRECTORY_MISMATCH'}
     $application=[string]$Configuration.Application;if([string]::IsNullOrWhiteSpace($application) -or [IO.Path]::GetFileName($application) -ine 'python.exe' -or -not(Test-Path -LiteralPath $application -PathType Leaf)){throw 'SUPERVISOR_APPLICATION_MISMATCH'}
     $parameters=[string]$Configuration.AppParameters
+    $null=Assert-StreamlitLaunchContract $parameters (Get-SupervisorPort $Context)
     if($parameters -notmatch '(?i)(?:-m\s+streamlit\s+run|(?:^|\s)streamlit(?:\.exe)?\s+run)'){throw 'SUPERVISOR_PARAMETERS_NOT_STREAMLIT'}
     if($parameters -match '(?i)app_gaming_marketplace\.py|--server\.port(?:\s+|=)(?:8501|8504)(?:\s|$)'){throw 'SUPERVISOR_FORBIDDEN_TARGET'}
     $portMatch=[regex]::Match($parameters,'(?i)--server\.port(?:\s+|=)(\d+)');if(-not$portMatch.Success -or [int]$portMatch.Groups[1].Value -ne (Get-SupervisorPort $Context)){throw 'SUPERVISOR_PORT_MISMATCH'}
@@ -218,8 +245,10 @@ function Set-ProductionSupervisorReleaseConfiguration([object]$Context) {
     Assert-FinalRuntimePath $Context.ReleasePython $Context.ExpectedReleaseHead $Context
     if(-not(Test-Path $Context.ReleasePython -PathType Leaf)){throw 'SUPERVISOR_RELEASE_PYTHON_MISSING'}
     $name=Get-SupervisorServiceName $Context;$appDirectory=Get-SupervisorAppDirectory $Context;$logRoot=Join-Path $Context.RuntimeRoot 'logs';$id=[guid]::NewGuid().ToString('N');$stdout=Join-Path $logRoot ('supervisor_'+$id+'.out.log');$stderr=Join-Path $logRoot ('supervisor_'+$id+'.err.log')
-    Set-NssmValue $Context $name 'Application' $Context.ReleasePython;Set-NssmValue $Context $name 'AppDirectory' $appDirectory;Set-NssmValue $Context $name 'AppParameters' '-m streamlit run app_opensea_sales.py --server.address 127.0.0.1 --server.port 8502 --server.fileWatcherType none --server.headless true --browser.gatherUsageStats false';Set-NssmValue $Context $name 'AppStdout' $stdout;Set-NssmValue $Context $name 'AppStderr' $stderr
-    $Context.SupervisorActivationStdOut=$stdout;$Context.SupervisorActivationStdErr=$stderr;$Context.SupervisorNssmExecutable=(Get-ProductionSupervisorConfiguration $Context).NssmExecutable;$configuration=Get-ProductionSupervisorConfiguration $Context;Assert-ProductionSupervisorIdentity $Context $configuration
+    $parameters=Get-ProductionStreamlitLaunchParameters
+    $null=Assert-StreamlitLaunchContract $parameters $script:ExpectedPort
+    Set-NssmValue $Context $name 'Application' $Context.ReleasePython;Set-NssmValue $Context $name 'AppDirectory' $appDirectory;Set-NssmValue $Context $name 'AppParameters' $parameters;Set-NssmValue $Context $name 'AppStdout' $stdout;Set-NssmValue $Context $name 'AppStderr' $stderr
+    $Context.SupervisorActivationStdOut=$stdout;$Context.SupervisorActivationStdErr=$stderr;$Context.SupervisorNssmExecutable=(Get-ProductionSupervisorConfiguration $Context).NssmExecutable;$configuration=Get-ProductionSupervisorConfiguration $Context;Assert-ProductionSupervisorIdentity $Context $configuration;Write-KV 'STREAMLIT_THEME_BASE' 'dark';Write-KV 'STREAMLIT_THEME_CONTRACT' 'PASS'
     if([IO.Path]::GetFullPath($configuration.Application) -ne [IO.Path]::GetFullPath($Context.ReleasePython)){throw 'SUPERVISOR_RELEASE_PYTHON_MISMATCH'}
     $Context.SupervisorConfiguration=$configuration;$configuration
 }
@@ -333,6 +362,7 @@ function Test-8502ProcessIdentity {
     if([IO.Path]::GetFileName([string]$Process.ExecutablePath) -ine 'python.exe'){throw '8502_PROCESS_NOT_PYTHON'}
     $command=[string]$Process.CommandLine;if([string]::IsNullOrWhiteSpace($command)){throw '8502_PROCESS_COMMANDLINE_MISSING'}
     if($command -notmatch '(?i)(?:-m\s+streamlit\s+run|(?:^|\s)streamlit(?:\.exe)?\s+run)'){throw '8502_PROCESS_NOT_STREAMLIT'}
+    $null=Assert-StreamlitLaunchContract $command $ExpectedPort
     if($command -match '(?i)app_gaming_marketplace\.py'){throw '8502_PROCESS_FORBIDDEN_APP'}
     if($command -match '(?i)--server\.port(?:\s+|=)8501(?:\s|$)' -or $command -match '(?i)--server\.port(?:\s+|=)8504(?:\s|$)'){throw '8502_PROCESS_FORBIDDEN_PORT'}
     $portMatch=[regex]::Match($command,'(?i)--server\.port(?:\s+|=)(\d+)');if(-not$portMatch.Success -or [int]$portMatch.Groups[1].Value -ne $ExpectedPort){throw '8502_PROCESS_PORT_MISMATCH'}
@@ -353,7 +383,7 @@ function Assert-AllowedMigrationSet([string[]]$Migrations){if($Migrations.Count 
 function Read-PreparedReleaseManifest {
     param([string]$Path,[string]$ExpectedHash,[string]$ExpectedHead,[object]$Context)
     if(-not(Test-Path $Path -PathType Leaf)){throw 'PREPARED_RELEASE_MANIFEST_MISSING'};if($ExpectedHash -and (Get-Sha256 $Path) -ne $ExpectedHash.ToLowerInvariant()){throw 'PREPARED_RELEASE_MANIFEST_HASH_MISMATCH'};$manifest=Get-Content $Path -Raw|ConvertFrom-Json
-    foreach($name in @('manifest_version','prepared_release_head','prepared_release_git_tree_sha','requirements_txt_sha256','requirements_lock_sha256','wheelhouse','runtime_contract','validation')){if($null -eq $manifest.$name){throw 'PREPARED_RELEASE_MANIFEST_INCOMPLETE'}};if([int]$manifest.manifest_version -ne 2){throw 'PREPARED_RELEASE_MANIFEST_VERSION_INVALID'};if($ExpectedHead -and $manifest.prepared_release_head -ne $ExpectedHead){throw 'PREPARED_RELEASE_HEAD_MISMATCH'}
+    foreach($name in @('manifest_version','prepared_release_head','prepared_release_git_tree_sha','requirements_txt_sha256','requirements_lock_sha256','wheelhouse','runtime_contract','validation','streamlit_theme_base','streamlit_theme_contract')){if($null -eq $manifest.$name){throw 'PREPARED_RELEASE_MANIFEST_INCOMPLETE'}};if([int]$manifest.manifest_version -ne 2){throw 'PREPARED_RELEASE_MANIFEST_VERSION_INVALID'};if($ExpectedHead -and $manifest.prepared_release_head -ne $ExpectedHead){throw 'PREPARED_RELEASE_HEAD_MISMATCH'};Assert-PreparedReleaseThemeContract $manifest
     $base=Split-Path $Path -Parent;$repo=if($manifest.prepared_repo_path){$manifest.prepared_repo_path}else{Join-Path $base 'repo'};if($Context.Mode -eq 'PRODUCTION'){if($Context.PreparedReleaseRoot -and [IO.Path]::GetFullPath($repo) -ne [IO.Path]::GetFullPath((Join-Path $Context.PreparedReleaseRoot 'repo'))){throw 'PREPARED_RELEASE_ROOT_MISMATCH'};if(-not(Test-Path $repo -PathType Container)){throw 'PREPARED_RELEASE_REPO_MISSING'};$tree=(& git -c ('safe.directory='+$repo) -C $repo rev-parse ($manifest.prepared_release_head+'^{tree}')).Trim();if($LASTEXITCODE -ne 0 -or $tree.ToLowerInvariant() -ne ([string]$manifest.prepared_release_git_tree_sha).ToLowerInvariant()){throw 'PREPARED_RELEASE_TREE_MISMATCH'};$repoHead=(& git -c ('safe.directory='+$repo) -C $repo rev-parse HEAD).Trim();if($LASTEXITCODE -ne 0 -or $repoHead -ne $manifest.prepared_release_head){throw 'PREPARED_RELEASE_HEAD_MISMATCH'};if(((& git -c ('safe.directory='+$repo) -C $repo status --porcelain)-join '') -ne ''){throw 'PREPARED_RELEASE_REPO_NOT_CLEAN'};$req=(Join-Path $repo 'requirements.txt');$lock=(Join-Path $repo 'requirements.lock.txt');if(-not(Test-Path $req -PathType Leaf) -or -not(Test-Path $lock -PathType Leaf) -or (Get-Sha256 $req).ToLowerInvariant() -ne ([string]$manifest.requirements_txt_sha256).ToLowerInvariant() -or (Get-Sha256 $lock).ToLowerInvariant() -ne ([string]$manifest.requirements_lock_sha256).ToLowerInvariant()){throw 'PREPARED_RELEASE_REQUIREMENTS_HASH_MISMATCH'}}
     if([int]$manifest.wheelhouse.package_count -ne 45 -or [string]::IsNullOrWhiteSpace([string]$manifest.wheelhouse.manifest_path) -or [string]$manifest.wheelhouse.manifest_sha256 -eq ''){throw 'PREPARED_RELEASE_WHEELHOUSE_INVALID'};$wheel=Join-Path $base $manifest.wheelhouse.manifest_path;if(-not(Test-Path $wheel -PathType Leaf) -or (Get-Sha256 $wheel).ToLowerInvariant() -ne ([string]$manifest.wheelhouse.manifest_sha256).ToLowerInvariant()){throw 'PREPARED_RELEASE_WHEELHOUSE_HASH_MISMATCH'};if([int]$manifest.runtime_contract.locked_package_count -ne 45 -or [int]$manifest.runtime_contract.exact_lock_match -ne 45 -or $manifest.runtime_contract.pip_check -ne 'PASS' -or $manifest.runtime_contract.import_gate -ne 'PASS'){throw 'PREPARED_RELEASE_RUNTIME_GATES_FAILED'};if([int]$manifest.validation.full_tests_failure_count -ne 0 -or $manifest.validation.canary -ne 'PASS' -or $manifest.validation.application_readers -ne 'PASS'){throw 'PREPARED_RELEASE_VALIDATION_GATES_FAILED'};[pscustomobject]@{Manifest=$manifest;Base=$base;Repo=$repo;WheelManifest=$wheel}
 }
@@ -384,7 +414,7 @@ function Invoke-BackupCore {
         $owned=Get-ProductionSupervisor $Context;$process=$owned.Child.Process;if(-not$process){throw 'SUPERVISOR_CHILD_NOT_FOUND'};$processPid=$process.ProcessId;$processExe=$process.ExecutablePath;$processCmd=$process.CommandLine;$supervisor=$owned.Configuration
         $tools=Get-PostgresTools;foreach($name in @('pg_dump','pg_restore','psql')){if(-not$tools.ContainsKey($name)){throw ('POSTGRES_TOOL_MISSING:'+ $name)}};Get-DatabaseEnvironment $Context.EnvPath -Required|Out-Null
     } elseif(-not(Test-Path $Context.EnvPath -PathType Leaf)){throw 'SIMULATION_ENV_MISSING'}
-    if(-not$supervisor){$supervisor=[pscustomobject]@{ServiceName=$Context.SupervisorServiceName;ServiceDisplayName='Sandbox NSSM';ServiceStartMode='Manual';ServiceBinaryPath='sandbox-nssm.exe';ServiceWasRunning=$true;NssmExecutable='sandbox-nssm.exe';NssmVersion='sandbox';Application='sandbox-python.exe';AppDirectory=$Context.SupervisorAppDirectory;AppParameters='-m streamlit run app_opensea_sales.py --server.address 127.0.0.1 --server.port '+$Context.Port;AppStdout='';AppStderr='';AppRestartDelay='0';AppThrottle='1500';AppExitDefault='Restart';AppStopMethodConsole='1500';AppStopMethodWindow='1500';AppStopMethodThreads='1500';AppStopMethodSkip='0';AppKillProcessTree='1';AppStdoutShareMode='3';AppStderrShareMode='3';AppRotateFiles='0';AppRotateOnline='0';AppRotateSeconds='0';AppRotateBytes='0';AppTimestampLog='0';WindowsServiceFailureActions='sandbox'}}
+    if(-not$supervisor){$sandboxParameters=(Get-ProductionStreamlitLaunchParameters).Replace('--server.port 8502','--server.port '+$Context.Port);$null=Assert-StreamlitLaunchContract $sandboxParameters $Context.Port;$supervisor=[pscustomobject]@{ServiceName=$Context.SupervisorServiceName;ServiceDisplayName='Sandbox NSSM';ServiceStartMode='Manual';ServiceBinaryPath='sandbox-nssm.exe';ServiceWasRunning=$true;NssmExecutable='sandbox-nssm.exe';NssmVersion='sandbox';Application='sandbox-python.exe';AppDirectory=$Context.SupervisorAppDirectory;AppParameters=$sandboxParameters;AppStdout='';AppStderr='';AppRestartDelay='0';AppThrottle='1500';AppExitDefault='Restart';AppStopMethodConsole='1500';AppStopMethodWindow='1500';AppStopMethodThreads='1500';AppStopMethodSkip='0';AppKillProcessTree='1';AppStdoutShareMode='3';AppStderrShareMode='3';AppRotateFiles='0';AppRotateOnline='0';AppRotateSeconds='0';AppRotateBytes='0';AppTimestampLog='0';WindowsServiceFailureActions='sandbox'}}
     $supervisorFingerprint=Get-SupervisorConfigurationFingerprint $supervisor
     $supervisorManifest=[ordered]@{service_name=$supervisor.ServiceName;supervisor_type='NSSM';service_display_name=$supervisor.ServiceDisplayName;service_start_mode=$supervisor.ServiceStartMode;service_was_running=[bool]$supervisor.ServiceWasRunning;service_binary_path=$supervisor.ServiceBinaryPath;nssm_executable=$supervisor.NssmExecutable;nssm_version=$supervisor.NssmVersion;application=$supervisor.Application;app_directory=$supervisor.AppDirectory;app_parameters=$supervisor.AppParameters;app_stdout=$supervisor.AppStdout;app_stderr=$supervisor.AppStderr;app_restart_delay=$supervisor.AppRestartDelay;app_throttle=$supervisor.AppThrottle;app_exit_default=$supervisor.AppExitDefault;app_stop_method_console=$supervisor.AppStopMethodConsole;app_stop_method_window=$supervisor.AppStopMethodWindow;app_stop_method_threads=$supervisor.AppStopMethodThreads;app_stop_method_skip=$supervisor.AppStopMethodSkip;app_kill_process_tree=$supervisor.AppKillProcessTree;app_stdout_share_mode=$supervisor.AppStdoutShareMode;app_stderr_share_mode=$supervisor.AppStderrShareMode;app_rotate_files=$supervisor.AppRotateFiles;app_rotate_online=$supervisor.AppRotateOnline;app_rotate_seconds=$supervisor.AppRotateSeconds;app_rotate_bytes=$supervisor.AppRotateBytes;app_timestamp_log=$supervisor.AppTimestampLog;windows_service_failure_actions=$supervisor.WindowsServiceFailureActions;configuration_fingerprint=$supervisorFingerprint}
     Add-Mutation $Context 'BACKUP_CREATE';$stamp=Get-Date -Format yyyyMMdd_HHmmss;$short=if($head.Length -gt 8){$head.Substring(0,8)}else{$head};$out=Join-Path $Context.BackupRoot ($stamp+'_'+$short);New-Item -ItemType Directory -Path $out -Force|Out-Null;$manifest=[ordered]@{manifest_version=2;created_at=(Get-Date).ToUniversalTime().ToString('o');target_root=$Context.Root;target_port=$Context.Port;target_app=$Context.AppPath;old_git_head=$head;old_git_branch=$branch;old_git_clean=$true;old_process_pid=$processPid;old_process_executable=$processExe;old_process_command_line_sanitized=$processCmd;old_app_path=$Context.AppPath;old_port=$Context.Port;old_runtime_root=$Context.RuntimeRoot;supervisor=$supervisorManifest;env_backup_relative_path='.env';git_bundle_relative_path='production.bundle';db_dump_relative_path='production.dump';db_dump_format='custom';db_dump_validation='PENDING';dynamic_artifacts=@();active_runtime_existed=$false;production_refresh_tasks=@();backup_complete=$false}
@@ -423,7 +453,7 @@ function Invoke-PreStopCanary([object]$Context,[object]$Prepared) {
     if($Context.Mode -eq 'SIMULATION'){$state=Get-ContextState $Context;if($state.canary_fail){throw 'PRESTOP_CANARY_FAILED'};Add-Mutation $Context 'DEPLOY_PRESTOP_CANARY';$state.canary='healthy';Save-ContextState $Context $state;Write-KV 'PRESTOP_CANARY' 'PASS';return}
     if(Invoke-HealthCheck 8505 1){throw 'PRESTOP_CANARY_PORT_OCCUPIED'}
     $env=Get-SafeEnv $Context.EnvPath;$env['GUNZSCOPE_SUPPLY_SOURCE']='v3';$env['OTG_ANALYTICS_WRITES_ENABLED']='false';$env['OTG_SITE_ANALYTICS_ENABLED']='false';$env['OTG_PRODUCT_EVENTS_ENABLED']='false';$env['OTG_FEEDBACK_WRITES_ENABLED']='false';$env['OTG_FEEDBACK_TELEGRAM_ENABLED']='false'
-    $app=Join-Path $Prepared.Base 'repo\streamlit_opensea_sales\app_opensea_sales.py';$logRoot=Join-Path $Context.RuntimeRoot 'logs';New-Item $logRoot -ItemType Directory -Force|Out-Null;$log=Join-Path $logRoot 'prestop_canary.log';$psi=New-Object Diagnostics.ProcessStartInfo;$psi.FileName=$Context.ReleasePython;$psi.WorkingDirectory=(Split-Path $app);$psi.UseShellExecute=$false;$psi.CreateNoWindow=$true;$psi.RedirectStandardOutput=$true;$psi.RedirectStandardError=$true;$psi.Arguments='-m streamlit run "'+$app+'" --server.address 127.0.0.1 --server.port 8505 --server.fileWatcherType none --browser.gatherUsageStats false';foreach($key in $env.Keys){$psi.EnvironmentVariables[$key]=[string]$env[$key]};$canary=New-Object Diagnostics.Process;$canary.StartInfo=$psi;if(-not$canary.Start()){throw 'PRESTOP_CANARY_START_FAILED'};$out=$canary.StandardOutput.ReadToEndAsync();$err=$canary.StandardError.ReadToEndAsync();try{if(-not(Invoke-HealthCheck 8505 60)){throw 'PRESTOP_CANARY_HTTP_FAILED'};$helper=Join-Path $Prepared.Base 'repo\ops\production\validate_dynamic_artifacts.py';Invoke-ChildProcess $Context.ReleasePython @($helper,'--repo-root',(Join-Path $Prepared.Base 'repo'),'--data-dir',(Join-Path $Prepared.Base 'repo\streamlit_opensea_sales\data_opensea_sales')) $Prepared.Base 900 $env (Join-Path $logRoot 'prestop_reader.log')|Out-Null}finally{if(-not$canary.HasExited){$canary.Kill()};$canary.WaitForExit(10000);$canaryLogs=$out.Result+$err.Result;Write-AtomicText $log $canaryLogs;if($canaryLogs -match 'Traceback|ModuleNotFoundError|ImportError|Uncaught app exception'){throw 'PRESTOP_CANARY_LOG_FAILED'};if(Invoke-HealthCheck 8505 1){throw 'PRESTOP_CANARY_ORPHAN'}};Add-Mutation $Context 'DEPLOY_PRESTOP_CANARY';Write-KV 'PRESTOP_CANARY' 'PASS'
+    $app=Join-Path $Prepared.Base 'repo\streamlit_opensea_sales\app_opensea_sales.py';$logRoot=Join-Path $Context.RuntimeRoot 'logs';New-Item $logRoot -ItemType Directory -Force|Out-Null;$log=Join-Path $logRoot 'prestop_canary.log';$psi=New-Object Diagnostics.ProcessStartInfo;$psi.FileName=$Context.ReleasePython;$psi.WorkingDirectory=(Split-Path $app);$psi.UseShellExecute=$false;$psi.CreateNoWindow=$true;$psi.RedirectStandardOutput=$true;$psi.RedirectStandardError=$true;$psi.Arguments=(Get-ProductionStreamlitLaunchParameters).Replace('app_opensea_sales.py','"'+$app+'"').Replace('--server.port 8502','--server.port 8505');$null=Assert-StreamlitLaunchContract $psi.Arguments 8505;foreach($key in $env.Keys){$psi.EnvironmentVariables[$key]=[string]$env[$key]};$canary=New-Object Diagnostics.Process;$canary.StartInfo=$psi;if(-not$canary.Start()){throw 'PRESTOP_CANARY_START_FAILED'};$out=$canary.StandardOutput.ReadToEndAsync();$err=$canary.StandardError.ReadToEndAsync();try{if(-not(Invoke-HealthCheck 8505 60)){throw 'PRESTOP_CANARY_HTTP_FAILED'};$helper=Join-Path $Prepared.Base 'repo\ops\production\validate_dynamic_artifacts.py';Invoke-ChildProcess $Context.ReleasePython @($helper,'--repo-root',(Join-Path $Prepared.Base 'repo'),'--data-dir',(Join-Path $Prepared.Base 'repo\streamlit_opensea_sales\data_opensea_sales')) $Prepared.Base 900 $env (Join-Path $logRoot 'prestop_reader.log')|Out-Null}finally{if(-not$canary.HasExited){$canary.Kill()};$canary.WaitForExit(10000);$canaryLogs=$out.Result+$err.Result;Write-AtomicText $log $canaryLogs;if($canaryLogs -match 'Traceback|ModuleNotFoundError|ImportError|Uncaught app exception'){throw 'PRESTOP_CANARY_LOG_FAILED'};if(Invoke-HealthCheck 8505 1){throw 'PRESTOP_CANARY_ORPHAN'}};Add-Mutation $Context 'DEPLOY_PRESTOP_CANARY';Write-KV 'PRESTOP_CANARY' 'PASS'
 }
 function Resolve-8502RollbackProcess([object]$Context) {
     if($Context.Mode -eq 'SIMULATION') {
@@ -480,8 +510,63 @@ function Write-ActiveRuntime([object]$Context,[int]$ProcessId){$path=Join-Path $
 
 function Invoke-DeployCore {
     param([object]$Context,[switch]$Execute)
-    Assert-Context $Context;if(-not$Execute){Write-KV 'MODE' 'DRY_RUN';Write-KV 'DEPLOY_PLAN' 'PASS';Write-KV 'MAIN_PROMOTION_REQUIRED' 'YES';Write-KV 'DEPLOY_REMOTE_MAIN_MUTATION' 'FORBIDDEN';Write-KV 'FINAL_RUNTIME_PATH_GUARD' 'PASS';Write-KV 'MUTATION_EXECUTED' 'NO';return};Set-Phase $Context 'DEPLOY_VALIDATE';$prepared=Read-PreparedReleaseManifest $Context.PreparedReleaseManifest $Context.PreparedReleaseManifestSha256 $Context.ExpectedReleaseHead $Context;$backupForDeploy=Read-BackupManifest $Context.BackupManifest $Context;Assert-AllowedMigrationSet $script:AllowedMigrations;if($Context.Mode -eq 'SIMULATION'){$state=Get-ContextState $Context;if($state.main_head -ne $Context.ExpectedReleaseHead){throw 'MAIN_PROMOTION_REQUIRED'}}else{$actual=(& git -c ('safe.directory='+$Context.Root) -C $Context.Root rev-parse HEAD).Trim();if($actual -ne $Context.ExpectedOldHead){throw 'EXPECTED_OLD_HEAD_MISMATCH'};if(((& git -c ('safe.directory='+$Context.Root) -C $Context.Root status --porcelain)-join '') -ne ''){throw 'PRODUCTION_WORKTREE_NOT_CLEAN'};$main=(& git -c ('safe.directory='+$Context.Root) -C $Context.Root rev-parse origin/main).Trim();if($main -ne $Context.ExpectedReleaseHead){throw 'MAIN_PROMOTION_REQUIRED'};& git -c ('safe.directory='+$Context.Root) -C $Context.Root merge-base --is-ancestor $Context.ExpectedOldHead $Context.ExpectedReleaseHead;if($LASTEXITCODE -ne 0){throw 'RELEASE_NOT_DESCENDANT'};$liveSupervisor=Get-ProductionSupervisor $Context;if([string]$liveSupervisor.Configuration.ConfigurationFingerprint -ne [string]$backupForDeploy.Manifest.supervisor.configuration_fingerprint){throw 'SUPERVISOR_STATE_CHANGED'};Assert-FinalRuntimePath (Get-FinalRuntimePython $Context.ExpectedReleaseHead $Context) $Context.ExpectedReleaseHead $Context}
-    $stopped=$false;try{Set-Phase $Context 'DEPLOY_PREPARE_RUNTIME';Invoke-PrepareRuntime $Context $prepared -Execute;Invoke-PreStopCanary $Context $prepared;Stop-ContextProcess $Context;$stopped=$true;Invoke-ContextGitFastForward $Context $Context.ExpectedReleaseHead;Set-Phase $Context 'DEPLOY_ENV';Set-FailClosedEnv $Context;Invoke-ContextMigrations $Context;Set-Phase $Context 'DEPLOY_DERIVED';Invoke-DerivedRefreshCore $Context -Execute;Set-Phase $Context 'DEPLOY_METADATA';Invoke-MetadataRefreshCore $Context -Execute;Set-Phase $Context 'DEPLOY_RUNTIME_READERS';Invoke-Readers $Context;Set-Phase $Context 'DEPLOY_SUPERVISOR_CONFIG';Add-Mutation $Context 'DEPLOY_SUPERVISOR_CONFIG';if($Context.Mode -eq 'PRODUCTION'){$null=Set-ProductionSupervisorReleaseConfiguration $Context};Set-Phase $Context 'DEPLOY_START';$new=Start-ContextProcess $Context $Context.ReleasePython $Context.AppPath;Set-Phase $Context 'DEPLOY_HEALTH';$healthy=if($Context.Mode -eq 'SIMULATION'){(Get-ContextState $Context).process -eq 'new-healthy'}else{Invoke-HealthCheck 8502 60};if(-not$healthy){throw 'NEW_PRODUCTION_HEALTH_FAILED'};if($Context.Mode -eq 'PRODUCTION'){$listener=Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort 8502 -State Listen -ErrorAction SilentlyContinue|Select-Object -First 1;if(-not$listener -or $listener.OwningProcess -ne $new.Id){throw 'NEW_PROCESS_IDENTITY_FAILED'};Test-8502ProcessIdentity $listener (Get-CimInstance Win32_Process -Filter ('ProcessId='+$listener.OwningProcess)) $Context.AppPath $Context.AppPath 8502;Assert-CurrentLaunchLogs $new};if($Context.Mode -eq 'SIMULATION'){Assert-CurrentLaunchLogs $new};Write-ActiveRuntime $Context $new.Id;Set-Phase $Context 'DEPLOY_TASKS';Invoke-TaskConfigurationCore $Context -Execute;Set-Phase $Context 'DEPLOY_RECEIPT';Add-Mutation $Context 'DEPLOY_RECEIPT';Write-AtomicJson (Join-Path $Context.Root 'DEPLOYMENT_RECEIPT.json') ([ordered]@{old_head=$Context.ExpectedOldHead;new_head=$Context.ExpectedReleaseHead;new_pid=$new.Id;supervisor_service_name=$Context.SupervisorServiceName;supervisor_type=$Context.SupervisorType;supervisor_stdout=$new.StdOutLogPath;supervisor_stderr=$new.StdErrLogPath;supervisor_configuration_fingerprint=if($new.SupervisorConfiguration){$new.SupervisorConfiguration.ConfigurationFingerprint}else{''};sql_migration_count=3;dynamic_artifact_count=6;health='PASS'});Write-KV 'DEPLOY_RESULT' 'PASS';return}catch{if($stopped){$Context.RollbackAttempted=$true;Write-KV 'AUTO_ROLLBACK_ATTEMPTED' 'YES';try{Invoke-RollbackCore $Context -Execute -Automatic;$Context.RollbackSucceeded=$true;$Context.StateRestored=$true;Write-KV 'AUTO_ROLLBACK_RESULT' 'PASS';Write-KV 'STATE_RESTORED' 'YES'}catch{Write-KV 'AUTO_ROLLBACK_RESULT' 'FAIL';Write-KV 'ROLLBACK_FAILURE' $_.Exception.Message}};throw}
+    Assert-Context $Context
+    if(-not$Execute){
+        Write-KV 'MODE' 'DRY_RUN';Write-KV 'DEPLOY_PLAN' 'PASS';Write-KV 'MAIN_PROMOTION_REQUIRED' 'YES';Write-KV 'DEPLOY_REMOTE_MAIN_MUTATION' 'FORBIDDEN';Write-KV 'FINAL_RUNTIME_PATH_GUARD' 'PASS';Write-KV 'MUTATION_EXECUTED' 'NO';return
+    }
+    Set-Phase $Context 'DEPLOY_VALIDATE'
+    $prepared=Read-PreparedReleaseManifest $Context.PreparedReleaseManifest $Context.PreparedReleaseManifestSha256 $Context.ExpectedReleaseHead $Context
+    $backupForDeploy=Read-BackupManifest $Context.BackupManifest $Context
+    Assert-AllowedMigrationSet $script:AllowedMigrations
+    if($Context.Mode -eq 'SIMULATION'){
+        $state=Get-ContextState $Context
+        if($state.main_head -ne $Context.ExpectedReleaseHead){throw 'MAIN_PROMOTION_REQUIRED'}
+    } else {
+        $actual=(& git -c ('safe.directory='+$Context.Root) -C $Context.Root rev-parse HEAD).Trim()
+        if($actual -ne $Context.ExpectedOldHead){throw 'EXPECTED_OLD_HEAD_MISMATCH'}
+        if(((& git -c ('safe.directory='+$Context.Root) -C $Context.Root status --porcelain)-join '') -ne ''){throw 'PRODUCTION_WORKTREE_NOT_CLEAN'}
+        $main=(& git -c ('safe.directory='+$Context.Root) -C $Context.Root rev-parse origin/main).Trim()
+        if($main -ne $Context.ExpectedReleaseHead){throw 'MAIN_PROMOTION_REQUIRED'}
+        & git -c ('safe.directory='+$Context.Root) -C $Context.Root merge-base --is-ancestor $Context.ExpectedOldHead $Context.ExpectedReleaseHead
+        if($LASTEXITCODE -ne 0){throw 'RELEASE_NOT_DESCENDANT'}
+        $liveSupervisor=Get-ProductionSupervisor $Context
+        if([string]$liveSupervisor.Configuration.ConfigurationFingerprint -ne [string]$backupForDeploy.Manifest.supervisor.configuration_fingerprint){throw 'SUPERVISOR_STATE_CHANGED'}
+        Assert-FinalRuntimePath (Get-FinalRuntimePython $Context.ExpectedReleaseHead $Context) $Context.ExpectedReleaseHead $Context
+    }
+    $stopped=$false
+    try {
+        Set-Phase $Context 'DEPLOY_PREPARE_RUNTIME';Invoke-PrepareRuntime $Context $prepared -Execute
+        Invoke-PreStopCanary $Context $prepared
+        Stop-ContextProcess $Context;$stopped=$true
+        Invoke-ContextGitFastForward $Context $Context.ExpectedReleaseHead
+        Set-Phase $Context 'DEPLOY_ENV';Set-FailClosedEnv $Context;Invoke-ContextMigrations $Context
+        Set-Phase $Context 'DEPLOY_DERIVED';Invoke-DerivedRefreshCore $Context -Execute
+        Set-Phase $Context 'DEPLOY_METADATA';Invoke-MetadataRefreshCore $Context -Execute
+        Set-Phase $Context 'DEPLOY_RUNTIME_READERS';Invoke-Readers $Context
+        Set-Phase $Context 'DEPLOY_SUPERVISOR_CONFIG';Add-Mutation $Context 'DEPLOY_SUPERVISOR_CONFIG'
+        if($Context.Mode -eq 'PRODUCTION'){$null=Set-ProductionSupervisorReleaseConfiguration $Context}
+        Set-Phase $Context 'DEPLOY_START';$new=Start-ContextProcess $Context $Context.ReleasePython $Context.AppPath
+        Set-Phase $Context 'DEPLOY_HEALTH'
+        $healthy=if($Context.Mode -eq 'SIMULATION'){(Get-ContextState $Context).process -eq 'new-healthy'}else{Invoke-HealthCheck 8502 60}
+        if(-not$healthy){throw 'NEW_PRODUCTION_HEALTH_FAILED'}
+        if($Context.Mode -eq 'PRODUCTION'){
+            $listener=Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort 8502 -State Listen -ErrorAction SilentlyContinue|Select-Object -First 1
+            if(-not$listener -or $listener.OwningProcess -ne $new.Id){throw 'NEW_PROCESS_IDENTITY_FAILED'}
+            Test-8502ProcessIdentity $listener (Get-CimInstance Win32_Process -Filter ('ProcessId='+$listener.OwningProcess)) $Context.AppPath $Context.AppPath 8502
+            Assert-CurrentLaunchLogs $new
+        }
+        if($Context.Mode -eq 'SIMULATION'){Assert-CurrentLaunchLogs $new}
+        Write-KV 'STREAMLIT_THEME_BASE' 'dark';Write-KV 'STREAMLIT_THEME_CONTRACT' 'PASS'
+        Write-ActiveRuntime $Context $new.Id
+        Set-Phase $Context 'DEPLOY_TASKS';Invoke-TaskConfigurationCore $Context -Execute
+        Set-Phase $Context 'DEPLOY_RECEIPT';Add-Mutation $Context 'DEPLOY_RECEIPT'
+        $receipt=[ordered]@{old_head=$Context.ExpectedOldHead;new_head=$Context.ExpectedReleaseHead;new_pid=$new.Id;supervisor_service_name=$Context.SupervisorServiceName;supervisor_type=$Context.SupervisorType;supervisor_stdout=$new.StdOutLogPath;supervisor_stderr=$new.StdErrLogPath;supervisor_configuration_fingerprint=if($new.SupervisorConfiguration){$new.SupervisorConfiguration.ConfigurationFingerprint}else{''};streamlit_theme_base='dark';theme_contract='PASS';sql_migration_count=3;dynamic_artifact_count=6;health='PASS'}
+        Write-AtomicJson (Join-Path $Context.Root 'DEPLOYMENT_RECEIPT.json') $receipt
+        Write-KV 'DEPLOY_RESULT' 'PASS';return
+    } catch {
+        if($stopped){$Context.RollbackAttempted=$true;Write-KV 'AUTO_ROLLBACK_ATTEMPTED' 'YES';try{Invoke-RollbackCore $Context -Execute -Automatic;$Context.RollbackSucceeded=$true;$Context.StateRestored=$true;Write-KV 'AUTO_ROLLBACK_RESULT' 'PASS';Write-KV 'STATE_RESTORED' 'YES'}catch{Write-KV 'AUTO_ROLLBACK_RESULT' 'FAIL';Write-KV 'ROLLBACK_FAILURE' $_.Exception.Message}}
+        throw
+    }
 }
 function Invoke-RollbackCore {
     param([object]$Context,[switch]$Execute,[switch]$Automatic)

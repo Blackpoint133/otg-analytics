@@ -85,26 +85,17 @@ def test_promotion_script_forbids_develop_to_main_literal():
     assert "PROMOTE_OTG_ANALYTICS_MAIN" in text
 
 
-def test_read_only_cutover_preflight_passes_live_without_mutation():
+def test_read_only_cutover_preflight_rejects_live_missing_dark_theme_without_mutation():
     result = run(
         "validate_production_cutover_preflight.ps1",
-        "-ExpectedOldHead", "30e49a2090712e3e6233c4bbb324d6f70a7751eb",
-        "-ExpectedReleaseHead", "30e49a2090712e3e6233c4bbb324d6f70a7751eb",
-        "-PreparedReleaseRoot", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_120",
-        "-PreparedReleaseManifest", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_120\PREPARED_RELEASE_MANIFEST.json",
-        "-PreparedReleaseManifestSha256", "5d48139abed73b9c308c441a3d7a141afc19726b4edf0235dd28f14d4c4930fc",
-        "-ExpectedMainHead", "30e49a2090712e3e6233c4bbb324d6f70a7751eb",
+        "-ExpectedOldHead", "05d9e99b6e22be7a64155dc136019a55ec1f5ad4",
+        "-ExpectedReleaseHead", "05d9e99b6e22be7a64155dc136019a55ec1f5ad4",
+        "-PreparedReleaseRoot", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_122",
+        "-PreparedReleaseManifest", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_122\PREPARED_RELEASE_MANIFEST.json",
+        "-PreparedReleaseManifestSha256", "22fa59847fe9ef6b404620c1f97158dabe9efa13b101f324b3fd802d63923b63",
+        "-ExpectedMainHead", "05d9e99b6e22be7a64155dc136019a55ec1f5ad4",
     )
-    assert result.returncode == 0, result.stdout + result.stderr
-    for marker in (
-        "MODE=READ_ONLY_PREFLIGHT",
-        "PRODUCTION_PROCESS_IDENTITY=PASS",
-        "POSTGRES_TOOL_DISCOVERY=PASS",
-        "DB_READ_ONLY_GATE=PASS",
-        "DB_SCHEMA_GATE=PASS",
-        "PREPARED_RELEASE_GATE=PASS",
-        "MAIN_BASELINE_GATE=PASS",
-        "MUTATION_EXECUTED=NO",
-        "CUTOVER_PREFLIGHT=PASS",
-    ):
-        assert marker in result.stdout
+    assert result.returncode != 0
+    assert "SUPERVISOR_THEME_BASE_DARK_REQUIRED" in result.stdout + result.stderr
+    assert "MUTATION_EXECUTED=NO" in result.stdout
+    assert "CUTOVER_PREFLIGHT=FAIL" in result.stdout

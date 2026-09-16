@@ -1,9 +1,9 @@
 # OTG Analytics Production Release Preparation
 
-STATUS=TECHNICALLY_PREPARED_AWAITING_NEW_OWNER_AUTHORIZATION
+STATUS=TECHNICALLY_PREPARED_AWAITING_PRODUCTION_THEME_CORRECTION_CUTOVER
 OWNER_PRODUCTION_DEPLOYMENT_AUTHORIZATION=NO
 
-This document describes the corrected production tooling after Report 121.
+This document describes the corrected production tooling after Report 123.
 Report 121 reached deployment start, but the live NSSM supervisor respawned its
 old child after the child PID was stopped. The new NSSM ownership contract
 stops and configures the supervisor itself, so the child cannot race the
@@ -15,7 +15,7 @@ cutover or rollback. No production correction is performed by this document.
 - App: `streamlit_opensea_sales\app_opensea_sales.py`
 - Port: `8502`
 - Branch: `main`
-- Current production SHA at preparation: `dacee4c675419dea1277ceb5e8a70e1a7ffc36a0`
+- Current production SHA at preparation: `05d9e99b6e22be7a64155dc136019a55ec1f5ad4`
 - 8501 / `app_gaming_marketplace.py`: DO NOT TOUCH
 - 8504 staging: DO NOT TOUCH
 - Caddy: DO NOT CHANGE
@@ -62,6 +62,22 @@ using an explicit shared-read handle, so a live child can be inspected without
 a sharing violation and stale logs cannot satisfy or fail the current-launch
 gate. Prior launch logs remain audit evidence. The v2 backup manifest records
 the complete mutable NSSM configuration and its fingerprint for rollback.
+
+## Mandatory Streamlit launch contract
+
+`Get-ProductionStreamlitLaunchParameters` is the single source of truth for a
+new production activation. It emits:
+
+```text
+-m streamlit run app_opensea_sales.py --server.address 127.0.0.1 --server.port 8502 --server.fileWatcherType none --server.headless true --browser.gatherUsageStats false --theme.base="dark"
+```
+
+The supervisor configuration is read back and validated before NSSM is
+started. The same contract validator checks the active supervised child and
+the prepared-release manifest. Missing, non-dark, duplicate, or otherwise
+invalid `--theme.base` values fail closed with
+`SUPERVISOR_THEME_BASE_DARK_REQUIRED` (or the prepared-manifest equivalent).
+This is a launch contract; CSS is not a substitute.
 
 ## Corrected rollback contract
 
@@ -114,13 +130,18 @@ Before any future owner-authorized cutover, run:
 This is strictly read-only and uses the same guarded 8502 process identity
 predicate as backup, deploy, and rollback. Relative `app_opensea_sales.py`
 launches are accepted only with the strict listener, Python, Streamlit, port,
-address, repository, branch, and clean-worktree gates. Unrelated absolute app
-paths, 8501, 8504, gaming, and Caddy are rejected.
+address, required Streamlit flags, dark-theme, repository, branch, and
+clean-worktree gates. Unrelated absolute app paths, 8501, 8504, gaming, and
+Caddy are rejected.
 
 ## Validation state
 
 Report 112 prepared release: invalidated by the Report 113 tooling finding.
 Report 113: blocked before mutation; production mutation count `0`.
+Report 123 successfully deployed release `05d9e99b...`, but its generated NSSM
+parameters omitted the mandatory dark theme. The live service remains an audit
+finding until a separately authorized correction cutover; this preparation does
+not modify it.
 Report 115 was blocked before cutover because the backup wrapper used direct
 native Git with merged stderr. The valid bundle emitted Git's normal
 successful verification diagnostic on stderr, which PowerShell surfaced as a
@@ -138,9 +159,8 @@ remains inside the isolated sandbox. This prevents a failed attempt from
 dirtying the production worktree or becoming release content.
 
 The corrected implementation must be committed and refrozen as a new prepared
-release before any owner authorization can be reused. The Report 115
-authorization is consumed and a future cutover requires fresh owner
-authorization.
+release before a future owner authorization can be used. This task does not
+authorize production deployment and performs no production mutation.
 
 The corrected sandbox proves the shared core can deploy from an absent active
 runtime, use the final runtime for both refresh classes, activate the pointer

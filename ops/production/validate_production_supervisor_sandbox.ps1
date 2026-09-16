@@ -64,7 +64,8 @@ try {
     $Python=(Get-Command python.exe -ErrorAction Stop).Source
     $service=Get-CimInstance Win32_Service -Filter "Name='$($script:ProductionServiceName)'";if(-not$service){throw 'SANDBOX_SOURCE_SERVICE_MISSING'};$Nssm=Get-SupervisorNssmExecutable $service
     Run-Nssm @('install',$ServiceName,$Python);$ServiceCreated=$true
-    Run-Nssm @('set',$ServiceName,'AppDirectory',$SandboxPath);Run-Nssm @('set',$ServiceName,'AppParameters',('-m streamlit run app_opensea_sales.py --server.address 127.0.0.1 --server.port '+$Port+' --server.fileWatcherType none --server.headless true --browser.gatherUsageStats false'));Run-Nssm @('set',$ServiceName,'AppRestartDelay','0');Run-Nssm @('set',$ServiceName,'AppThrottle','1500')
+    $parameters=(Get-ProductionStreamlitLaunchParameters).Replace('--server.port 8502','--server.port '+$Port);$null=Assert-StreamlitLaunchContract $parameters $Port
+    Run-Nssm @('set',$ServiceName,'AppDirectory',$SandboxPath);Run-Nssm @('set',$ServiceName,'AppParameters',$parameters);Run-Nssm @('set',$ServiceName,'AppRestartDelay','0');Run-Nssm @('set',$ServiceName,'AppThrottle','1500')
     $oldLogs=Configure-Logs 'old_activation';& sc.exe config $ServiceName start= demand|Out-Null
     Start-Service -Name $ServiceName -ErrorAction Stop
     $old=Get-SandboxChild
@@ -78,12 +79,13 @@ try {
 
     Stop-ProductionSupervisor $old.Context;Say 'SANDBOX_SUPERVISOR_STOP' 'PASS';Wait-SandboxListener $false|Out-Null;Say 'SANDBOX_PORT_RELEASE' 'PASS'
     $saved=$old.Configuration;$requiredBackupFields=@('ServiceName','ServiceDisplayName','ServiceStartMode','ServiceBinaryPath','NssmExecutable','Application','AppDirectory','AppParameters','AppStdout','AppStderr','AppRestartDelay','AppThrottle','AppExitDefault','AppStopMethodConsole','AppStopMethodWindow','AppStopMethodThreads','AppStopMethodSkip','AppKillProcessTree','AppStdoutShareMode','AppStderrShareMode','AppRotateFiles','AppRotateOnline','AppRotateSeconds','AppRotateBytes','AppTimestampLog','WindowsServiceFailureActions');foreach($field in $requiredBackupFields){if($null -eq $saved.PSObject.Properties[$field]){throw 'SANDBOX_SUPERVISOR_BACKUP_INCOMPLETE'}};Write-AtomicJson (Join-Path $SandboxPath 'SUPERVISOR_BACKUP.json') (Config-Projection $saved);Say 'SANDBOX_SUPERVISOR_BACKUP' 'PASS'
+    $invalidParameters=$parameters.Replace('--theme.base="dark"','--theme.base=light');Set-SandboxNssm 'AppParameters' $invalidParameters;$invalidConfiguration=Get-ProductionSupervisorConfiguration $old.Context;$invalidRejected=$false;try{$null=Assert-ProductionSupervisorIdentity $old.Context $invalidConfiguration}catch{if($_.Exception.Message -eq 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'){$invalidRejected=$true}};if(-not$invalidRejected){throw 'SANDBOX_INVALID_THEME_NOT_REJECTED'};Say 'SANDBOX_INVALID_THEME_FAIL_CLOSED' 'PASS';Set-SandboxNssm 'AppParameters' $parameters
     $stale=Join-Path $SandboxPath 'logs\stale_previous_launch.err.log';Set-Content $stale 'Traceback from a previous launch'
     $newLogs=Configure-Logs ('new_activation_'+[guid]::NewGuid().ToString('N'));$newConfig=Get-ProductionSupervisorConfiguration $old.Context
     if($newConfig.AppStdout -ne $newLogs.StdOutLogPath -or $newConfig.AppStderr -ne $newLogs.StdErrLogPath){throw 'SANDBOX_LOG_CONFIGURATION_FAILED'}
     Say 'SANDBOX_SUPERVISOR_RECONFIGURE' 'PASS';Start-Service -Name $ServiceName -ErrorAction Stop
     try{$new=Get-SandboxChild}catch{$cfg=Get-ProductionSupervisorConfiguration $old.Context;$listener=Get-SandboxListener;$debugError='MISSING';if(Test-Path $cfg.AppStderr){$debugError=Get-Content $cfg.AppStderr -Raw};Say 'SANDBOX_DEBUG_NEW_SERVICE_STATE' $cfg.ServiceState;Say 'SANDBOX_DEBUG_NEW_APPLICATION' $cfg.Application;Say 'SANDBOX_DEBUG_NEW_PARAMETERS' $cfg.AppParameters;Say 'SANDBOX_DEBUG_NEW_LISTENER' ($listener|Out-String);Say 'SANDBOX_DEBUG_NEW_STDERR' $debugError;throw};$newLaunch=[pscustomobject]@{ProcessId=$new.Process.ProcessId;StdOutLogPath=$new.Configuration.AppStdout;StdErrLogPath=$new.Configuration.AppStderr};Assert-SandboxLaunch $newLaunch $app
-    Say 'SANDBOX_SUPERVISOR_START' 'PASS';Say 'SANDBOX_NEW_CHILD_IDENTITY' 'PASS';Say 'SANDBOX_NEW_CHILD_HEALTH' 'PASS';Say 'SANDBOX_CURRENT_LOG_GATE' 'PASS';Say 'SANDBOX_STALE_LOG_IGNORED' 'PASS'
+    if(([string]$new.Configuration.AppParameters) -notmatch '(?i)(?:^|\s)--theme\.base(?:\s+|=)(?:"dark"|dark)(?:\s|$)'){throw 'SANDBOX_THEME_CONTRACT_FAILED'};Say 'SANDBOX_SUPERVISOR_START' 'PASS';Say 'SANDBOX_NEW_CHILD_IDENTITY' 'PASS';Say 'SANDBOX_NEW_CHILD_HEALTH' 'PASS';Say 'SANDBOX_CURRENT_LOG_GATE' 'PASS';Say 'SANDBOX_STALE_LOG_IGNORED' 'PASS';Say 'SANDBOX_THEME_CONTRACT' 'PASS'
     $listeners=@(Get-SandboxListener);if($listeners.Count -ne 1){throw 'SANDBOX_DUPLICATE_CHILD'};Say 'SANDBOX_DUPLICATE_CHILD' 'NO'
 
     Stop-ProductionSupervisor $new.Context;Say 'SANDBOX_ROLLBACK_SUPERVISOR_STOP' 'PASS';Wait-SandboxListener $false|Out-Null

@@ -32,6 +32,9 @@ def test_sandbox_manifest_and_active_runtime_state_are_real():
     assert payload["backup_complete"] is True
     assert len(payload["dynamic_artifacts"]) == 6
     assert len(payload["production_refresh_tasks"]) == 2
+    receipt = json.loads((SANDBOX / "DEPLOYMENT_RECEIPT.json").read_text(encoding="utf-8"))
+    assert receipt["streamlit_theme_base"] == "dark"
+    assert receipt["theme_contract"] == "PASS"
 
 
 def test_promotion_dry_run_is_exact_and_non_mutating():

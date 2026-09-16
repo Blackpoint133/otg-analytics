@@ -10,6 +10,23 @@ freshly audited production state.
 
 Caddy: DO NOT CHANGE.
 
+## Mandatory Streamlit launch contract
+
+Every new OTG Analytics production supervisor activation must use the single
+canonical parameter string returned by `Get-ProductionStreamlitLaunchParameters`:
+
+```text
+-m streamlit run app_opensea_sales.py --server.address 127.0.0.1 --server.port 8502 --server.fileWatcherType none --server.headless true --browser.gatherUsageStats false --theme.base="dark"
+```
+
+The deployment writes NSSM configuration, reads it back, and validates the
+complete launch contract—including `--theme.base=dark`—before starting the
+service. The active supervised child is validated against the same contract
+after start, and the deployment receipt records `streamlit_theme_base=dark`
+and `theme_contract=PASS`. Missing or non-dark theme values fail closed; CSS
+does not replace this launch invariant. Rollback restores the exact backed-up
+NSSM parameters without rewriting the historical configuration.
+
 ## Release identity
 
 `PREPARED_RELEASE_HEAD` is the exact prepared implementation commit, not the
