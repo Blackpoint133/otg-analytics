@@ -56,6 +56,17 @@ complete and hash-valid, including the Git bundle, `.env`, custom PostgreSQL
 dump plus `pg_restore --list` validation, six artifact states, active-runtime
 state, process evidence, and both managed refresh-task states.
 
+The Git bundle is created and verified through the controlled child-process
+runner. It captures stdout and stderr separately and treats only the native
+process exit code as authoritative: exit code `0` passes even when Git writes
+normal diagnostics to stderr; any non-zero exit fails closed. The bundle must
+exist and be non-empty, and `git bundle verify` must actually return `0`.
+
+The incomplete Report 115 backup at
+`C:\VAMBAM\Projects\OTG\DEV\production_backups\20260916_004452_dacee4c6`
+must not be reused. A new owner-authorized cutover requires a newly completed
+backup manifest.
+
 ## Exact main promotion
 
 After owner authorization specifically for main promotion, run the guarded
@@ -113,6 +124,10 @@ If deploy fails after downtime begins, the same guarded rollback core is
 attempted automatically. The output must distinguish mutation, rollback, and
 restored-state telemetry. Do not improvise repairs or retry in the same
 maintenance window.
+
+Production execution telemetry is kept under the external runtime logs area;
+it must not create an untracked file in the production checkout. A failed
+pre-cutover attempt still fails closed and must be reviewed before any retry.
 
 ## Database
 

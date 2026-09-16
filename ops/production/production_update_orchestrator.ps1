@@ -17,7 +17,7 @@ try {
     switch($Operation){'Backup'{Invoke-BackupCore $context -Execute:$Execute}'Deploy'{Invoke-DeployCore $context -Execute:$Execute}'Rollback'{Invoke-RollbackCore $context -Execute:$Execute}'DerivedRefresh'{Invoke-DerivedRefreshCore $context -Execute:$Execute}'MetadataRefresh'{Invoke-MetadataRefreshCore $context -Execute:$Execute}'ConfigureTasks'{Invoke-TaskConfigurationCore $context -Execute:$Execute}}
 }
 catch {
-    if($context -and $context.MutationStarted){Write-AtomicJson (Join-Path $context.Root 'EXECUTION_TELEMETRY.json') ([ordered]@{mutation_started=$context.MutationStarted;mutation_phases=@($context.MutationPhases);rollback_attempted=$context.RollbackAttempted;rollback_succeeded=$context.RollbackSucceeded;state_restored=$context.StateRestored})}
+    if($context -and $context.MutationStarted){$telemetryPath=if($context.Mode -eq 'PRODUCTION'){Join-Path $context.RuntimeRoot 'logs\EXECUTION_TELEMETRY.json'}else{Join-Path $context.Root 'EXECUTION_TELEMETRY.json'};Write-AtomicJson $telemetryPath ([ordered]@{mutation_started=$context.MutationStarted;mutation_phases=@($context.MutationPhases);rollback_attempted=$context.RollbackAttempted;rollback_succeeded=$context.RollbackSucceeded;state_restored=$context.StateRestored})}
     if($context -and $context.MutationStarted){Write-KV 'MUTATION_EXECUTED' 'YES'}else{Write-KV 'MUTATION_EXECUTED' 'NO'}
     if($context){Write-KV 'AUTO_ROLLBACK_ATTEMPTED' ($(if($context.RollbackAttempted){'YES'}else{'NO'}));if($context.RollbackAttempted){Write-KV 'AUTO_ROLLBACK_RESULT' ($(if($context.RollbackSucceeded){'PASS'}else{'FAIL'}))};Write-KV 'STATE_RESTORED' ($(if($context.StateRestored){'YES'}else{'NO'}))}
     throw

@@ -3,7 +3,7 @@
 STATUS=TECHNICALLY_PREPARED_AWAITING_NEW_OWNER_AUTHORIZATION
 OWNER_PRODUCTION_DEPLOYMENT_AUTHORIZATION=NO
 
-This document describes the corrected production tooling after Report 113.
+This document describes the corrected production tooling after Report 115.
 Report 113 was blocked before its first mutation because the live production
 target had no `ACTIVE_RUNTIME.json`. The deploy core would have stopped 8502
 before its refresh cores could obtain a runtime, and its rollback path did not
@@ -98,8 +98,26 @@ paths, 8501, 8504, gaming, and Caddy are rejected.
 
 Report 112 prepared release: invalidated by the Report 113 tooling finding.
 Report 113: blocked before mutation; production mutation count `0`.
+Report 115 was blocked before cutover because the backup wrapper used direct
+native Git with merged stderr. The valid bundle emitted Git's normal
+successful verification diagnostic on stderr, which PowerShell surfaced as a
+terminating error. The corrected implementation invokes Git through the
+controlled child-process helper: stdout and stderr are captured separately,
+only exit code zero is success, and all non-zero exits fail closed. Bundle
+creation, non-empty-file validation, and bundle verification remain required
+before the v2 manifest can be finalized. The Report 115 backup directory is
+audit evidence only and is not reusable as a future backup because it has no
+complete manifest, environment copy, or database dump.
+
+Execution failure telemetry for production is written under the external
+runtime logs directory, not the production Git checkout. Simulation telemetry
+remains inside the isolated sandbox. This prevents a failed attempt from
+dirtying the production worktree or becoming release content.
+
 The corrected implementation must be committed and refrozen as a new prepared
-release before any owner authorization can be reused.
+release before any owner authorization can be reused. The Report 115
+authorization is consumed and a future cutover requires fresh owner
+authorization.
 
 The corrected sandbox proves the shared core can deploy from an absent active
 runtime, use the final runtime for both refresh classes, activate the pointer

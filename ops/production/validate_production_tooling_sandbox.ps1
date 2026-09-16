@@ -61,6 +61,13 @@ $data=Join-Path $prod 'streamlit_opensea_sales\data_opensea_sales'
 New-Item -ItemType Directory -Force -Path $data,(Join-Path $prod 'streamlit_opensea_sales'),(Join-Path $prod 'ops\production'),(Join-Path $release 'wheelhouse'),(Join-Path $Sandbox 'runtime') | Out-Null
 Set-Content -LiteralPath (Join-Path $prod 'streamlit_opensea_sales\app_opensea_sales.py') -Value '# sandbox app'
 Set-Content -LiteralPath (Join-Path $prod '.env') -Value @('POSTGRES_HOST=fake','POSTGRES_PORT=5432','POSTGRES_USER=fake','POSTGRES_PASSWORD=fake','POSTGRES_DB=fake','KEEP_ME=yes')
+$git=Get-Command git.exe -ErrorAction Stop
+& $git.Source -c ('safe.directory='+$prod) -C $prod init -q
+& $git.Source -c ('safe.directory='+$prod) -C $prod config user.email sandbox@example.invalid
+& $git.Source -c ('safe.directory='+$prod) -C $prod config user.name Sandbox
+& $git.Source -c ('safe.directory='+$prod) -C $prod add .
+& $git.Source -c ('safe.directory='+$prod) -C $prod commit -qm sandbox-old
+if($LASTEXITCODE -ne 0){throw 'SANDBOX_GIT_FIXTURE_FAILED'}
 $statePath=Join-Path $Sandbox 'simulation_state.json'
 Write-State ([ordered]@{current_head='old';main_head='old';process='old-healthy';tasks=@{};canary='';canary_fail=$false;reader_fail=$false;fail_new_health=$false;foreign_listener=$false})
 foreach($i in 0..5){if($i -ne 4){$artifact=(Get-ArtifactState $data)[$i];New-Item -ItemType Directory -Force -Path (Split-Path $artifact.Path) | Out-Null;Set-Content -LiteralPath $artifact.Path -Value ('old-'+$i)}}
@@ -153,7 +160,7 @@ $state=Read-State
 $state.foreign_listener=$true
 Write-State $state
 $rollbackFailure=Invoke-ChildFailure @('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $Ops 'rollback_production.ps1'),'-Execute','-Simulation','-SimulationRoot',$Sandbox,'-SimulationPort',[string]$Port,'-BackupManifest',$backupManifest,'-ApprovalPhrase','ROLLBACK_OTG_ANALYTICS_8502')
-if($rollbackFailure -notmatch 'ROLLBACK_FOREIGN_8502_LISTENER'){throw 'SANDBOX_FOREIGN_GUARD_FAILED'}
+if(-not(($rollbackFailure -join "`n") -match 'ROLLBACK_FOREIGN_8502_LISTENER')){throw 'SANDBOX_FOREIGN_GUARD_FAILED'}
 if((Read-State).process -ne 'old-healthy'){throw 'SANDBOX_FOREIGN_PROCESS_TOUCHED'}
 'SANDBOX_FOREIGN_8502_GUARD=PASS'
 
