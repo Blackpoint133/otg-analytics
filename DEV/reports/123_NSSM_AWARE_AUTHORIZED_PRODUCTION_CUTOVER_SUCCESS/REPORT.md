@@ -166,3 +166,10 @@ REPORT_123_CAUSED_PRODUCTION_WRITE=NO
 FINAL_PRODUCTION_DEPLOYMENT_STATUS=SUCCESS
 OWNER_VISUAL_VALIDATION_PENDING=YES
 WRITE_GATES_FAIL_CLOSED=YES
+
+TARGETED_POST_DEPLOY_TESTS=16 passed; 1 stale pre-cutover baseline assertion failed outside the post-deploy gate because production had correctly advanced to the authorized release
+PREPARED_RELEASE_FULL_TESTS=647 passed, 7 warnings, 5 subtests passed
+COMPILE_GATE=PASS
+PIP_CHECK_GATE=PASS
+POWERSHELL_PARSE_GATE=PASS
+DIFF_GATE=PASS
