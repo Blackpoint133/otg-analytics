@@ -88,12 +88,12 @@ def test_promotion_script_forbids_develop_to_main_literal():
 def test_read_only_cutover_preflight_passes_live_without_mutation():
     result = run(
         "validate_production_cutover_preflight.ps1",
-        "-ExpectedOldHead", "dacee4c675419dea1277ceb5e8a70e1a7ffc36a0",
-        "-ExpectedReleaseHead", "263fe05cdc9dbcca8c757f9a24c69a7923b3f166",
-        "-PreparedReleaseRoot", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_117",
-        "-PreparedReleaseManifest", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_117\PREPARED_RELEASE_MANIFEST.json",
-        "-PreparedReleaseManifestSha256", "5ba57a29f569830a405a8710b7657aa523fb7ed254925145491f33348029d849",
-        "-ExpectedMainHead", "263fe05cdc9dbcca8c757f9a24c69a7923b3f166",
+        "-ExpectedOldHead", "30e49a2090712e3e6233c4bbb324d6f70a7751eb",
+        "-ExpectedReleaseHead", "30e49a2090712e3e6233c4bbb324d6f70a7751eb",
+        "-PreparedReleaseRoot", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_120",
+        "-PreparedReleaseManifest", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_120\PREPARED_RELEASE_MANIFEST.json",
+        "-PreparedReleaseManifestSha256", "5d48139abed73b9c308c441a3d7a141afc19726b4edf0235dd28f14d4c4930fc",
+        "-ExpectedMainHead", "30e49a2090712e3e6233c4bbb324d6f70a7751eb",
     )
     assert result.returncode == 0, result.stdout + result.stderr
     for marker in (

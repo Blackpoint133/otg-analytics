@@ -1,0 +1,109 @@
+import json
+import os
+import subprocess
+from pathlib import Path
+
+
+ROOT = Path(__file__).parents[1]
+OPS = ROOT / "ops" / "production"
+COMMON = OPS / "production_update_common.ps1"
+
+
+def run_ps(command: str):
+    powershell = os.environ.get("WINDIR", r"C:\Windows") + r"\System32\WindowsPowerShell\v1.0\powershell.exe"
+    return subprocess.run(
+        [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def ps(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def test_supervisor_backup_contract_rejects_missing_required_state(tmp_path):
+    script = f"""
+. {ps(str(COMMON))}
+$ctx=[pscustomobject]@{{Mode='SIMULATION';Root={ps(str(tmp_path))};Port=18520;AppPath={ps(str(tmp_path / 'app.py'))};SupervisorServiceName='SANDBOX_NSSM';SupervisorAppDirectory={ps(str(tmp_path))}}}
+$base={ps(str(tmp_path))};New-Item -ItemType Directory -Path $base -Force|Out-Null
+$manifest=[ordered]@{{manifest_version=2;backup_complete=$true;target_root=$ctx.Root;target_port=18520;target_app=$ctx.AppPath;env_backup_relative_path='env';git_bundle_relative_path='bundle';db_dump_relative_path='dump';env_sha256='x';git_bundle_sha256='x';db_dump_sha256='x';db_dump_format='custom';db_dump_validation='PASS';dynamic_artifacts=@();production_refresh_tasks=@();supervisor=[ordered]@{{service_name='SANDBOX_NSSM'}}}}
+Write-AtomicJson (Join-Path $base 'bad.json') $manifest
+try {{ Read-BackupManifest (Join-Path $base 'bad.json') $ctx; 'UNEXPECTED_PASS' }} catch {{ 'REJECTED='+$_.Exception.Message }}
+"""
+    result = run_ps(script)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "REJECTED=BACKUP_SUPERVISOR_STATE_INCOMPLETE" in result.stdout
+
+
+def test_real_nssm_sandbox_proves_service_ownership_respawn_cutover_and_rollback():
+    result = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(OPS / "validate_production_supervisor_sandbox.ps1"),
+            "-Execute",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    output = result.stdout
+    for marker in (
+        "SANDBOX_NSSM_RESPAWN_REPRODUCTION=PASS",
+        "SANDBOX_SUPERVISOR_BACKUP=PASS",
+        "SANDBOX_SUPERVISOR_STOP=PASS",
+        "SANDBOX_PORT_RELEASE=PASS",
+        "SANDBOX_SUPERVISOR_RECONFIGURE=PASS",
+        "SANDBOX_SUPERVISOR_START=PASS",
+        "SANDBOX_NEW_CHILD_IDENTITY=PASS",
+        "SANDBOX_NEW_CHILD_HEALTH=PASS",
+        "SANDBOX_CURRENT_LOG_GATE=PASS",
+        "SANDBOX_STALE_LOG_IGNORED=PASS",
+        "SANDBOX_ROLLBACK_CONFIG_RESTORE=PASS",
+        "SANDBOX_ROLLBACK_CHILD_IDENTITY=PASS",
+        "SANDBOX_ROLLBACK_HEALTH=PASS",
+        "SANDBOX_ROLLBACK_LOG_GATE=PASS",
+        "SANDBOX_ROLLBACK_STATE_RESTORED=PASS",
+        "SANDBOX_FOREIGN_LISTENER_GATE=PASS",
+        "SANDBOX_FOREIGN_PROCESS_UNTOUCHED=YES",
+        "SANDBOX_SERVICE_LEFTOVER=NO",
+        "SANDBOX_PROCESS_LEFTOVER=NO",
+        "SANDBOX_LISTENER_LEFTOVER=NO",
+    ):
+        assert marker in output
+
+
+def test_production_supervisor_read_only_identity_and_child_relationship():
+    script = f"""
+. {ps(str(COMMON))}
+$ctx=New-ProductionExecutionContext @{{ExpectedOldHead='30e49a2090712e3e6233c4bbb324d6f70a7751eb';ExpectedReleaseHead='30e49a2090712e3e6233c4bbb324d6f70a7751eb';PreparedReleaseRoot='';PreparedReleaseManifest='';PreparedReleaseManifestSha256='';BackupManifest='';BackupRoot=''}}
+$owned=Get-ProductionSupervisor $ctx
+if($owned.Configuration.ServiceName -ne 'OTG_app_opensea_sales') {{ throw 'SERVICE_NAME_FAILED' }}
+if($owned.Configuration.NssmExecutable -notmatch '(?i)nssm[.]exe$') {{ throw 'NSSM_IDENTITY_FAILED' }}
+if(-not(Test-ProcessDescendant $owned.Child.ProcessId $owned.Configuration.ServiceProcessId)) {{ throw 'OWNERSHIP_FAILED' }}
+Write-Output ('SERVICE='+$owned.Configuration.ServiceName)
+Write-Output ('CHILD='+$owned.Child.ProcessId)
+Write-Output 'OWNERSHIP=PASS'
+"""
+    result = run_ps(script)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "SERVICE=OTG_app_opensea_sales" in result.stdout
+    assert "OWNERSHIP=PASS" in result.stdout
+
+
+def test_nssm_supervisor_contract_is_explicit_and_production_lifecycle_is_not_direct_pid_control():
+    source = COMMON.read_text(encoding="utf-8")
+    assert "function Get-ProductionSupervisor" in source
+    assert "function Stop-ProductionSupervisor" in source
+    assert "function Set-ProductionSupervisorReleaseConfiguration" in source
+    assert "function Start-ProductionSupervisor" in source
+    assert "Stop-Service -Name (Get-SupervisorServiceName $Context)" in source
+    lifecycle = source.split("function Start-ContextProcess", 1)[1].split("function Invoke-HealthCheck", 1)[0]
+    assert "Start-RedirectedProcess" not in lifecycle
+    assert "Stop-Process -Id $process" not in lifecycle

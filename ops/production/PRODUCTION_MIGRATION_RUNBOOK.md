@@ -56,7 +56,8 @@ After fresh owner backup authorization, run:
 Validate the printed `BACKUP_MANIFEST_PATH`. The schema-v2 manifest must be
 complete and hash-valid, including the Git bundle, `.env`, custom PostgreSQL
 dump plus `pg_restore --list` validation, six artifact states, active-runtime
-state, process evidence, and both managed refresh-task states.
+state, process evidence, both managed refresh-task states, and the complete
+mutable NSSM configuration for `OTG_app_opensea_sales`.
 
 The Git bundle is created and verified through the controlled child-process
 runner. It captures stdout and stderr separately and treats only the native
@@ -103,13 +104,16 @@ manifest. After owner deploy authorization, run:
 ```
 
 The shared deploy core validates both manifests, prepares the deterministic
-final runtime before downtime, runs the 8505 canary, stops only the verified
-8502 process, fast-forwards the production checkout, applies the exact three
-additive migrations, refreshes derived and metadata artifacts with the
-validated final runtime, validates application readers, starts 8502, checks
-health/logs/process identity, writes `ACTIVE_RUNTIME.json`, configures the two
-approved tasks, and writes the deployment receipt. The active pointer is never
-written merely to make a pre-health refresh pass.
+final runtime before downtime, runs the 8505 canary, validates the
+`OTG_app_opensea_sales` NSSM service and current child, stops the service,
+waits for `Stopped` and no 8502 listener, fast-forwards the production
+checkout, applies the exact three additive migrations, refreshes derived and
+metadata artifacts with the validated final runtime, validates application
+readers, configures NSSM for the final runtime and unique activation logs,
+starts the service, checks child identity/health/logs, writes
+`ACTIVE_RUNTIME.json`, configures the two approved tasks, and writes the
+deployment receipt. The active pointer is never written merely to make a
+pre-health refresh pass.
 
 The first boot remains fail-closed:
 
@@ -122,12 +126,13 @@ OTG_FEEDBACK_WRITES_ENABLED=false
 OTG_FEEDBACK_TELEGRAM_ENABLED=false
 ```
 
-Each start uses a unique stdout/stderr log pair under the external runtime
-logs directory. The child owns those files and the wrapper performs no
-post-launch append. The process result identifies the exact pair; current
-launch validation reads it with shared-read semantics and therefore does not
-inspect stale logs or compete with the running child. Rollback uses the same
-start and log contract.
+Each NSSM activation uses a unique stdout/stderr log pair under the external
+runtime logs directory. NSSM/its child owns those files and the wrapper
+performs no post-launch append. The service result identifies the exact pair;
+current-launch validation reads it with shared-read semantics and therefore
+does not inspect stale logs or compete with the running child. Rollback uses
+the same service and log contract with temporary rollback paths before the
+exact backed-up NSSM paths are restored.
 
 If deploy fails after downtime begins, the same guarded rollback core is
 attempted automatically. The output must distinguish mutation, rollback, and
@@ -167,12 +172,15 @@ With separate owner rollback authorization, use the validated backup manifest:
   -Execute -ApprovalPhrase ROLLBACK_OTG_ANALYTICS_8502
 ```
 
-Rollback validates the manifest, then handles 8502 explicitly: an expected OTG
-process is stopped; no listener is a valid starting state; a foreign listener
-fails closed and is not touched. It restores the old Git head, `.env`, all six
-artifact presence/hash states, managed task state, and prior active-runtime
-presence/hash state, then starts and health-checks the old application. It never
-runs `git clean`, reverses remote main, or automatically restores the database.
+Rollback validates the manifest, then handles the supervisor explicitly: an
+expected OTG service child causes the NSSM service to stop; no listener is a
+valid starting state; a foreign listener fails closed and is not touched. It
+restores the old Git head, `.env`, all six artifact presence/hash states,
+managed task state, prior active-runtime presence/hash state, and the exact
+backed-up NSSM configuration. If the service was running before the cutover,
+it then starts and health-checks the old supervised application using a
+current rollback-launch log pair. It never runs `git clean`, reverses remote
+main, or automatically restores the database.
 
 ## Post-deploy validation
 

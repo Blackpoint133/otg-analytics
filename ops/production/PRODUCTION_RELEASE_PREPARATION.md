@@ -3,11 +3,11 @@
 STATUS=TECHNICALLY_PREPARED_AWAITING_NEW_OWNER_AUTHORIZATION
 OWNER_PRODUCTION_DEPLOYMENT_AUTHORIZATION=NO
 
-This document describes the corrected production tooling after Report 115.
-Report 113 was blocked before its first mutation because the live production
-target had no `ACTIVE_RUNTIME.json`. The deploy core would have stopped 8502
-before its refresh cores could obtain a runtime, and its rollback path did not
-accept an intentionally absent listener. No production mutation occurred.
+This document describes the corrected production tooling after Report 121.
+Report 121 reached deployment start, but the live NSSM supervisor respawned its
+old child after the child PID was stopped. The new NSSM ownership contract
+stops and configures the supervisor itself, so the child cannot race the
+cutover or rollback. No production correction is performed by this document.
 
 ## Authoritative target
 
@@ -44,32 +44,40 @@ The active pointer is written only after the new 8502 process starts and passes
 health and process-identity validation. It therefore always denotes a live,
 validated runtime.
 
-## Process and log contract
+## NSSM process and log contract
 
-Each application start creates a unique stdout/stderr pair under the external
-runtime log directory, for example
-`production_<launch-id>.out.log` and `production_<launch-id>.err.log`.
-The child owns those redirected streams; the start wrapper never appends
-metadata to either file after launch. The returned process/start object carries
-the PID and both exact paths. The deploy and rollback log gates read only that
-launch pair using an explicit shared-read handle, so a live child may continue
-writing while it is inspected and stale logs cannot satisfy or fail the current
-launch gate. Previous launch logs are retained as audit evidence and are not
-used for the current-launch gate.
+`OTG_app_opensea_sales` is the production lifecycle owner. It is an NSSM
+Windows service; the Python/Streamlit process listening on 8502 is its
+supervised child. Production stop/start therefore operates on the service,
+waits for the service to be stopped and 8502 to have no listener, then starts
+the service and proves the new listener is a descendant of the service. A
+foreign listener or foreign service configuration fails closed.
+
+Before each production service start, the orchestrator sets a unique stdout /
+stderr pair under the external runtime log directory in NSSM `AppStdout` and
+`AppStderr`. The child owns those files. The start wrapper does not append
+metadata to either file after launch; the returned start result carries the
+service child PID and exact paths. Deploy and rollback read only those paths
+using an explicit shared-read handle, so a live child can be inspected without
+a sharing violation and stale logs cannot satisfy or fail the current-launch
+gate. Prior launch logs remain audit evidence. The v2 backup manifest records
+the complete mutable NSSM configuration and its fingerprint for rollback.
 
 ## Corrected rollback contract
 
-Rollback resolves 8502 into exactly one of these states:
+Rollback resolves 8502 through the supervisor into exactly one of these states:
 
-- expected OTG Analytics process present: validate and stop only that process;
+- expected OTG Analytics service child present: validate ownership and stop the
+  NSSM service;
 - no listener present: continue restoration without stopping anything;
 - foreign listener present: fail closed and leave it untouched.
 
 Rollback restores Git, `.env`, all six managed artifact presence/hash states,
 managed refresh task state, the prior active-runtime presence/hash state, and
-the old application health. Database rollback is `NOT_AUTOMATIC`; the approved
-schema changes are additive and old-app compatible. Remote main is never moved
-back automatically.
+the backed-up NSSM configuration before starting the old supervised child and
+checking its health/current-launch logs. Database rollback is `NOT_AUTOMATIC`;
+the approved schema changes are additive and old-app compatible. Remote main is
+never moved back automatically.
 
 ## Database plan
 
