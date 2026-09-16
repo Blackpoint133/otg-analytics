@@ -107,7 +107,7 @@ UNRELATED_SERVICE_MUTATION_COUNT=0
 
 REPORT_115_CAUSED_PRODUCTION_WRITE=YES_TRANSIENT_TELEMETRY_ONLY_CLEANED
 PRODUCTION_DEPLOYMENT_EXECUTED=NO
-FINAL_PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
+FINAL_PRODUCTION_DEPLOYMENT_AUTHORIZED=YES_AUTHORIZED_BUT_BLOCKED_FAIL_CLOSED
 
 BLOCKER=The guarded backup Execute path created the external backup bundle, then failed while validating it because git bundle verify emits its successful “bundle is okay” diagnostic on stderr and the PowerShell wrapper promoted that benign diagnostic to a terminating NativeCommandError. No BACKUP_MANIFEST.json, database dump, environment copy, promotion, SQL migration, process stop/start, task registration, or deployment occurred. The production telemetry file emitted by the failed run was removed and the final production worktree/state was reverified unchanged.
 
