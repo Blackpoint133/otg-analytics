@@ -1,118 +1,115 @@
-# OTG Analytics production preparation
+# OTG Analytics Production Release Preparation
 
 STATUS=TECHNICALLY_PREPARED_AWAITING_NEW_OWNER_AUTHORIZATION
-REPORT_112_DOES_NOT_AUTHORIZE_PRODUCTION_DEPLOYMENT
+OWNER_PRODUCTION_DEPLOYMENT_AUTHORIZATION=NO
+
+This document describes the corrected production tooling after Report 113.
+Report 113 was blocked before its first mutation because the live production
+target had no `ACTIVE_RUNTIME.json`. The deploy core would have stopped 8502
+before its refresh cores could obtain a runtime, and its rollback path did not
+accept an intentionally absent listener. No production mutation occurred.
 
 ## Authoritative target
 
-Production is only:
-
 - Root: `C:\VAMBAM\Projects\OTG\data_streamlit\opensea_sales`
-- Application: `streamlit_opensea_sales\app_opensea_sales.py`
-- Branch: `main`
+- App: `streamlit_opensea_sales\app_opensea_sales.py`
 - Port: `8502`
+- Branch: `main`
+- Current production SHA at preparation: `dacee4c675419dea1277ceb5e8a70e1a7ffc36a0`
+- 8501 / `app_gaming_marketplace.py`: DO NOT TOUCH
+- 8504 staging: DO NOT TOUCH
+- Caddy: DO NOT CHANGE
 
-Port 8501 and `app_gaming_marketplace.py` are a separate service: DO NOT
-TOUCH. Port 8504 is staging: DO NOT TOUCH. Caddy is outside scope: DO NOT
-CHANGE.
+The production source-ingestion pipeline remains the existing private
+`parser_opensea_sales.py` / `run_indexer.py` pipeline. The production refresh
+wrappers operate downstream of that pipeline and do not replace it.
 
-The current valid Git SHA is read from the server and remote refs. The
-operator-supplied 39-character spelling `dacee4c675419dea127ceb5e8a70e1a7ffc36a0`
-is not a complete Git SHA; the valid fetched SHA is
-`dacee4c675419dea1277ceb5e8a70e1a7ffc36a0`.
+## Corrected runtime contract
 
-## Report 111 outcome and release invalidation
+Future release runtimes are created outside the Git checkout at:
 
-Report 111 was correctly blocked before its first mutation because the live
-8502 command uses the relative `app_opensea_sales.py` entrypoint. No backup,
-pg_dump, main promotion, process stop, migration, data, environment, task,
-or Caddy mutation occurred, and no rollback was required.
+`C:\VAMBAM\Projects\OTG\runtime\opensea_sales\releases\<release_sha>\.venv`
 
-The Report 111 owner authorization was consumed by that blocked attempt. A
-fresh owner authorization is required for any later cutover.
+Deployment prepares and validates the exact final-runtime Python before any
+downtime. During the cutover refresh cores use that validated final-runtime
+Python through an in-memory deployment-only override. This override is
+required to pass the exact release runtime path guard and does not write an
+active pointer.
 
-The old prepared release `d173a818ee8a36f66cbd032784317359e5de3d76` is
-superseded by the Report 112 implementation release. The new prepared head,
-workspace, manifest, and manifest SHA are recorded in Report 112 after the
-implementation commit. Any non-report tracked commit after that prepared head
-invalidates it and requires revalidation.
+Normal scheduled/manual refreshes still require:
 
-## Corrected 8502 identity gate
+`C:\VAMBAM\Projects\OTG\runtime\opensea_sales\ACTIVE_RUNTIME.json`
 
-`production_update_common.ps1` accepts the current relative entrypoint only
-when the listener is loopback `8502`, the owner is the inspected `python.exe`,
-the command is Streamlit `run`, the app is exactly OTG Analytics, the command
-targets port 8502, and it does not mention gaming or ports 8501/8504. An
-absolute app path must be the authoritative production app or an explicitly
-validated release-runtime app. The separate production Git root/branch/clean
-baseline gate remains required; app-name-only matching is not used.
+The active pointer is written only after the new 8502 process starts and passes
+health and process-identity validation. It therefore always denotes a live,
+validated runtime.
 
-## PostgreSQL and read-only preflight
+## Corrected rollback contract
 
-The tool discovery is read-only and does not alter PATH. It selects a complete
-same-bin installation from command resolution, PostgreSQL installation
-registry entries, or the standard 64-bit/32-bit Program Files locations. The
-current server resolves:
+Rollback resolves 8502 into exactly one of these states:
 
-`C:\Program Files\PostgreSQL\18\bin\pg_dump.exe`
+- expected OTG Analytics process present: validate and stop only that process;
+- no listener present: continue restoration without stopping anything;
+- foreign listener present: fail closed and leave it untouched.
 
-`C:\Program Files\PostgreSQL\18\bin\pg_restore.exe`
+Rollback restores Git, `.env`, all six managed artifact presence/hash states,
+managed refresh task state, the prior active-runtime presence/hash state, and
+the old application health. Database rollback is `NOT_AUTOMATIC`; the approved
+schema changes are additive and old-app compatible. Remote main is never moved
+back automatically.
 
-`C:\Program Files\PostgreSQL\18\bin\psql.exe`
+## Database plan
 
-All three report PostgreSQL 18.3. The strictly read-only preflight is:
-
-```powershell
-.\ops\production\validate_production_cutover_preflight.ps1 `
-  -ExpectedOldHead <current-valid-production-sha> `
-  -ExpectedReleaseHead <new-prepared-release-sha> `
-  -PreparedReleaseRoot C:\VAMBAM\Projects\OTG\DEV\prepared_release_112 `
-  -PreparedReleaseManifest C:\VAMBAM\Projects\OTG\DEV\prepared_release_112\PREPARED_RELEASE_MANIFEST.json `
-  -PreparedReleaseManifestSha256 <manifest-sha256> `
-  -ExpectedMainHead <current-valid-main-sha>
-```
-
-It verifies the exact production repository, current 8502 identity, complete
-PostgreSQL toolset, required DB environment, `transaction_read_only=on`, the
-pre-migration schema, prepared release gate, and current main baseline. It
-has no mutation switch and reports `MUTATION_EXECUTED=NO`.
-
-## Database contract
-
-The read-only pre-migration state is stable browser identity READY, trader mode
-absent, `site_product_events` absent, and `user_feedback` absent. The future
-migration set remains exactly, in order:
+The read-only preflight expectation is stable browser identity `READY`, trader
+mode `ABSENT`, `site_product_events` `ABSENT`, and `user_feedback` `ABSENT`.
+The only approved future migrations, in order, are:
 
 1. `sql/add_site_visit_trader_mode.sql`
 2. `sql/create_site_product_events.sql`
 3. `sql/create_user_feedback.sql`
 
 `sql/add_site_product_events_trader_usd_toggle.sql` is redundant and excluded.
-The three migrations are additive; database rollback is NOT AUTOMATIC. The
-custom-format database backup remains available for separately authorized
-manual recovery.
 
-## Future authorization boundary
+Production backup uses PostgreSQL 18.3 `pg_dump --format=custom` and validates
+the dump with `pg_restore --list`. The schema-v2 backup manifest is written
+last and must validate all hashes and rollback-critical state before deploy.
 
-The future cutover requires a fresh owner authorization and must use the new
-prepared-release manifest plus a newly created complete backup manifest. The
-Report 112 implementation changed operational tooling, so the old prepared
-workspace must not be reused.
+## Read-only preflight
 
-No write gate is enabled automatically. The initial production values remain:
+Before any future owner-authorized cutover, run:
 
-`GUNZSCOPE_SUPPLY_SOURCE=v3`
+```powershell
+& .\ops\production\validate_production_cutover_preflight.ps1 `
+  -ExpectedOldHead <current-production-main-sha> `
+  -ExpectedReleaseHead <prepared-release-sha> `
+  -PreparedReleaseRoot <prepared-release-root> `
+  -PreparedReleaseManifest <prepared-release-root>\PREPARED_RELEASE_MANIFEST.json `
+  -PreparedReleaseManifestSha256 <manifest-sha256> `
+  -ExpectedMainHead <current-origin-main-sha>
+```
 
-`OTG_ANALYTICS_WRITES_ENABLED=false`
+This is strictly read-only and uses the same guarded 8502 process identity
+predicate as backup, deploy, and rollback. Relative `app_opensea_sales.py`
+launches are accepted only with the strict listener, Python, Streamlit, port,
+address, repository, branch, and clean-worktree gates. Unrelated absolute app
+paths, 8501, 8504, gaming, and Caddy are rejected.
 
-`OTG_SITE_ANALYTICS_ENABLED=false`
+## Validation state
 
-`OTG_PRODUCT_EVENTS_ENABLED=false`
+Report 112 prepared release: invalidated by the Report 113 tooling finding.
+Report 113: blocked before mutation; production mutation count `0`.
+The corrected implementation must be committed and refrozen as a new prepared
+release before any owner authorization can be reused.
 
-`OTG_FEEDBACK_WRITES_ENABLED=false`
+The corrected sandbox proves the shared core can deploy from an absent active
+runtime, use the final runtime for both refresh classes, activate the pointer
+only after new-process health, and automatically restore old state after a
+failure with no 8502 listener. Real production calls remain dry-run/read-only
+until a fresh owner authorization is supplied.
 
-`OTG_FEEDBACK_TELEGRAM_ENABLED=false`
+## Final authorization boundary
 
-No production update was executed by Report 112.
-
-FINAL_PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
+This preparation does not authorize production deployment. A future owner
+must authorize the exact newly prepared release separately. No production
+backup, promotion, migration, process restart, environment/data write,
+scheduled-task change, or proxy change was performed by this preparation.

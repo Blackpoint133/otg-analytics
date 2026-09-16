@@ -13,7 +13,7 @@ try {
     if($Simulation){$context=New-SimulationExecutionContext @{SimulationRoot=$SimulationRoot;SimulationPort=$SimulationPort;ExpectedOldHead=$ExpectedOldHead;ExpectedReleaseHead=$ExpectedReleaseHead;PreparedReleaseRoot=$PreparedReleaseRoot;PreparedReleaseManifest=$PreparedReleaseManifest;PreparedReleaseManifestSha256=$PreparedReleaseManifestSha256;BackupManifest=$BackupManifest;ReleasePython=$ReleasePython}}
     else{$context=New-ProductionExecutionContext @{ExpectedOldHead=$ExpectedOldHead;ExpectedReleaseHead=$ExpectedReleaseHead;PreparedReleaseRoot=$PreparedReleaseRoot;PreparedReleaseManifest=$PreparedReleaseManifest;PreparedReleaseManifestSha256=$PreparedReleaseManifestSha256;BackupManifest=$BackupManifest;BackupRoot=$BackupRoot}}
     $expected=switch($Operation){'Backup'{'BACKUP_OTG_ANALYTICS_8502'}'Deploy'{'UPDATE_OTG_ANALYTICS_8502'}'Rollback'{'ROLLBACK_OTG_ANALYTICS_8502'}'DerivedRefresh'{'REFRESH_OTG_DERIVED_8502'}'MetadataRefresh'{'REFRESH_OTG_METADATA_8502'}'ConfigureTasks'{'CONFIGURE_OTG_REFRESH_8502'}}
-    Assert-Approval $Execute $ApprovalPhrase $expected
+    Assert-Approval -Execute:$Execute -Actual $ApprovalPhrase -Expected $expected
     switch($Operation){'Backup'{Invoke-BackupCore $context -Execute:$Execute}'Deploy'{Invoke-DeployCore $context -Execute:$Execute}'Rollback'{Invoke-RollbackCore $context -Execute:$Execute}'DerivedRefresh'{Invoke-DerivedRefreshCore $context -Execute:$Execute}'MetadataRefresh'{Invoke-MetadataRefreshCore $context -Execute:$Execute}'ConfigureTasks'{Invoke-TaskConfigurationCore $context -Execute:$Execute}}
 }
 catch {
