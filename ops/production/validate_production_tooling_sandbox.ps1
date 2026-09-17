@@ -88,6 +88,7 @@ $preparedPayload=[ordered]@{
     prepared_repo_path=$prod
     streamlit_theme_base='dark'
     streamlit_theme_contract='PASS'
+    source_legacy_theme_correction_supported='YES'
     wheelhouse=[ordered]@{package_count=45;manifest_path='wheelhouse\WHEELHOUSE_MANIFEST.json';manifest_sha256=$wheelHash}
     runtime_contract=[ordered]@{python_version='3.11';locked_package_count=45;exact_lock_match=45;pip_check='PASS';import_gate='PASS'}
     validation=[ordered]@{full_tests_failure_count=0;canary='PASS';application_readers='PASS'}

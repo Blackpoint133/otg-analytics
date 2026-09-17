@@ -47,7 +47,16 @@ function Assert-Context([object]$Context) {
 function Get-ProductionStreamlitLaunchParameters {
     '-m streamlit run app_opensea_sales.py --server.address 127.0.0.1 --server.port 8502 --server.fileWatcherType none --server.headless true --browser.gatherUsageStats false --theme.base="dark"'
 }
-function Assert-StreamlitLaunchContract {
+function Get-StreamlitThemeBaseState {
+    param([Parameter(Mandatory=$true)][string]$Parameters)
+    $matches=[regex]::Matches($Parameters,'(?i)(?:^|\s)--theme\.base(?:\s+|=)(?:"(?<quoted>[^"]*)"|(?<bare>[^\s]+))(?=\s|$)')
+    if($matches.Count -eq 0){return [pscustomobject]@{State='MISSING';Value='';Count=0}}
+    if($matches.Count -ne 1){return [pscustomobject]@{State='DUPLICATE';Value='';Count=$matches.Count}}
+    $match=$matches[0];$value=if($match.Groups['quoted'].Success){$match.Groups['quoted'].Value}else{$match.Groups['bare'].Value}
+    $state=if($value -ceq 'dark'){'DARK'}elseif($value -ceq 'light'){'LIGHT'}else{'INVALID'}
+    [pscustomobject]@{State=$state;Value=$value;Count=1}
+}
+function Assert-StreamlitLaunchShape {
     param([Parameter(Mandatory=$true)][string]$Parameters,[int]$ExpectedPort=8502)
     if([string]::IsNullOrWhiteSpace($Parameters)){throw 'SUPERVISOR_PARAMETERS_NOT_STREAMLIT'}
     $required=@(
@@ -59,15 +68,26 @@ function Assert-StreamlitLaunchContract {
         '(?i)(?:^|\s)--browser\.gatherUsageStats(?:\s+|=)false(?:\s|$)'
     )
     foreach($pattern in $required){if($Parameters -notmatch $pattern){throw 'SUPERVISOR_LAUNCH_CONTRACT_REQUIRED'}}
-    $themeMatches=[regex]::Matches($Parameters,'(?i)(?:^|\s)--theme\.base(?:\s+|=)(?:"(?<quoted>[^"\r\n]*)"|(?<bare>[^\s]+))(?=\s|$)')
-    if($themeMatches.Count -ne 1){throw 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'}
-    $themeMatch=$themeMatches[0]
-    $themeValue=if($themeMatch.Groups['quoted'].Success){$themeMatch.Groups['quoted'].Value}else{$themeMatch.Groups['bare'].Value}
-    if($themeValue -cne 'dark'){throw 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'}
     $Parameters
+}
+function Assert-StreamlitLaunchContract {
+    param([Parameter(Mandatory=$true)][string]$Parameters,[int]$ExpectedPort=8502)
+    $null=Assert-StreamlitLaunchShape $Parameters $ExpectedPort
+    $theme=Get-StreamlitThemeBaseState $Parameters
+    if($theme.State -ne 'DARK'){throw 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'}
+    $Parameters
+}
+function Assert-StreamlitSourceLaunchContract {
+    param([Parameter(Mandatory=$true)][string]$Parameters,[int]$ExpectedPort=8502,[switch]$AllowLegacyMissingThemeSource)
+    $null=Assert-StreamlitLaunchShape $Parameters $ExpectedPort
+    $theme=Get-StreamlitThemeBaseState $Parameters
+    if($theme.State -eq 'DARK'){return $Parameters}
+    if($AllowLegacyMissingThemeSource -and $theme.State -eq 'MISSING'){return $Parameters}
+    throw 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'
 }
 function Assert-PreparedReleaseThemeContract([object]$Manifest) {
     if(-not$Manifest -or [string]$Manifest.streamlit_theme_base -cne 'dark' -or [string]$Manifest.streamlit_theme_contract -cne 'PASS'){throw 'PREPARED_RELEASE_THEME_CONTRACT_FAILED'}
+    if($Manifest.PSObject.Properties['source_legacy_theme_correction_supported'] -and [string]$Manifest.source_legacy_theme_correction_supported -cne 'YES'){throw 'PREPARED_RELEASE_THEME_CONTRACT_FAILED'}
     $null=Assert-StreamlitLaunchContract (Get-ProductionStreamlitLaunchParameters) $script:ExpectedPort
 }
 function Assert-Approval([switch]$Execute,[string]$Actual,[string]$Expected){if($Execute -and $Actual -ne $Expected){throw 'APPROVAL_PHRASE_REQUIRED'}}
@@ -164,7 +184,7 @@ function Get-SupervisorManifestFingerprint([object]$Record) {
 }
 function Get-ProductionSupervisorConfiguration([object]$Context) {
     $name=Get-SupervisorServiceName $Context
-    $service=Get-CimInstance Win32_Service -Filter ("Name='"+$name.Replace("'","''")+"'")
+    $service=Get-CimInstance Win32_Service | Where-Object { $_.Name -eq $name } | Select-Object -First 1
     if(-not$service){throw 'SUPERVISOR_SERVICE_MISSING'}
     $nssm=Get-SupervisorNssmExecutable $service
     $sc=Get-Command sc.exe -ErrorAction Stop
@@ -175,20 +195,31 @@ function Get-ProductionSupervisorConfiguration([object]$Context) {
     $config|Add-Member NoteProperty ConfigurationFingerprint (Get-SupervisorConfigurationFingerprint $config)
     $config
 }
-function Assert-ProductionSupervisorIdentity([object]$Context,[object]$Configuration,[switch]$RequireRunning) {
+function Assert-ProductionSupervisorOwnershipIdentity([object]$Context,[object]$Configuration,[switch]$RequireRunning,[switch]$AllowLegacyMissingThemeSource) {
     if(-not$Configuration -or $Configuration.ServiceName -ne (Get-SupervisorServiceName $Context)){throw 'SUPERVISOR_SERVICE_NAME_MISMATCH'}
     if([IO.Path]::GetFileName([string]$Configuration.NssmExecutable) -ine 'nssm.exe'){throw 'SUPERVISOR_NOT_NSSM'}
     if([IO.Path]::GetFullPath([string]$Configuration.AppDirectory) -ne [IO.Path]::GetFullPath((Get-SupervisorAppDirectory $Context))){throw 'SUPERVISOR_APP_DIRECTORY_MISMATCH'}
     $application=[string]$Configuration.Application;if([string]::IsNullOrWhiteSpace($application) -or [IO.Path]::GetFileName($application) -ine 'python.exe' -or -not(Test-Path -LiteralPath $application -PathType Leaf)){throw 'SUPERVISOR_APPLICATION_MISMATCH'}
     $parameters=[string]$Configuration.AppParameters
-    $null=Assert-StreamlitLaunchContract $parameters (Get-SupervisorPort $Context)
+    $null=Assert-StreamlitSourceLaunchContract $parameters (Get-SupervisorPort $Context) -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource
     if($parameters -notmatch '(?i)(?:-m\s+streamlit\s+run|(?:^|\s)streamlit(?:\.exe)?\s+run)'){throw 'SUPERVISOR_PARAMETERS_NOT_STREAMLIT'}
     if($parameters -match '(?i)app_gaming_marketplace\.py|--server\.port(?:\s+|=)(?:8501|8504)(?:\s|$)'){throw 'SUPERVISOR_FORBIDDEN_TARGET'}
     $portMatch=[regex]::Match($parameters,'(?i)--server\.port(?:\s+|=)(\d+)');if(-not$portMatch.Success -or [int]$portMatch.Groups[1].Value -ne (Get-SupervisorPort $Context)){throw 'SUPERVISOR_PORT_MISMATCH'}
     $addressMatch=[regex]::Match($parameters,'(?i)--server\.address(?:\s+|=)([^\s]+)');if($addressMatch.Success -and $addressMatch.Groups[1].Value.Trim('"') -ne '127.0.0.1'){throw 'SUPERVISOR_ADDRESS_MISMATCH'}
     if($parameters -notmatch '(?i)(?:^|\s)(?:"[^"]*|[^\s])*app_opensea_sales\.py(?:"|\s|$)'){throw 'SUPERVISOR_APP_MISMATCH'}
     if($RequireRunning -and [string]$Configuration.ServiceState -ne 'Running'){throw 'SUPERVISOR_SERVICE_NOT_RUNNING'}
+    $theme=Get-StreamlitThemeBaseState $parameters
+    $Configuration | Add-Member NoteProperty SourceThemeBase $theme.State -Force
+    $Configuration | Add-Member NoteProperty SourceThemeContract $(if($theme.State -eq 'MISSING' -and $AllowLegacyMissingThemeSource){'KNOWN_LEGACY_DRIFT'}elseif($theme.State -eq 'DARK'){'PASS'}else{'FAIL'}) -Force
     $Configuration
+}
+function Assert-ProductionSupervisorActivationIdentity([object]$Context,[object]$Configuration,[switch]$RequireRunning) {
+    $validated=Assert-ProductionSupervisorOwnershipIdentity $Context $Configuration -RequireRunning:$RequireRunning
+    $null=Assert-StreamlitLaunchContract ([string]$validated.AppParameters) (Get-SupervisorPort $Context)
+    $validated
+}
+function Assert-ProductionSupervisorIdentity([object]$Context,[object]$Configuration,[switch]$RequireRunning,[switch]$AllowLegacyMissingThemeSource) {
+    Assert-ProductionSupervisorOwnershipIdentity $Context $Configuration -RequireRunning:$RequireRunning -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource
 }
 function Test-ProcessDescendant([int]$ChildPid,[int]$AncestorPid) {
     $seen=@{};$current=$ChildPid
@@ -200,16 +231,16 @@ function Test-ProcessChainExecutable([int]$ChildPid,[int]$AncestorPid,[string]$E
     for($i=0;$i-lt 16 -and $current -and -not$seen.ContainsKey($current);$i++){$seen[$current]=$true;$process=Get-CimInstance Win32_Process -Filter ('ProcessId='+$current);if($process -and $process.ExecutablePath -and [IO.Path]::GetFullPath([string]$process.ExecutablePath) -eq $expected){return $true};if($current -eq $AncestorPid){break};if(-not$process){break};$current=[int]$process.ParentProcessId}
     $false
 }
-function Resolve-ProductionSupervisorChild([object]$Context) {
+function Resolve-ProductionSupervisorChild([object]$Context,[switch]$AllowLegacyMissingThemeSource) {
     $connection=Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort (Get-SupervisorPort $Context) -State Listen -ErrorAction SilentlyContinue|Select-Object -First 1
     if(-not$connection){return [pscustomobject]@{State='NO_LISTENER';ProcessId=$null;Process=$null;Listener=$null}}
-    $configuration=Assert-ProductionSupervisorIdentity $Context (Get-ProductionSupervisorConfiguration $Context) -RequireRunning
+    $configuration=Assert-ProductionSupervisorOwnershipIdentity $Context (Get-ProductionSupervisorConfiguration $Context) -RequireRunning -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource
     $process=Get-CimInstance Win32_Process -Filter ('ProcessId='+$connection.OwningProcess)
-    try{$null=Test-8502ProcessIdentity $connection $process $Context.AppPath '' (Get-SupervisorPort $Context);if(-not(Test-ProcessDescendant ([int]$process.ProcessId) $configuration.ServiceProcessId)){throw 'SUPERVISOR_CHILD_PARENT_MISMATCH'};if(-not(Test-ProcessChainExecutable ([int]$process.ProcessId) $configuration.ServiceProcessId $configuration.Application)){throw 'SUPERVISOR_APPLICATION_NOT_IN_CHILD_CHAIN'};return [pscustomobject]@{State='EXPECTED_PROCESS_PRESENT';ProcessId=[int]$process.ProcessId;Process=$process;Listener=$connection;Configuration=$configuration}}catch{throw 'SUPERVISOR_FOREIGN_LISTENER'}
+    try{$null=Test-8502ProcessIdentity $connection $process $Context.AppPath '' (Get-SupervisorPort $Context) -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource;if(-not(Test-ProcessDescendant ([int]$process.ProcessId) $configuration.ServiceProcessId)){throw 'SUPERVISOR_CHILD_PARENT_MISMATCH'};if(-not(Test-ProcessChainExecutable ([int]$process.ProcessId) $configuration.ServiceProcessId $configuration.Application)){throw 'SUPERVISOR_APPLICATION_NOT_IN_CHILD_CHAIN'};return [pscustomobject]@{State='EXPECTED_PROCESS_PRESENT';ProcessId=[int]$process.ProcessId;Process=$process;Listener=$connection;Configuration=$configuration}}catch{throw 'SUPERVISOR_FOREIGN_LISTENER'}
 }
-function Get-ProductionSupervisor([object]$Context,[switch]$AllowNoListener) {
-    $configuration=Assert-ProductionSupervisorIdentity $Context (Get-ProductionSupervisorConfiguration $Context) -RequireRunning
-    $child=Resolve-ProductionSupervisorChild $Context
+function Get-ProductionSupervisor([object]$Context,[switch]$AllowNoListener,[switch]$AllowLegacyMissingThemeSource) {
+    $configuration=Assert-ProductionSupervisorOwnershipIdentity $Context (Get-ProductionSupervisorConfiguration $Context) -RequireRunning -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource
+    $child=Resolve-ProductionSupervisorChild $Context -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource
     if($child.State -eq 'NO_LISTENER' -and -not$AllowNoListener){throw 'SUPERVISOR_CHILD_NOT_LISTENING'}
     [pscustomobject]@{Configuration=$configuration;Child=$child}
 }
@@ -217,13 +248,13 @@ function Wait-ProductionSupervisorStopped([object]$Context,[int]$TimeoutSeconds=
     $until=(Get-Date).AddSeconds($TimeoutSeconds);do{$service=Get-CimInstance Win32_Service -Filter ("Name='"+(Get-SupervisorServiceName $Context)+"'");if($service -and [string]$service.State -eq 'Stopped'){return $true};Start-Sleep -Milliseconds 500}while((Get-Date)-lt $until);throw 'SUPERVISOR_DID_NOT_STOP'
 }
 function Wait-ProductionPortReleased([object]$Context,[int]$TimeoutSeconds=60) {
-    $until=(Get-Date).AddSeconds($TimeoutSeconds);do{$child=Resolve-ProductionSupervisorChild $Context;if($child.State -eq 'NO_LISTENER'){return $true};Start-Sleep -Milliseconds 500}while((Get-Date)-lt $until);throw 'SUPERVISOR_PORT_NOT_RELEASED'
+    $until=(Get-Date).AddSeconds($TimeoutSeconds);do{$child=Resolve-ProductionSupervisorChild $Context -AllowLegacyMissingThemeSource:$Context.AllowLegacyMissingThemeSource;if($child.State -eq 'NO_LISTENER'){return $true};Start-Sleep -Milliseconds 500}while((Get-Date)-lt $until);throw 'SUPERVISOR_PORT_NOT_RELEASED'
 }
 function Stop-ProductionSupervisor([object]$Context,[switch]$AllowNoListener) {
     $configuration=Get-ProductionSupervisorConfiguration $Context
     if([string]$configuration.ServiceState -eq 'Running') {
-        Assert-ProductionSupervisorIdentity $Context $configuration -RequireRunning|Out-Null
-        $child=Resolve-ProductionSupervisorChild $Context
+        Assert-ProductionSupervisorOwnershipIdentity $Context $configuration -RequireRunning -AllowLegacyMissingThemeSource:$Context.AllowLegacyMissingThemeSource|Out-Null
+        $child=Resolve-ProductionSupervisorChild $Context -AllowLegacyMissingThemeSource:$Context.AllowLegacyMissingThemeSource
         if($child.State -eq 'NO_LISTENER' -and -not$AllowNoListener){throw 'SUPERVISOR_CHILD_NOT_LISTENING'}
         Stop-Service -Name (Get-SupervisorServiceName $Context) -Force -ErrorAction Stop
     } elseif([string]$configuration.ServiceState -eq 'Stopped') {
@@ -248,7 +279,7 @@ function Set-ProductionSupervisorReleaseConfiguration([object]$Context) {
     $parameters=Get-ProductionStreamlitLaunchParameters
     $null=Assert-StreamlitLaunchContract $parameters $script:ExpectedPort
     Set-NssmValue $Context $name 'Application' $Context.ReleasePython;Set-NssmValue $Context $name 'AppDirectory' $appDirectory;Set-NssmValue $Context $name 'AppParameters' $parameters;Set-NssmValue $Context $name 'AppStdout' $stdout;Set-NssmValue $Context $name 'AppStderr' $stderr
-    $Context.SupervisorActivationStdOut=$stdout;$Context.SupervisorActivationStdErr=$stderr;$Context.SupervisorNssmExecutable=(Get-ProductionSupervisorConfiguration $Context).NssmExecutable;$configuration=Get-ProductionSupervisorConfiguration $Context;Assert-ProductionSupervisorIdentity $Context $configuration;Write-KV 'STREAMLIT_THEME_BASE' 'dark';Write-KV 'STREAMLIT_THEME_CONTRACT' 'PASS'
+    $Context.SupervisorActivationStdOut=$stdout;$Context.SupervisorActivationStdErr=$stderr;$Context.SupervisorNssmExecutable=(Get-ProductionSupervisorConfiguration $Context).NssmExecutable;$configuration=Get-ProductionSupervisorConfiguration $Context;Assert-ProductionSupervisorActivationIdentity $Context $configuration;Write-KV 'STREAMLIT_THEME_BASE' 'dark';Write-KV 'STREAMLIT_THEME_CONTRACT' 'PASS'
     if([IO.Path]::GetFullPath($configuration.Application) -ne [IO.Path]::GetFullPath($Context.ReleasePython)){throw 'SUPERVISOR_RELEASE_PYTHON_MISMATCH'}
     $Context.SupervisorConfiguration=$configuration;$configuration
 }
@@ -262,13 +293,13 @@ function Restore-ProductionSupervisorConfiguration([object]$Context,[object]$Bac
     if([string]$BackupSupervisor.service_start_mode -eq 'Auto'){& sc.exe config $name start= auto|Out-Null}elseif([string]$BackupSupervisor.service_start_mode -eq 'Manual'){& sc.exe config $name start= demand|Out-Null}
     $Context.SupervisorConfiguration=Get-ProductionSupervisorConfiguration $Context;$Context.SupervisorConfiguration
 }
-function Start-ProductionSupervisor([object]$Context) {
-    $configuration=Assert-ProductionSupervisorIdentity $Context (Get-ProductionSupervisorConfiguration $Context)
+function Start-ProductionSupervisor([object]$Context,[switch]$AllowLegacyMissingThemeSource) {
+    $configuration=if($AllowLegacyMissingThemeSource){Assert-ProductionSupervisorOwnershipIdentity $Context (Get-ProductionSupervisorConfiguration $Context) -AllowLegacyMissingThemeSource}else{Assert-ProductionSupervisorActivationIdentity $Context (Get-ProductionSupervisorConfiguration $Context)}
     if([IO.Path]::GetFullPath($configuration.Application) -ne [IO.Path]::GetFullPath($Context.ReleasePython)){throw 'SUPERVISOR_START_PYTHON_MISMATCH'}
     $started=$false
     try {
         Start-Service -Name (Get-SupervisorServiceName $Context) -ErrorAction Stop;$started=$true
-        $until=(Get-Date).AddSeconds(60);$child=$null;do{try{$child=Resolve-ProductionSupervisorChild $Context}catch{$child=$null};if($child -and $child.State -eq 'EXPECTED_PROCESS_PRESENT'){break};Start-Sleep -Milliseconds 500}while((Get-Date)-lt $until)
+        $until=(Get-Date).AddSeconds(60);$child=$null;do{try{$child=Resolve-ProductionSupervisorChild $Context -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource}catch{$child=$null};if($child -and $child.State -eq 'EXPECTED_PROCESS_PRESENT'){break};Start-Sleep -Milliseconds 500}while((Get-Date)-lt $until)
         if(-not$child -or $child.State -ne 'EXPECTED_PROCESS_PRESENT'){throw 'SUPERVISOR_CHILD_START_FAILED'}
         [pscustomobject]@{ProcessId=$child.ProcessId;Id=$child.ProcessId;Process=$child.Process;StdOutLogPath=$Context.SupervisorActivationStdOut;StdErrLogPath=$Context.SupervisorActivationStdErr;StartedAt=(Get-Date).ToUniversalTime().ToString('o');SupervisorConfiguration=$child.Configuration}
     } catch {
@@ -285,13 +316,15 @@ function New-ProductionExecutionContext {
     param([hashtable]$Arguments)
     Assert-ProductionTarget
     $head=[string]$Arguments.ExpectedReleaseHead;$python='';if($head){$python=Get-FinalRuntimePython $head ([pscustomobject]@{Mode='PRODUCTION'})}
-    [pscustomobject]@{Mode='PRODUCTION';Root=$script:ExpectedRoot;RuntimeRoot=$script:ExpectedRuntimeRoot;AppPath=$script:ExpectedApp;Port=8502;EnvPath=(Join-Path $script:ExpectedRoot '.env');DataRoot=(Join-Path $script:ExpectedRoot 'streamlit_opensea_sales\data_opensea_sales');RepoRoot=$script:ExpectedRoot;PreparedReleaseRoot=$Arguments.PreparedReleaseRoot;ReleaseRoot=$Arguments.PreparedReleaseRoot;ReleasePython=$python;DeploymentRefreshPython='';BackupRoot=$Arguments.BackupRoot;PreparedReleaseManifest=$Arguments.PreparedReleaseManifest;PreparedReleaseManifestSha256=$Arguments.PreparedReleaseManifestSha256;BackupManifest=$Arguments.BackupManifest;ExpectedOldHead=$Arguments.ExpectedOldHead;ExpectedReleaseHead=$head;SimulationStatePath='';SupervisorServiceName=$script:ProductionServiceName;SupervisorType=$script:ProductionSupervisorType;SupervisorAppDirectory=(Split-Path -Parent $script:ExpectedApp);SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';MutationStarted=$false;MutationPhases=(New-Object Collections.ArrayList);RollbackAttempted=$false;RollbackSucceeded=$false;StateRestored=$false}
+    $allowLegacy=[bool]$(if($Arguments.ContainsKey('AllowLegacyMissingThemeSource')){$Arguments['AllowLegacyMissingThemeSource']}else{$false})
+    [pscustomobject]@{Mode='PRODUCTION';Root=$script:ExpectedRoot;RuntimeRoot=$script:ExpectedRuntimeRoot;AppPath=$script:ExpectedApp;Port=8502;EnvPath=(Join-Path $script:ExpectedRoot '.env');DataRoot=(Join-Path $script:ExpectedRoot 'streamlit_opensea_sales\data_opensea_sales');RepoRoot=$script:ExpectedRoot;PreparedReleaseRoot=$Arguments.PreparedReleaseRoot;ReleaseRoot=$Arguments.PreparedReleaseRoot;ReleasePython=$python;DeploymentRefreshPython='';BackupRoot=$Arguments.BackupRoot;PreparedReleaseManifest=$Arguments.PreparedReleaseManifest;PreparedReleaseManifestSha256=$Arguments.PreparedReleaseManifestSha256;BackupManifest=$Arguments.BackupManifest;ExpectedOldHead=$Arguments.ExpectedOldHead;ExpectedReleaseHead=$head;SimulationStatePath='';SupervisorServiceName=$script:ProductionServiceName;SupervisorType=$script:ProductionSupervisorType;SupervisorAppDirectory=(Split-Path -Parent $script:ExpectedApp);SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';AllowLegacyMissingThemeSource=$allowLegacy;MutationStarted=$false;MutationPhases=(New-Object Collections.ArrayList);RollbackAttempted=$false;RollbackSucceeded=$false;StateRestored=$false}
 }
 function New-SimulationExecutionContext {
     param([hashtable]$Arguments)
     $root=[IO.Path]::GetFullPath($Arguments.SimulationRoot);$app=Join-Path $root 'production\streamlit_opensea_sales\app_opensea_sales.py';Assert-SimulationTarget $root ([int]$Arguments.SimulationPort) $app
     $old=if($Arguments.ExpectedOldHead){$Arguments.ExpectedOldHead}else{'old'};$release=if($Arguments.ExpectedReleaseHead){$Arguments.ExpectedReleaseHead}else{'release'};$python=if($Arguments.ReleasePython){$Arguments.ReleasePython}else{Get-FinalRuntimePython $release ([pscustomobject]@{Mode='SIMULATION';RuntimeRoot=(Join-Path $root 'runtime')})}
-    [pscustomobject]@{Mode='SIMULATION';Root=$root;RuntimeRoot=(Join-Path $root 'runtime');AppPath=$app;Port=([int]$Arguments.SimulationPort);EnvPath=(Join-Path $root 'production\.env');DataRoot=(Join-Path $root 'production\streamlit_opensea_sales\data_opensea_sales');RepoRoot=(Join-Path $root 'production');PreparedReleaseRoot=(Join-Path $root 'release');ReleaseRoot=(Join-Path $root 'release');ReleasePython=$python;DeploymentRefreshPython='';BackupRoot=(Join-Path $root 'backups');PreparedReleaseManifest=$Arguments.PreparedReleaseManifest;PreparedReleaseManifestSha256=$Arguments.PreparedReleaseManifestSha256;BackupManifest=$Arguments.BackupManifest;ExpectedOldHead=$old;ExpectedReleaseHead=$release;SimulationStatePath=(Join-Path $root 'simulation_state.json');SupervisorServiceName='SANDBOX_NSSM';SupervisorType='NSSM';SupervisorAppDirectory=(Split-Path -Parent $app);SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';MutationStarted=$false;MutationPhases=(New-Object Collections.ArrayList);RollbackAttempted=$false;RollbackSucceeded=$false;StateRestored=$false}
+    $allowLegacy=[bool]$(if($Arguments.ContainsKey('AllowLegacyMissingThemeSource')){$Arguments['AllowLegacyMissingThemeSource']}else{$false})
+    [pscustomobject]@{Mode='SIMULATION';Root=$root;RuntimeRoot=(Join-Path $root 'runtime');AppPath=$app;Port=([int]$Arguments.SimulationPort);EnvPath=(Join-Path $root 'production\.env');DataRoot=(Join-Path $root 'production\streamlit_opensea_sales\data_opensea_sales');RepoRoot=(Join-Path $root 'production');PreparedReleaseRoot=(Join-Path $root 'release');ReleaseRoot=(Join-Path $root 'release');ReleasePython=$python;DeploymentRefreshPython='';BackupRoot=(Join-Path $root 'backups');PreparedReleaseManifest=$Arguments.PreparedReleaseManifest;PreparedReleaseManifestSha256=$Arguments.PreparedReleaseManifestSha256;BackupManifest=$Arguments.BackupManifest;ExpectedOldHead=$old;ExpectedReleaseHead=$release;SimulationStatePath=(Join-Path $root 'simulation_state.json');SupervisorServiceName='SANDBOX_NSSM';SupervisorType='NSSM';SupervisorAppDirectory=(Split-Path -Parent $app);SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';AllowLegacyMissingThemeSource=$allowLegacy;MutationStarted=$false;MutationPhases=(New-Object Collections.ArrayList);RollbackAttempted=$false;RollbackSucceeded=$false;StateRestored=$false}
 }
 
 function Invoke-ChildProcess {
@@ -354,7 +387,7 @@ function Invoke-GitBundleBackup {
 function Get-ContextState([object]$Context) { Get-Content $Context.SimulationStatePath -Raw|ConvertFrom-Json }
 function Save-ContextState([object]$Context,[object]$State) { Add-Mutation $Context 'STATE_WRITE';Write-AtomicJson $Context.SimulationStatePath $State }
 function Get-DynamicArtifactDefinitions([object]$Context) {$d=$Context.DataRoot;@([pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\market_overview_enriched\market_period_summaries.json';Path=(Join-Path $d 'market_overview_enriched\market_period_summaries.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\market_overview_enriched\market_expansion_metrics.json';Path=(Join-Path $d 'market_overview_enriched\market_expansion_metrics.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\trader_analytics_snapshot.json';Path=(Join-Path $d 'trader_analytics_snapshot.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\item_class_snapshot.json';Path=(Join-Path $d 'item_class_snapshot.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\gunzscope_supply_snapshot_v3_provider.json';Path=(Join-Path $d 'gunzscope_supply_snapshot_v3_provider.json')},[pscustomobject]@{RelativePath='streamlit_opensea_sales\data_opensea_sales\opensea_account_profiles_snapshot.json';Path=(Join-Path $d 'opensea_account_profiles_snapshot.json')})}
-function Test-8502ProcessIdentity {
+function Assert-8502ProcessOwnershipIdentity {
     param([object]$Listener,[object]$Process,[string]$ExpectedAppPath=$script:ExpectedApp,[string]$ExpectedRuntimeAppPath='', [int]$ExpectedPort=8502)
     if(-not$Listener -or $Listener.LocalAddress -ne '127.0.0.1' -or [int]$Listener.LocalPort -ne $ExpectedPort -or $Listener.State -ne 'Listen'){throw '8502_PROCESS_LISTENER_MISMATCH'}
     if(-not$Process -or $Listener.OwningProcess -and [int]$Listener.OwningProcess -ne [int]$Process.ProcessId){throw '8502_PROCESS_OWNER_MISMATCH'}
@@ -362,7 +395,7 @@ function Test-8502ProcessIdentity {
     if([IO.Path]::GetFileName([string]$Process.ExecutablePath) -ine 'python.exe'){throw '8502_PROCESS_NOT_PYTHON'}
     $command=[string]$Process.CommandLine;if([string]::IsNullOrWhiteSpace($command)){throw '8502_PROCESS_COMMANDLINE_MISSING'}
     if($command -notmatch '(?i)(?:-m\s+streamlit\s+run|(?:^|\s)streamlit(?:\.exe)?\s+run)'){throw '8502_PROCESS_NOT_STREAMLIT'}
-    $null=Assert-StreamlitLaunchContract $command $ExpectedPort
+    $null=Assert-StreamlitLaunchShape $command $ExpectedPort
     if($command -match '(?i)app_gaming_marketplace\.py'){throw '8502_PROCESS_FORBIDDEN_APP'}
     if($command -match '(?i)--server\.port(?:\s+|=)8501(?:\s|$)' -or $command -match '(?i)--server\.port(?:\s+|=)8504(?:\s|$)'){throw '8502_PROCESS_FORBIDDEN_PORT'}
     $portMatch=[regex]::Match($command,'(?i)--server\.port(?:\s+|=)(\d+)');if(-not$portMatch.Success -or [int]$portMatch.Groups[1].Value -ne $ExpectedPort){throw '8502_PROCESS_PORT_MISMATCH'}
@@ -370,6 +403,14 @@ function Test-8502ProcessIdentity {
     $appMatch=[regex]::Match($command,'(?i)(?:"(?<quoted>[^"\r\n]*app_opensea_sales\.py)"|(?<bare>[^\s"\r\n]*app_opensea_sales\.py))');if(-not$appMatch.Success){throw '8502_PROCESS_APP_MISMATCH'};$appToken=if($appMatch.Groups['quoted'].Success){$appMatch.Groups['quoted'].Value}else{$appMatch.Groups['bare'].Value}
     if($appToken -match '[\\/]'){$normalized=[IO.Path]::GetFullPath($appToken);$allowed=@([IO.Path]::GetFullPath($ExpectedAppPath));if($ExpectedRuntimeAppPath){$allowed+=[IO.Path]::GetFullPath($ExpectedRuntimeAppPath)};if($allowed -notcontains $normalized){throw '8502_PROCESS_ABSOLUTE_PATH_MISMATCH'}}elseif($appToken -notin @('app_opensea_sales.py','streamlit_opensea_sales\app_opensea_sales.py')){throw '8502_PROCESS_APP_MISMATCH'}
     $Process
+}
+function Test-8502ProcessIdentity {
+    param([object]$Listener,[object]$Process,[string]$ExpectedAppPath=$script:ExpectedApp,[string]$ExpectedRuntimeAppPath='', [int]$ExpectedPort=8502,[switch]$AllowLegacyMissingThemeSource)
+    $null=Assert-8502ProcessOwnershipIdentity $Listener $Process $ExpectedAppPath $ExpectedRuntimeAppPath $ExpectedPort
+    $theme=Get-StreamlitThemeBaseState ([string]$Process.CommandLine)
+    if($theme.State -eq 'DARK'){return $Process}
+    if($AllowLegacyMissingThemeSource -and $theme.State -eq 'MISSING'){return $Process}
+    throw 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'
 }
 function Get-8502Process {
     param([string]$ExpectedRuntimeAppPath='')
@@ -393,8 +434,9 @@ function Read-BackupManifest {
     $manifest=Get-Content $Path -Raw|ConvertFrom-Json
     if([int]$manifest.manifest_version -ne 2 -or -not$manifest.backup_complete -or $manifest.target_root -ne $Context.Root -or [int]$manifest.target_port -ne $Context.Port -or $manifest.target_app -ne $Context.AppPath){throw 'BACKUP_MANIFEST_INVALID'}
     $supervisor=$manifest.supervisor
-    foreach($field in @('service_name','supervisor_type','service_display_name','service_start_mode','service_was_running','service_binary_path','nssm_executable','application','app_directory','app_parameters','app_stdout','app_stderr','app_restart_delay','app_throttle','app_exit_default','app_stop_method_console','app_stop_method_window','app_stop_method_threads','app_stop_method_skip','app_kill_process_tree','app_stdout_share_mode','app_stderr_share_mode','app_rotate_files','app_rotate_online','app_rotate_seconds','app_rotate_bytes','app_timestamp_log','windows_service_failure_actions','configuration_fingerprint')){if($supervisor -and $null -eq $supervisor.PSObject.Properties[$field]){throw 'BACKUP_SUPERVISOR_STATE_INCOMPLETE'}}
-    if(-not$supervisor -or [string]$supervisor.service_name -ne (Get-SupervisorServiceName $Context) -or [string]$supervisor.supervisor_type -ne 'NSSM' -or [string]::IsNullOrWhiteSpace([string]$supervisor.service_display_name) -or [string]::IsNullOrWhiteSpace([string]$supervisor.service_start_mode) -or [string]::IsNullOrWhiteSpace([string]$supervisor.service_binary_path) -or [string]::IsNullOrWhiteSpace([string]$supervisor.nssm_executable) -or [string]::IsNullOrWhiteSpace([string]$supervisor.application) -or [string]::IsNullOrWhiteSpace([string]$supervisor.app_directory) -or [string]::IsNullOrWhiteSpace([string]$supervisor.app_parameters) -or [string]::IsNullOrWhiteSpace([string]$supervisor.app_restart_delay) -or [string]::IsNullOrWhiteSpace([string]$supervisor.app_throttle) -or [string]::IsNullOrWhiteSpace([string]$supervisor.configuration_fingerprint)){throw 'BACKUP_SUPERVISOR_STATE_INCOMPLETE'}
+    foreach($field in @('service_name','supervisor_type','service_display_name','service_start_mode','service_was_running','service_binary_path','nssm_executable','application','app_directory','app_parameters','source_theme_base','source_theme_contract','app_stdout','app_stderr','app_restart_delay','app_throttle','app_exit_default','app_stop_method_console','app_stop_method_window','app_stop_method_threads','app_stop_method_skip','app_kill_process_tree','app_stdout_share_mode','app_stderr_share_mode','app_rotate_files','app_rotate_online','app_rotate_seconds','app_rotate_bytes','app_timestamp_log','windows_service_failure_actions','configuration_fingerprint')){if($supervisor -and $null -eq $supervisor.PSObject.Properties[$field]){throw 'BACKUP_SUPERVISOR_STATE_INCOMPLETE'}}
+    if(-not$supervisor -or [string]$supervisor.service_name -ne (Get-SupervisorServiceName $Context) -or [string]$supervisor.supervisor_type -ne 'NSSM' -or [string]::IsNullOrWhiteSpace([string]$supervisor.service_display_name) -or [string]::IsNullOrWhiteSpace([string]$supervisor.service_start_mode) -or [string]::IsNullOrWhiteSpace([string]$supervisor.service_binary_path) -or [string]::IsNullOrWhiteSpace([string]$supervisor.nssm_executable) -or [string]::IsNullOrWhiteSpace([string]$supervisor.application) -or [string]::IsNullOrWhiteSpace([string]$supervisor.app_directory) -or [string]::IsNullOrWhiteSpace([string]$supervisor.app_parameters) -or [string]::IsNullOrWhiteSpace([string]$supervisor.source_theme_base) -or [string]::IsNullOrWhiteSpace([string]$supervisor.source_theme_contract) -or [string]::IsNullOrWhiteSpace([string]$supervisor.app_restart_delay) -or [string]::IsNullOrWhiteSpace([string]$supervisor.app_throttle) -or [string]::IsNullOrWhiteSpace([string]$supervisor.configuration_fingerprint)){throw 'BACKUP_SUPERVISOR_STATE_INCOMPLETE'}
+    if([string]$supervisor.source_theme_base -notin @('DARK','MISSING') -or ([string]$supervisor.source_theme_base -eq 'MISSING' -and [string]$supervisor.source_theme_contract -ne 'LEGACY_MISSING_ALLOWED_FOR_CORRECTION') -or ([string]$supervisor.source_theme_base -eq 'DARK' -and [string]$supervisor.source_theme_contract -ne 'PASS')){throw 'BACKUP_SUPERVISOR_THEME_STATE_INVALID'}
     if(([string]$supervisor.configuration_fingerprint).ToLowerInvariant() -ne (Get-SupervisorManifestFingerprint $supervisor).ToLowerInvariant()){throw 'BACKUP_SUPERVISOR_FINGERPRINT_MISMATCH'}
     $base=Split-Path $Path -Parent
     foreach($pair in @(@('env_backup_relative_path','env_sha256'),@('git_bundle_relative_path','git_bundle_sha256'),@('db_dump_relative_path','db_dump_sha256'))){$candidate=Join-Path $base $manifest.($pair[0]);if(-not(Test-Path $candidate -PathType Leaf) -or (Get-Sha256 $candidate) -ne [string]$manifest.($pair[1])){throw 'BACKUP_MANIFEST_HASH_MISMATCH'}}
@@ -411,12 +453,13 @@ function Invoke-BackupCore {
     if($Context.Mode -eq 'PRODUCTION'){
         $head=(& git -c ('safe.directory='+$Context.Root) -C $Context.Root rev-parse HEAD).Trim();$branch=(& git -c ('safe.directory='+$Context.Root) -C $Context.Root branch --show-current).Trim()
         if(((& git -c ('safe.directory='+$Context.Root) -C $Context.Root status --porcelain)-join '') -ne ''){throw 'PRODUCTION_WORKTREE_NOT_CLEAN'}
-        $owned=Get-ProductionSupervisor $Context;$process=$owned.Child.Process;if(-not$process){throw 'SUPERVISOR_CHILD_NOT_FOUND'};$processPid=$process.ProcessId;$processExe=$process.ExecutablePath;$processCmd=$process.CommandLine;$supervisor=$owned.Configuration
+        $owned=Get-ProductionSupervisor $Context -AllowLegacyMissingThemeSource:$Context.AllowLegacyMissingThemeSource;$process=$owned.Child.Process;if(-not$process){throw 'SUPERVISOR_CHILD_NOT_FOUND'};$processPid=$process.ProcessId;$processExe=$process.ExecutablePath;$processCmd=$process.CommandLine;$supervisor=$owned.Configuration
         $tools=Get-PostgresTools;foreach($name in @('pg_dump','pg_restore','psql')){if(-not$tools.ContainsKey($name)){throw ('POSTGRES_TOOL_MISSING:'+ $name)}};Get-DatabaseEnvironment $Context.EnvPath -Required|Out-Null
     } elseif(-not(Test-Path $Context.EnvPath -PathType Leaf)){throw 'SIMULATION_ENV_MISSING'}
     if(-not$supervisor){$sandboxParameters=(Get-ProductionStreamlitLaunchParameters).Replace('--server.port 8502','--server.port '+$Context.Port);$null=Assert-StreamlitLaunchContract $sandboxParameters $Context.Port;$supervisor=[pscustomobject]@{ServiceName=$Context.SupervisorServiceName;ServiceDisplayName='Sandbox NSSM';ServiceStartMode='Manual';ServiceBinaryPath='sandbox-nssm.exe';ServiceWasRunning=$true;NssmExecutable='sandbox-nssm.exe';NssmVersion='sandbox';Application='sandbox-python.exe';AppDirectory=$Context.SupervisorAppDirectory;AppParameters=$sandboxParameters;AppStdout='';AppStderr='';AppRestartDelay='0';AppThrottle='1500';AppExitDefault='Restart';AppStopMethodConsole='1500';AppStopMethodWindow='1500';AppStopMethodThreads='1500';AppStopMethodSkip='0';AppKillProcessTree='1';AppStdoutShareMode='3';AppStderrShareMode='3';AppRotateFiles='0';AppRotateOnline='0';AppRotateSeconds='0';AppRotateBytes='0';AppTimestampLog='0';WindowsServiceFailureActions='sandbox'}}
     $supervisorFingerprint=Get-SupervisorConfigurationFingerprint $supervisor
-    $supervisorManifest=[ordered]@{service_name=$supervisor.ServiceName;supervisor_type='NSSM';service_display_name=$supervisor.ServiceDisplayName;service_start_mode=$supervisor.ServiceStartMode;service_was_running=[bool]$supervisor.ServiceWasRunning;service_binary_path=$supervisor.ServiceBinaryPath;nssm_executable=$supervisor.NssmExecutable;nssm_version=$supervisor.NssmVersion;application=$supervisor.Application;app_directory=$supervisor.AppDirectory;app_parameters=$supervisor.AppParameters;app_stdout=$supervisor.AppStdout;app_stderr=$supervisor.AppStderr;app_restart_delay=$supervisor.AppRestartDelay;app_throttle=$supervisor.AppThrottle;app_exit_default=$supervisor.AppExitDefault;app_stop_method_console=$supervisor.AppStopMethodConsole;app_stop_method_window=$supervisor.AppStopMethodWindow;app_stop_method_threads=$supervisor.AppStopMethodThreads;app_stop_method_skip=$supervisor.AppStopMethodSkip;app_kill_process_tree=$supervisor.AppKillProcessTree;app_stdout_share_mode=$supervisor.AppStdoutShareMode;app_stderr_share_mode=$supervisor.AppStderrShareMode;app_rotate_files=$supervisor.AppRotateFiles;app_rotate_online=$supervisor.AppRotateOnline;app_rotate_seconds=$supervisor.AppRotateSeconds;app_rotate_bytes=$supervisor.AppRotateBytes;app_timestamp_log=$supervisor.AppTimestampLog;windows_service_failure_actions=$supervisor.WindowsServiceFailureActions;configuration_fingerprint=$supervisorFingerprint}
+    $sourceThemeBase=if($supervisor.PSObject.Properties['SourceThemeBase']){[string]$supervisor.SourceThemeBase}else{(Get-StreamlitThemeBaseState ([string]$supervisor.AppParameters)).State};$sourceThemeContract=if($sourceThemeBase -eq 'MISSING'){'LEGACY_MISSING_ALLOWED_FOR_CORRECTION'}elseif($sourceThemeBase -eq 'DARK'){'PASS'}else{'FAIL'}
+    $supervisorManifest=[ordered]@{service_name=$supervisor.ServiceName;supervisor_type='NSSM';service_display_name=$supervisor.ServiceDisplayName;service_start_mode=$supervisor.ServiceStartMode;service_was_running=[bool]$supervisor.ServiceWasRunning;service_binary_path=$supervisor.ServiceBinaryPath;nssm_executable=$supervisor.NssmExecutable;nssm_version=$supervisor.NssmVersion;application=$supervisor.Application;app_directory=$supervisor.AppDirectory;app_parameters=$supervisor.AppParameters;source_theme_base=$sourceThemeBase;source_theme_contract=$sourceThemeContract;app_stdout=$supervisor.AppStdout;app_stderr=$supervisor.AppStderr;app_restart_delay=$supervisor.AppRestartDelay;app_throttle=$supervisor.AppThrottle;app_exit_default=$supervisor.AppExitDefault;app_stop_method_console=$supervisor.AppStopMethodConsole;app_stop_method_window=$supervisor.AppStopMethodWindow;app_stop_method_threads=$supervisor.AppStopMethodThreads;app_stop_method_skip=$supervisor.AppStopMethodSkip;app_kill_process_tree=$supervisor.AppKillProcessTree;app_stdout_share_mode=$supervisor.AppStdoutShareMode;app_stderr_share_mode=$supervisor.AppStderrShareMode;app_rotate_files=$supervisor.AppRotateFiles;app_rotate_online=$supervisor.AppRotateOnline;app_rotate_seconds=$supervisor.AppRotateSeconds;app_rotate_bytes=$supervisor.AppRotateBytes;app_timestamp_log=$supervisor.AppTimestampLog;windows_service_failure_actions=$supervisor.WindowsServiceFailureActions;configuration_fingerprint=$supervisorFingerprint}
     Add-Mutation $Context 'BACKUP_CREATE';$stamp=Get-Date -Format yyyyMMdd_HHmmss;$short=if($head.Length -gt 8){$head.Substring(0,8)}else{$head};$out=Join-Path $Context.BackupRoot ($stamp+'_'+$short);New-Item -ItemType Directory -Path $out -Force|Out-Null;$manifest=[ordered]@{manifest_version=2;created_at=(Get-Date).ToUniversalTime().ToString('o');target_root=$Context.Root;target_port=$Context.Port;target_app=$Context.AppPath;old_git_head=$head;old_git_branch=$branch;old_git_clean=$true;old_process_pid=$processPid;old_process_executable=$processExe;old_process_command_line_sanitized=$processCmd;old_app_path=$Context.AppPath;old_port=$Context.Port;old_runtime_root=$Context.RuntimeRoot;supervisor=$supervisorManifest;env_backup_relative_path='.env';git_bundle_relative_path='production.bundle';db_dump_relative_path='production.dump';db_dump_format='custom';db_dump_validation='PENDING';dynamic_artifacts=@();active_runtime_existed=$false;production_refresh_tasks=@();backup_complete=$false}
     $bundleResult=Invoke-GitBundleBackup $Context $out;if($Context.Mode -eq 'SIMULATION'){$null=Copy-Item $Context.EnvPath (Join-Path $out '.env');$null=Set-Content (Join-Path $out 'production.dump') 'sandbox custom dump';$manifest.db_dump_validation='PASS'}else{Copy-Item $Context.EnvPath (Join-Path $out '.env');$env=Get-DatabaseEnvironment $Context.EnvPath -Required;Invoke-ChildProcess $tools.pg_dump @('--format=custom','--file',(Join-Path $out 'production.dump')) $Context.Root 1800 $env|Out-Null;Invoke-ChildProcess $tools.pg_restore @('--list',(Join-Path $out 'production.dump')) $Context.Root 300 $env|Out-Null;$manifest.db_dump_validation='PASS'};$manifest.git_bundle_validation='PASS';$manifest.env_sha256=Get-Sha256 (Join-Path $out '.env');$manifest.git_bundle_sha256=Get-Sha256 (Join-Path $out 'production.bundle');$manifest.db_dump_sha256=Get-Sha256 (Join-Path $out 'production.dump')
     foreach($definition in Get-DynamicArtifactDefinitions $Context){$entry=[ordered]@{relative_path=$definition.RelativePath;existed_before=(Test-Path $definition.Path -PathType Leaf)};if($entry.existed_before){$entry.backup_relative_path='artifacts\'+[IO.Path]::GetFileName($definition.Path);New-Item (Join-Path $out 'artifacts') -ItemType Directory -Force|Out-Null;Copy-Item $definition.Path (Join-Path $out $entry.backup_relative_path);$entry.sha256_before=Get-Sha256 $definition.Path;$entry.size_bytes=(Get-Item $definition.Path).Length};$manifest.dynamic_artifacts+=,$entry};$active=Join-Path $Context.RuntimeRoot 'ACTIVE_RUNTIME.json';if(Test-Path $active -PathType Leaf){New-Item (Join-Path $out 'runtime') -ItemType Directory -Force|Out-Null;Copy-Item $active (Join-Path $out 'runtime\ACTIVE_RUNTIME.json');$manifest.active_runtime_existed=$true;$manifest.active_runtime_backup_relative_path='runtime\ACTIVE_RUNTIME.json';$manifest.active_runtime_sha256=Get-Sha256 $active}
@@ -463,7 +506,7 @@ function Resolve-8502RollbackProcess([object]$Context) {
         return [pscustomobject]@{State='NO_LISTENER';ProcessId=$null}
     }
     try {
-        $child=Resolve-ProductionSupervisorChild $Context
+        $child=Resolve-ProductionSupervisorChild $Context -AllowLegacyMissingThemeSource:$Context.AllowLegacyMissingThemeSource
         if($child.State -eq 'NO_LISTENER'){return [pscustomobject]@{State='NO_LISTENER';ProcessId=$null}}
         return [pscustomobject]@{State='EXPECTED_PROCESS_PRESENT';ProcessId=$child.ProcessId;Process=$child.Process;Supervisor=$child.Configuration}
     } catch { throw 'ROLLBACK_FOREIGN_8502_LISTENER' }
@@ -496,7 +539,7 @@ function Start-ContextProcess([object]$Context,[string]$Python,[string]$App,[swi
     if(-not(Test-Path $Python -PathType Leaf)){throw 'RUNTIME_PYTHON_MISSING'}
     if($Context.Mode -eq 'PRODUCTION') {
         $Context.ReleasePython=$Python
-        $launch=Start-ProductionSupervisor $Context
+        $launch=Start-ProductionSupervisor $Context -AllowLegacyMissingThemeSource:$Old
         return $launch
     }
     throw 'DIRECT_PROCESS_LIFECYCLE_FORBIDDEN'
@@ -529,7 +572,7 @@ function Invoke-DeployCore {
         if($main -ne $Context.ExpectedReleaseHead){throw 'MAIN_PROMOTION_REQUIRED'}
         & git -c ('safe.directory='+$Context.Root) -C $Context.Root merge-base --is-ancestor $Context.ExpectedOldHead $Context.ExpectedReleaseHead
         if($LASTEXITCODE -ne 0){throw 'RELEASE_NOT_DESCENDANT'}
-        $liveSupervisor=Get-ProductionSupervisor $Context
+        $liveSupervisor=Get-ProductionSupervisor $Context -AllowLegacyMissingThemeSource:$Context.AllowLegacyMissingThemeSource
         if([string]$liveSupervisor.Configuration.ConfigurationFingerprint -ne [string]$backupForDeploy.Manifest.supervisor.configuration_fingerprint){throw 'SUPERVISOR_STATE_CHANGED'}
         Assert-FinalRuntimePath (Get-FinalRuntimePython $Context.ExpectedReleaseHead $Context) $Context.ExpectedReleaseHead $Context
     }

@@ -67,8 +67,12 @@ def test_real_nssm_sandbox_proves_service_ownership_respawn_cutover_and_rollback
         "SANDBOX_STALE_LOG_IGNORED=PASS",
         "SANDBOX_THEME_CONTRACT=PASS",
         "SANDBOX_INVALID_THEME_FAIL_CLOSED=PASS",
+        "SANDBOX_SOURCE_OWNERSHIP=PASS",
+        "SANDBOX_SOURCE_THEME_BASE=MISSING",
+        "SANDBOX_CORRECTION_PREFLIGHT=PASS",
         "SANDBOX_ROLLBACK_CONFIG_RESTORE=PASS",
         "SANDBOX_ROLLBACK_CHILD_IDENTITY=PASS",
+        "SANDBOX_ROLLBACK_SOURCE_THEME=LEGACY_MISSING_RESTORED",
         "SANDBOX_ROLLBACK_HEALTH=PASS",
         "SANDBOX_ROLLBACK_LOG_GATE=PASS",
         "SANDBOX_ROLLBACK_STATE_RESTORED=PASS",
@@ -81,16 +85,18 @@ def test_real_nssm_sandbox_proves_service_ownership_respawn_cutover_and_rollback
         assert marker in output
 
 
-def test_production_supervisor_rejects_live_missing_dark_theme_read_only():
+def test_production_supervisor_source_policy_accepts_legacy_but_activation_remains_strict():
     script = f"""
 . {ps(str(COMMON))}
 $ctx=New-ProductionExecutionContext @{{ExpectedOldHead='30e49a2090712e3e6233c4bbb324d6f70a7751eb';ExpectedReleaseHead='30e49a2090712e3e6233c4bbb324d6f70a7751eb';PreparedReleaseRoot='';PreparedReleaseManifest='';PreparedReleaseManifestSha256='';BackupManifest='';BackupRoot=''}}
-try {{ $null=Get-ProductionSupervisor $ctx; 'UNEXPECTED_PASS' }} catch {{ 'REJECTED='+$_.Exception.Message }}
+try {{ $source=Get-ProductionSupervisor $ctx -AllowLegacyMissingThemeSource; 'SOURCE='+$source.Configuration.SourceThemeBase+'/'+$source.Configuration.SourceThemeContract }} catch {{ 'SOURCE_REJECTED='+$_.Exception.Message }}
+try {{ $null=Get-ProductionSupervisor $ctx; 'UNEXPECTED_STRICT_PASS' }} catch {{ 'STRICT_REJECTED='+$_.Exception.Message }}
 """
     result = run_ps(script)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "REJECTED=SUPERVISOR_THEME_BASE_DARK_REQUIRED" in result.stdout
-    assert "UNEXPECTED_PASS" not in result.stdout
+    assert "SOURCE=MISSING/KNOWN_LEGACY_DRIFT" in result.stdout
+    assert "STRICT_REJECTED=SUPERVISOR_THEME_BASE_DARK_REQUIRED" in result.stdout
+    assert "UNEXPECTED_STRICT_PASS" not in result.stdout
 
 
 def test_nssm_supervisor_contract_is_explicit_and_production_lifecycle_is_not_direct_pid_control():

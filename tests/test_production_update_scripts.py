@@ -89,13 +89,19 @@ def test_read_only_cutover_preflight_rejects_live_missing_dark_theme_without_mut
     result = run(
         "validate_production_cutover_preflight.ps1",
         "-ExpectedOldHead", "05d9e99b6e22be7a64155dc136019a55ec1f5ad4",
-        "-ExpectedReleaseHead", "05d9e99b6e22be7a64155dc136019a55ec1f5ad4",
-        "-PreparedReleaseRoot", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_122",
-        "-PreparedReleaseManifest", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_122\PREPARED_RELEASE_MANIFEST.json",
-        "-PreparedReleaseManifestSha256", "22fa59847fe9ef6b404620c1f97158dabe9efa13b101f324b3fd802d63923b63",
+        "-ExpectedReleaseHead", "541a8b94cd19cfe82d4e4fe2430d8a9e01c1b8cb",
+        "-PreparedReleaseRoot", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_124",
+        "-PreparedReleaseManifest", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_124\PREPARED_RELEASE_MANIFEST.json",
+        "-PreparedReleaseManifestSha256", "b8bcc997887ad542aff879fecae62f9449612477b91e1abef48050f42bbe3309",
         "-ExpectedMainHead", "05d9e99b6e22be7a64155dc136019a55ec1f5ad4",
+        "-AllowLegacyMissingThemeSource",
     )
-    assert result.returncode != 0
-    assert "SUPERVISOR_THEME_BASE_DARK_REQUIRED" in result.stdout + result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "SOURCE_OWNERSHIP_IDENTITY=PASS" in result.stdout
+    assert "SOURCE_THEME_BASE=MISSING" in result.stdout
+    assert "SOURCE_THEME_CONTRACT=KNOWN_LEGACY_DRIFT" in result.stdout
+    assert "TARGET_PREPARED_THEME_BASE=dark" in result.stdout
+    assert "TARGET_THEME_CONTRACT=PASS" in result.stdout
+    assert "CORRECTION_CUTOVER_PREFLIGHT=PASS" in result.stdout
     assert "MUTATION_EXECUTED=NO" in result.stdout
-    assert "CUTOVER_PREFLIGHT=FAIL" in result.stdout
+    assert "CUTOVER_PREFLIGHT=PASS" in result.stdout

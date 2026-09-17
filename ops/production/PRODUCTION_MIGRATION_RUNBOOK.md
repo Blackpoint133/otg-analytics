@@ -27,6 +27,20 @@ and `theme_contract=PASS`. Missing or non-dark theme values fail closed; CSS
 does not replace this launch invariant. Rollback restores the exact backed-up
 NSSM parameters without rewriting the historical configuration.
 
+### Correction boundary for a known legacy source
+
+Source ownership and target activation are different gates. A correction
+preflight may use `-AllowLegacyMissingThemeSource` to prove the existing
+`OTG_app_opensea_sales` NSSM service and its child/listener are ours when the
+only theme drift is a missing `--theme.base`. It must report that source as
+`MISSING` / `KNOWN_LEGACY_DRIFT`, preserve the exact parameters in the backup,
+and use ownership validation to stop and restore it. `light`, invalid, or
+duplicate/conflicting theme values remain fail-closed. The allowance never
+applies to a new activation: the read-back NSSM configuration and the new
+supervised child must pass the strict dark launch contract before service start
+and before `ACTIVE_RUNTIME.json` is written. Once production is corrected,
+ordinary future source validation is strict again.
+
 ## Release identity
 
 `PREPARED_RELEASE_HEAD` is the exact prepared implementation commit, not the
@@ -60,6 +74,11 @@ The preflight verifies PostgreSQL tool discovery, required production `.env`
 variables, a read-only DB connection, and either the untouched pre-migration
 schema or the complete additive schema already present after Report 119. A
 partial or unexpected schema state fails closed.
+
+For the one known legacy correction, invoke the same command with
+`-AllowLegacyMissingThemeSource`; this enables ownership/backup/stop of only
+the missing-theme source while retaining the strict target prepared-release
+gate. It is not an ordinary deployment bypass.
 
 ## Backup
 

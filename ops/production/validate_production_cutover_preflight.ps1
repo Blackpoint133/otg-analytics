@@ -5,7 +5,8 @@ param(
     [Parameter(Mandatory=$true)][string]$PreparedReleaseRoot,
     [Parameter(Mandatory=$true)][string]$PreparedReleaseManifest,
     [Parameter(Mandatory=$true)][string]$PreparedReleaseManifestSha256,
-    [Parameter(Mandatory=$true)][string]$ExpectedMainHead
+    [Parameter(Mandatory=$true)][string]$ExpectedMainHead,
+    [switch]$AllowLegacyMissingThemeSource
 )
 $ErrorActionPreference='Stop'
 $context=$null
@@ -39,10 +40,10 @@ try {
     Assert-ProductionTarget
     if(-not(Test-Path $script:ExpectedRoot -PathType Container)){throw 'PRODUCTION_ROOT_MISSING'}
     if(-not(Test-Path $script:ExpectedApp -PathType Leaf)){throw 'PRODUCTION_APP_MISSING'}
-    $context=New-ProductionExecutionContext @{ExpectedOldHead=$ExpectedOldHead;ExpectedReleaseHead=$ExpectedReleaseHead;PreparedReleaseRoot=$PreparedReleaseRoot;PreparedReleaseManifest=$PreparedReleaseManifest;PreparedReleaseManifestSha256=$PreparedReleaseManifestSha256;BackupManifest='';BackupRoot=''}
+    $context=New-ProductionExecutionContext @{ExpectedOldHead=$ExpectedOldHead;ExpectedReleaseHead=$ExpectedReleaseHead;PreparedReleaseRoot=$PreparedReleaseRoot;PreparedReleaseManifest=$PreparedReleaseManifest;PreparedReleaseManifestSha256=$PreparedReleaseManifestSha256;BackupManifest='';BackupRoot='';AllowLegacyMissingThemeSource=$AllowLegacyMissingThemeSource}
     $head=Read-GitValue @('rev-parse','HEAD');$branch=Read-GitValue @('branch','--show-current');$status=Read-GitValue @('status','--porcelain')
     if($branch -ne 'main'){throw 'PRODUCTION_BRANCH_MISMATCH'};if($status){throw 'PRODUCTION_WORKTREE_NOT_CLEAN'};if($head -ne $ExpectedOldHead){throw 'EXPECTED_OLD_HEAD_MISMATCH'}
-    $supervisor=Get-ProductionSupervisor $context
+    $supervisor=Get-ProductionSupervisor $context -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource
     $process=$supervisor.Child.Process
     $appMatch=[regex]::Match([string]$process.CommandLine,'(?i)(?:"(?<quoted>[^"\r\n]*app_opensea_sales\.py)"|(?<bare>[^\s"\r\n]*app_opensea_sales\.py))');$appToken=if($appMatch.Groups['quoted'].Success){$appMatch.Groups['quoted'].Value}else{$appMatch.Groups['bare'].Value};$entryMode=if([IO.Path]::IsPathRooted($appToken)){'ABSOLUTE_ENTRYPOINT'}else{'RELATIVE_ENTRYPOINT'}
     $tools=Get-PostgresTools;foreach($name in @('pg_dump','pg_restore','psql')){if(-not$tools.ContainsKey($name)){throw ('POSTGRES_TOOL_MISSING:'+ $name)}}
@@ -51,6 +52,6 @@ try {
     $schema=Read-SchemaState $dbEnvironment $tools.psql;if($schema.ReadOnly -ne 'on'){throw 'DB_NOT_READ_ONLY'};$preMigration=($schema.TraderMode -eq 'ABSENT' -and $schema.ProductEvents -eq 'ABSENT' -and $schema.UserFeedback -eq 'ABSENT');$postMigration=($schema.TraderMode -eq 'PRESENT' -and $schema.ProductEvents -eq 'PRESENT' -and $schema.UserFeedback -eq 'PRESENT');if($schema.StableBrowserIdentity -ne 'READY' -or (-not$preMigration -and -not$postMigration)){throw 'DB_SCHEMA_DRIFT'}
     $prepared=Read-PreparedReleaseManifest $PreparedReleaseManifest $PreparedReleaseManifestSha256 $ExpectedReleaseHead $context
     $main=Read-GitValue @('rev-parse','origin/main');if($main -ne $ExpectedMainHead){throw 'MAIN_BASELINE_MISMATCH'}
-    Write-KV 'MODE' 'READ_ONLY_PREFLIGHT';Write-KV 'PRODUCTION_PROCESS_IDENTITY' 'PASS';Write-KV 'PRODUCTION_SUPERVISOR' 'NSSM';Write-KV 'PRODUCTION_SERVICE_NAME' $supervisor.Configuration.ServiceName;Write-KV 'LIVE_8502_PID' $process.ProcessId;Write-KV 'LIVE_8502_ENTRYPOINT_MODE' $entryMode;Write-KV 'LIVE_8502_COMMAND_LINE_SANITIZED' $process.CommandLine;Write-KV 'POSTGRES_PG_DUMP_PATH' $tools.pg_dump;Write-KV 'POSTGRES_PG_RESTORE_PATH' $tools.pg_restore;Write-KV 'POSTGRES_PSQL_PATH' $tools.psql;Write-KV 'POSTGRES_PG_DUMP_VERSION' $versions.pg_dump;Write-KV 'POSTGRES_PG_RESTORE_VERSION' $versions.pg_restore;Write-KV 'POSTGRES_PSQL_VERSION' $versions.psql;Write-KV 'POSTGRES_TOOL_DISCOVERY' 'PASS';Write-KV 'DB_READ_ONLY_GATE' 'PASS';Write-KV 'DB_SCHEMA_GATE' 'PASS';Write-KV 'PREPARED_RELEASE_GATE' 'PASS';Write-KV 'MAIN_BASELINE_GATE' 'PASS';Write-KV 'MUTATION_EXECUTED' 'NO';Write-KV 'CUTOVER_PREFLIGHT' 'PASS'
+    $sourceTheme=$supervisor.Configuration.SourceThemeBase;$sourceContract=$supervisor.Configuration.SourceThemeContract;Write-KV 'MODE' 'READ_ONLY_PREFLIGHT';Write-KV 'PRODUCTION_PROCESS_IDENTITY' 'PASS';Write-KV 'SOURCE_OWNERSHIP_IDENTITY' 'PASS';Write-KV 'SOURCE_THEME_BASE' $sourceTheme;Write-KV 'SOURCE_THEME_CONTRACT' $sourceContract;Write-KV 'TARGET_PREPARED_THEME_BASE' $prepared.Manifest.streamlit_theme_base;Write-KV 'TARGET_THEME_CONTRACT' $prepared.Manifest.streamlit_theme_contract;Write-KV 'PRODUCTION_SUPERVISOR' 'NSSM';Write-KV 'PRODUCTION_SERVICE_NAME' $supervisor.Configuration.ServiceName;Write-KV 'LIVE_8502_PID' $process.ProcessId;Write-KV 'LIVE_8502_ENTRYPOINT_MODE' $entryMode;Write-KV 'LIVE_8502_COMMAND_LINE_SANITIZED' $process.CommandLine;Write-KV 'POSTGRES_PG_DUMP_PATH' $tools.pg_dump;Write-KV 'POSTGRES_PG_RESTORE_PATH' $tools.pg_restore;Write-KV 'POSTGRES_PSQL_PATH' $tools.psql;Write-KV 'POSTGRES_PG_DUMP_VERSION' $versions.pg_dump;Write-KV 'POSTGRES_PG_RESTORE_VERSION' $versions.pg_restore;Write-KV 'POSTGRES_PSQL_VERSION' $versions.psql;Write-KV 'POSTGRES_TOOL_DISCOVERY' 'PASS';Write-KV 'DB_READ_ONLY_GATE' 'PASS';Write-KV 'DB_SCHEMA_GATE' 'PASS';Write-KV 'PREPARED_RELEASE_GATE' 'PASS';Write-KV 'MAIN_BASELINE_GATE' 'PASS';Write-KV 'CORRECTION_CUTOVER_PREFLIGHT' ($(if($AllowLegacyMissingThemeSource){'PASS'}else{'NOT_REQUESTED'}));Write-KV 'MUTATION_EXECUTED' 'NO';Write-KV 'CUTOVER_PREFLIGHT' 'PASS'
 }
 catch {Write-KV 'MUTATION_EXECUTED' 'NO';Write-KV 'CUTOVER_PREFLIGHT' 'FAIL';throw}

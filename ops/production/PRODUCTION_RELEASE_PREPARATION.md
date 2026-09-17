@@ -63,6 +63,27 @@ a sharing violation and stale logs cannot satisfy or fail the current-launch
 gate. Prior launch logs remain audit evidence. The v2 backup manifest records
 the complete mutable NSSM configuration and its fingerprint for rollback.
 
+## Source ownership versus target activation
+
+The current supervised process is evaluated in two deliberately separate
+ways. The source/ownership predicate proves that `OTG_app_opensea_sales` is
+our NSSM service, that its Python/Streamlit child launches
+`app_opensea_sales.py` on `127.0.0.1:8502`, and that the service owns the
+listener. It does not silently accept a foreign app, port, service, or
+supervisor. For the one documented correction boundary, passing
+`-AllowLegacyMissingThemeSource` allows only `--theme.base` being absent and
+reports `SourceThemeContract=KNOWN_LEGACY_DRIFT`; it does not allow `light`, an
+invalid value, or duplicate/conflicting values. The allowance is used only for
+read-only correction preflight, backup, stopping the known legacy source, and
+restoring that exact source during guarded rollback.
+
+The target/activation predicate remains strict. It calls the complete launch
+contract and requires exactly one effective `--theme.base=dark` before a new
+NSSM service start, on the new supervised child, and in the prepared-release
+gate. After the correction deployment makes production dark, ordinary future
+cutovers use the strict source predicate again; missing theme is not a
+permanent production allowance.
+
 ## Mandatory Streamlit launch contract
 
 `Get-ProductionStreamlitLaunchParameters` is the single source of truth for a
@@ -131,8 +152,16 @@ This is strictly read-only and uses the same guarded 8502 process identity
 predicate as backup, deploy, and rollback. Relative `app_opensea_sales.py`
 launches are accepted only with the strict listener, Python, Streamlit, port,
 address, required Streamlit flags, dark-theme, repository, branch, and
-clean-worktree gates. Unrelated absolute app paths, 8501, 8504, gaming, and
-Caddy are rejected.
+clean-worktree gates. For the documented legacy theme correction only, add
+`-AllowLegacyMissingThemeSource` to distinguish a safe legacy source
+(`SOURCE_OWNERSHIP_IDENTITY=PASS`, `SOURCE_THEME_BASE=MISSING`,
+`SOURCE_THEME_CONTRACT=KNOWN_LEGACY_DRIFT`) from the strict prepared target
+(`TARGET_PREPARED_THEME_BASE=dark`, `TARGET_THEME_CONTRACT=PASS`). The switch
+does not weaken the listener, Python, Streamlit, app, port, address,
+repository, branch, or clean-worktree gates, and it rejects light, invalid,
+and duplicate theme values. Without the switch, the source predicate is
+strict. Unrelated absolute app paths, 8501, 8504, gaming, and Caddy are
+rejected.
 
 ## Validation state
 

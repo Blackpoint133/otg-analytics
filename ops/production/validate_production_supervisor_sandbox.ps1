@@ -23,10 +23,10 @@ function Wait-SandboxListener([bool]$Present,[int]$TimeoutSeconds=30) {
     do {$listener=Get-SandboxListener;if($Present -and $listener){return $listener};if(-not$Present -and -not$listener){return $null};Start-Sleep -Milliseconds 250} while((Get-Date)-lt $until)
     throw $(if($Present){'SANDBOX_LISTENER_START_TIMEOUT'}else{'SANDBOX_LISTENER_RELEASE_TIMEOUT'})
 }
-function Get-SandboxChild {
-    $ctx=[pscustomobject]@{Mode='PRODUCTION';Root=$SandboxPath;RuntimeRoot=(Join-Path $SandboxPath 'runtime');AppPath=(Join-Path $SandboxPath 'app_opensea_sales.py');Port=$Port;SupervisorServiceName=$ServiceName;SupervisorType='NSSM';SupervisorAppDirectory=$SandboxPath;ExpectedReleaseHead='sandbox';ReleasePython=$Python;SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr=''}
+function Get-SandboxChild([bool]$AllowLegacyMissingThemeSource=$false) {
+    $ctx=[pscustomobject]@{Mode='PRODUCTION';Root=$SandboxPath;RuntimeRoot=(Join-Path $SandboxPath 'runtime');AppPath=(Join-Path $SandboxPath 'app_opensea_sales.py');Port=$Port;SupervisorServiceName=$ServiceName;SupervisorType='NSSM';SupervisorAppDirectory=$SandboxPath;ExpectedReleaseHead='sandbox';ReleasePython=$Python;SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';AllowLegacyMissingThemeSource=$AllowLegacyMissingThemeSource}
     $until=(Get-Date).AddSeconds(30);$resolved=$null;$last=$null
-    do {try{$resolved=Resolve-ProductionSupervisorChild $ctx;if($resolved.State -eq 'EXPECTED_PROCESS_PRESENT'){break}}catch{$last=$_};Start-Sleep -Milliseconds 500} while((Get-Date)-lt $until)
+    do {try{$resolved=Resolve-ProductionSupervisorChild $ctx -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource;if($resolved.State -eq 'EXPECTED_PROCESS_PRESENT'){break}}catch{$last=$_};Start-Sleep -Milliseconds 500} while((Get-Date)-lt $until)
     if(-not$resolved -or $resolved.State -ne 'EXPECTED_PROCESS_PRESENT'){if($last){throw $last};throw 'SANDBOX_EXPECTED_CHILD_MISSING'}
     [pscustomobject]@{Context=$ctx;Resolved=$resolved;Configuration=$resolved.Configuration;Process=$resolved.Process;Listener=$resolved.Listener}
 }
@@ -42,12 +42,12 @@ function Configure-Logs([string]$Prefix) {
     Set-SandboxNssm 'AppStdout' $out;Set-SandboxNssm 'AppStderr' $err
     [pscustomobject]@{StdOutLogPath=$out;StdErrLogPath=$err}
 }
-function Assert-SandboxLaunch([object]$Launch,[string]$ExpectedApp) {
+function Assert-SandboxLaunch([object]$Launch,[string]$ExpectedApp,[switch]$AllowLegacyMissingThemeSource) {
     if(-not$Launch.ProcessId){throw 'SANDBOX_CHILD_PID_MISSING'}
     $listener=Wait-SandboxListener $true
     if([int]$listener.OwningProcess -ne [int]$Launch.ProcessId){throw 'SANDBOX_LISTENER_PID_MISMATCH'}
     $process=Get-CimInstance Win32_Process -Filter ('ProcessId='+$listener.OwningProcess)
-    $null=Test-8502ProcessIdentity $listener $process $ExpectedApp '' $Port
+    $null=Test-8502ProcessIdentity $listener $process $ExpectedApp '' $Port -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource
     Assert-CurrentLaunchLogs $Launch
     if(-not(Invoke-HealthCheck $Port 10)){throw 'SANDBOX_HEALTH_FAILED'}
 }
@@ -62,24 +62,27 @@ try {
     New-Item -ItemType Directory -Path $SandboxPath,(Join-Path $SandboxPath 'logs'),(Join-Path $SandboxPath 'runtime') -Force|Out-Null
     $app=Join-Path $SandboxPath 'app_opensea_sales.py';Set-Content -LiteralPath $app -Value "import streamlit as st`nst.title('NSSM sandbox')`n"
     $Python=(Get-Command python.exe -ErrorAction Stop).Source
-    $service=Get-CimInstance Win32_Service -Filter "Name='$($script:ProductionServiceName)'";if(-not$service){throw 'SANDBOX_SOURCE_SERVICE_MISSING'};$Nssm=Get-SupervisorNssmExecutable $service
+    $service=Get-CimInstance Win32_Service | Where-Object { $_.Name -eq $script:ProductionServiceName } | Select-Object -First 1;if(-not$service){throw 'SANDBOX_SOURCE_SERVICE_MISSING'};$Nssm=Get-SupervisorNssmExecutable $service
     Run-Nssm @('install',$ServiceName,$Python);$ServiceCreated=$true
-    $parameters=(Get-ProductionStreamlitLaunchParameters).Replace('--server.port 8502','--server.port '+$Port);$null=Assert-StreamlitLaunchContract $parameters $Port
+    $targetParameters=(Get-ProductionStreamlitLaunchParameters).Replace('--server.port 8502','--server.port '+$Port);$null=Assert-StreamlitLaunchContract $targetParameters $Port
+    $parameters=$targetParameters.Replace(' --theme.base="dark"','');$null=Assert-StreamlitLaunchShape $parameters $Port
+    Say 'SANDBOX_SOURCE_THEME_STATE' (Get-StreamlitThemeBaseState $parameters).State
     Run-Nssm @('set',$ServiceName,'AppDirectory',$SandboxPath);Run-Nssm @('set',$ServiceName,'AppParameters',$parameters);Run-Nssm @('set',$ServiceName,'AppRestartDelay','0');Run-Nssm @('set',$ServiceName,'AppThrottle','1500')
     $oldLogs=Configure-Logs 'old_activation';& sc.exe config $ServiceName start= demand|Out-Null
     Start-Service -Name $ServiceName -ErrorAction Stop
-    $old=Get-SandboxChild
-    Assert-SandboxLaunch ([pscustomobject]@{ProcessId=$old.Process.ProcessId;StdOutLogPath=$old.Configuration.AppStdout;StdErrLogPath=$old.Configuration.AppStderr}) $app
-    Say 'SANDBOX_SERVICE_INITIAL_START' 'PASS';Say 'SANDBOX_SERVICE_TO_CHILD_OWNERSHIP' 'PASS'
+    $old=Get-SandboxChild $true
+    Assert-SandboxLaunch ([pscustomobject]@{ProcessId=$old.Process.ProcessId;StdOutLogPath=$old.Configuration.AppStdout;StdErrLogPath=$old.Configuration.AppStderr}) $app -AllowLegacyMissingThemeSource
+    if($old.Configuration.SourceThemeBase -ne 'MISSING'){throw 'SANDBOX_LEGACY_THEME_STATE_FAILED'}
+    Say 'SANDBOX_SERVICE_INITIAL_START' 'PASS';Say 'SANDBOX_SERVICE_TO_CHILD_OWNERSHIP' 'PASS';Say 'SANDBOX_SOURCE_OWNERSHIP' 'PASS';Say 'SANDBOX_SOURCE_THEME_BASE' 'MISSING';Say 'SANDBOX_CORRECTION_PREFLIGHT' 'PASS'
 
     $firstPid=$old.Process.ProcessId;Stop-Process -Id $firstPid -Force -ErrorAction Stop
-    $respawned=$null;$until=(Get-Date).AddSeconds(20);do{Start-Sleep -Milliseconds 500;try{$respawned=Get-SandboxChild}catch{$respawned=$null}}while(-not$respawned -and (Get-Date)-lt $until)
+    $respawned=$null;$until=(Get-Date).AddSeconds(20);do{Start-Sleep -Milliseconds 500;try{$respawned=Get-SandboxChild $true}catch{$respawned=$null}}while(-not$respawned -and (Get-Date)-lt $until)
     if(-not$respawned -or [int]$respawned.Process.ProcessId -eq [int]$firstPid -or (Get-Service -Name $ServiceName).Status -ne 'Running'){throw 'SANDBOX_NSSM_RESPAWN_FAILED'}
     Say 'SANDBOX_NSSM_RESPAWN_REPRODUCTION' 'PASS'
 
     Stop-ProductionSupervisor $old.Context;Say 'SANDBOX_SUPERVISOR_STOP' 'PASS';Wait-SandboxListener $false|Out-Null;Say 'SANDBOX_PORT_RELEASE' 'PASS'
     $saved=$old.Configuration;$requiredBackupFields=@('ServiceName','ServiceDisplayName','ServiceStartMode','ServiceBinaryPath','NssmExecutable','Application','AppDirectory','AppParameters','AppStdout','AppStderr','AppRestartDelay','AppThrottle','AppExitDefault','AppStopMethodConsole','AppStopMethodWindow','AppStopMethodThreads','AppStopMethodSkip','AppKillProcessTree','AppStdoutShareMode','AppStderrShareMode','AppRotateFiles','AppRotateOnline','AppRotateSeconds','AppRotateBytes','AppTimestampLog','WindowsServiceFailureActions');foreach($field in $requiredBackupFields){if($null -eq $saved.PSObject.Properties[$field]){throw 'SANDBOX_SUPERVISOR_BACKUP_INCOMPLETE'}};Write-AtomicJson (Join-Path $SandboxPath 'SUPERVISOR_BACKUP.json') (Config-Projection $saved);Say 'SANDBOX_SUPERVISOR_BACKUP' 'PASS'
-    $invalidParameters=$parameters.Replace('--theme.base="dark"','--theme.base=light');Set-SandboxNssm 'AppParameters' $invalidParameters;$invalidConfiguration=Get-ProductionSupervisorConfiguration $old.Context;$invalidRejected=$false;try{$null=Assert-ProductionSupervisorIdentity $old.Context $invalidConfiguration}catch{if($_.Exception.Message -eq 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'){$invalidRejected=$true}};if(-not$invalidRejected){throw 'SANDBOX_INVALID_THEME_NOT_REJECTED'};Say 'SANDBOX_INVALID_THEME_FAIL_CLOSED' 'PASS';Set-SandboxNssm 'AppParameters' $parameters
+    $invalidParameters=$parameters+' --theme.base=light';Set-SandboxNssm 'AppParameters' $invalidParameters;$invalidConfiguration=Get-ProductionSupervisorConfiguration $old.Context;$invalidRejected=$false;try{$null=Assert-ProductionSupervisorOwnershipIdentity $old.Context $invalidConfiguration -AllowLegacyMissingThemeSource}catch{if($_.Exception.Message -eq 'SUPERVISOR_THEME_BASE_DARK_REQUIRED'){$invalidRejected=$true}};if(-not$invalidRejected){throw 'SANDBOX_INVALID_THEME_NOT_REJECTED'};Say 'SANDBOX_INVALID_THEME_FAIL_CLOSED' 'PASS';Set-SandboxNssm 'AppParameters' $targetParameters
     $stale=Join-Path $SandboxPath 'logs\stale_previous_launch.err.log';Set-Content $stale 'Traceback from a previous launch'
     $newLogs=Configure-Logs ('new_activation_'+[guid]::NewGuid().ToString('N'));$newConfig=Get-ProductionSupervisorConfiguration $old.Context
     if($newConfig.AppStdout -ne $newLogs.StdOutLogPath -or $newConfig.AppStderr -ne $newLogs.StdErrLogPath){throw 'SANDBOX_LOG_CONFIGURATION_FAILED'}
@@ -91,8 +94,9 @@ try {
     Stop-ProductionSupervisor $new.Context;Say 'SANDBOX_ROLLBACK_SUPERVISOR_STOP' 'PASS';Wait-SandboxListener $false|Out-Null
     $rollbackLogs=Join-Path $SandboxPath ('logs\rollback_activation_'+[guid]::NewGuid().ToString('N'));$rollbackOut=$rollbackLogs+'.out.log';$rollbackErr=$rollbackLogs+'.err.log'
     Restore-ProductionSupervisorConfiguration $new.Context $saved $rollbackOut $rollbackErr|Out-Null;Say 'SANDBOX_ROLLBACK_CONFIG_RESTORE' 'PASS';Start-Service -Name $ServiceName -ErrorAction Stop
-    $rollback=Get-SandboxChild;$rollbackLaunch=[pscustomobject]@{ProcessId=$rollback.Process.ProcessId;StdOutLogPath=$rollbackOut;StdErrLogPath=$rollbackErr};Assert-SandboxLaunch $rollbackLaunch $app
-    Say 'SANDBOX_ROLLBACK_SERVICE_START' 'PASS';Say 'SANDBOX_ROLLBACK_CHILD_IDENTITY' 'PASS';Say 'SANDBOX_ROLLBACK_HEALTH' 'PASS';Say 'SANDBOX_ROLLBACK_LOG_GATE' 'PASS'
+    $rollback=Get-SandboxChild $true;$rollbackLaunch=[pscustomobject]@{ProcessId=$rollback.Process.ProcessId;StdOutLogPath=$rollbackOut;StdErrLogPath=$rollbackErr};Assert-SandboxLaunch $rollbackLaunch $app -AllowLegacyMissingThemeSource
+    if($rollback.Configuration.SourceThemeBase -ne 'MISSING' -or $rollback.Configuration.SourceThemeContract -ne 'KNOWN_LEGACY_DRIFT'){throw 'SANDBOX_ROLLBACK_LEGACY_THEME_STATE_FAILED'}
+    Say 'SANDBOX_ROLLBACK_SERVICE_START' 'PASS';Say 'SANDBOX_ROLLBACK_CHILD_IDENTITY' 'PASS';Say 'SANDBOX_ROLLBACK_SOURCE_THEME' 'LEGACY_MISSING_RESTORED';Say 'SANDBOX_ROLLBACK_HEALTH' 'PASS';Say 'SANDBOX_ROLLBACK_LOG_GATE' 'PASS'
     Restore-ProductionSupervisorConfiguration $rollback.Context $saved|Out-Null;Assert-ConfigEqual $saved (Get-ProductionSupervisorConfiguration $rollback.Context);Say 'SANDBOX_ROLLBACK_STATE_RESTORED' 'PASS'
 
     Stop-ProductionSupervisor $rollback.Context;Wait-SandboxListener $false|Out-Null
