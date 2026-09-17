@@ -280,7 +280,7 @@ try {{
     $launch=Start-RedirectedProcess $pwsh @('-NoProfile','-File','{child_path}') (Get-Location).Path $out $err;
     for($i=0;$i -lt 30;$i++) {{
         Start-Sleep -Milliseconds 100;
-        if((Read-SharedText $out).Trim().Length -gt 0) {{ break }}
+        if((Read-SharedText $out).Trim().Length -gt 0 -and (Read-SharedText $err).Trim().Length -gt 0) {{ break }}
     }}
     $stdout=Read-SharedText $out;
     $stderr=Read-SharedText $err;
