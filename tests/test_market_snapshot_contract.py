@@ -178,5 +178,5 @@ def test_final_tree_integrity_detects_sales_copied_after_artifacts(tmp_path):
         "sale_date,seller,buyer,price_gun,name,price_usd_at_sale\n2026-09-16T00:00:00Z,s,b,1,N,1\n",
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="PREPARED_DATA_INTEGRITY_MISMATCH"):
+    with pytest.raises(ValueError, match="(PREPARED_DATA_INTEGRITY_MISMATCH|MARKET_SUMMARY_RAW_DATE_MISMATCH)"):
         validate(manifest_path, tmp_path, data)

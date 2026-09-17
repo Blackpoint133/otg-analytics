@@ -19,8 +19,10 @@ def test_supported_periods_load_without_limit():
     for period in ("all", "30d", "7d", "1d"):
         frame = mda.load_complete_top_item_metrics(period)
         assert frame is not None
-        assert len(frame) > 0
         assert frame["item_key"].is_unique
+        # A fresh snapshot may legitimately have no sales in the current day.
+        if period != "1d":
+            assert len(frame) > 0
 
 
 def test_complete_loader_matches_authoritative_source_for_each_period():
