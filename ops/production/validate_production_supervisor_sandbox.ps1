@@ -24,7 +24,7 @@ function Wait-SandboxListener([bool]$Present,[int]$TimeoutSeconds=30) {
     throw $(if($Present){'SANDBOX_LISTENER_START_TIMEOUT'}else{'SANDBOX_LISTENER_RELEASE_TIMEOUT'})
 }
 function Get-SandboxChild([bool]$AllowLegacyMissingThemeSource=$false) {
-    $ctx=[pscustomobject]@{Mode='PRODUCTION';Root=$SandboxPath;RuntimeRoot=(Join-Path $SandboxPath 'runtime');AppPath=(Join-Path $SandboxPath 'app_opensea_sales.py');Port=$Port;SupervisorServiceName=$ServiceName;SupervisorType='NSSM';SupervisorAppDirectory=$SandboxPath;ExpectedReleaseHead='sandbox';ReleasePython=$Python;SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';AllowLegacyMissingThemeSource=$AllowLegacyMissingThemeSource}
+    $ctx=[pscustomobject]@{Mode='PRODUCTION';Root=$SandboxPath;RuntimeRoot=(Join-Path $SandboxPath 'runtime');AppPath=(Join-Path $SandboxPath 'app_opensea_sales.py');Port=$Port;SupervisorServiceName=$ServiceName;SupervisorType='NSSM';SupervisorAppDirectory=$SandboxPath;ExpectedReleaseHead='sandbox';ReleasePython=$Python;DeploymentRefreshPython='';SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';AllowLegacyMissingThemeSource=$AllowLegacyMissingThemeSource;MutationStarted=$false;MutationPhases=(New-Object Collections.ArrayList)}
     $until=(Get-Date).AddSeconds(30);$resolved=$null;$last=$null
     do {try{$resolved=Resolve-ProductionSupervisorChild $ctx -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource;if($resolved.State -eq 'EXPECTED_PROCESS_PRESENT'){break}}catch{$last=$_};Start-Sleep -Milliseconds 500} while((Get-Date)-lt $until)
     if(-not$resolved -or $resolved.State -ne 'EXPECTED_PROCESS_PRESENT'){if($last){throw $last};throw 'SANDBOX_EXPECTED_CHILD_MISSING'}
@@ -62,7 +62,7 @@ try {
     New-Item -ItemType Directory -Path $SandboxPath,(Join-Path $SandboxPath 'logs'),(Join-Path $SandboxPath 'runtime') -Force|Out-Null
     $app=Join-Path $SandboxPath 'app_opensea_sales.py';Set-Content -LiteralPath $app -Value "import streamlit as st`nst.title('NSSM sandbox')`n"
     $Python=(Get-Command python.exe -ErrorAction Stop).Source
-    $service=Get-CimInstance Win32_Service | Where-Object { $_.Name -eq $script:ProductionServiceName } | Select-Object -First 1;if(-not$service){throw 'SANDBOX_SOURCE_SERVICE_MISSING'};$Nssm=Get-SupervisorNssmExecutable $service
+    $service=Get-CimInstance Win32_Service -Filter ("Name='"+$script:ProductionServiceName+"'") | Select-Object -First 1;if(-not$service){throw 'SANDBOX_SOURCE_SERVICE_MISSING'};$Nssm=Get-SupervisorNssmExecutable $service
     Run-Nssm @('install',$ServiceName,$Python);$ServiceCreated=$true
     $targetParameters=(Get-ProductionStreamlitLaunchParameters).Replace('--server.port 8502','--server.port '+$Port);$null=Assert-StreamlitLaunchContract $targetParameters $Port
     $parameters=$targetParameters.Replace(' --theme.base="dark"','');$null=Assert-StreamlitLaunchShape $parameters $Port
@@ -86,7 +86,17 @@ try {
     $stale=Join-Path $SandboxPath 'logs\stale_previous_launch.err.log';Set-Content $stale 'Traceback from a previous launch'
     $newLogs=Configure-Logs ('new_activation_'+[guid]::NewGuid().ToString('N'));$newConfig=Get-ProductionSupervisorConfiguration $old.Context
     if($newConfig.AppStdout -ne $newLogs.StdOutLogPath -or $newConfig.AppStderr -ne $newLogs.StdErrLogPath){throw 'SANDBOX_LOG_CONFIGURATION_FAILED'}
-    Say 'SANDBOX_SUPERVISOR_RECONFIGURE' 'PASS';Start-Service -Name $ServiceName -ErrorAction Stop
+    $old.Context.SupervisorActivationStdOut=$newLogs.StdOutLogPath;$old.Context.SupervisorActivationStdErr=$newLogs.StdErrLogPath;$old.Context.ReleasePython=$Python
+    Say 'SANDBOX_SUPERVISOR_RECONFIGURE' 'PASS';$productionStarts=@(Start-ProductionSupervisor $old.Context);if($productionStarts.Count -ne 1){throw 'PRODUCTION_LIKE_START_PRODUCTION_SUPERVISOR_MULTIPLE_OUTPUT'};$productionLaunch=$productionStarts[0]
+    $new=Get-SandboxChild
+    if($productionLaunch.Id -ne $new.Process.ProcessId -or $productionLaunch.ProcessId -ne $new.Process.ProcessId -or $productionLaunch.StdOutLogPath -ne $new.Configuration.AppStdout -or $productionLaunch.StdErrLogPath -ne $new.Configuration.AppStderr -or -not$productionLaunch.SupervisorConfiguration){throw 'PRODUCTION_LIKE_START_PRODUCTION_SUPERVISOR_CONTRACT_FAILED'}
+    Assert-SandboxLaunch $productionLaunch $app;Say 'PRODUCTION_LIKE_START_PRODUCTION_SUPERVISOR' 'PASS'
+    Stop-ProductionSupervisor $old.Context;Wait-SandboxListener $false|Out-Null
+    $contextLogs=Configure-Logs ('context_activation_'+[guid]::NewGuid().ToString('N'));$old.Context.SupervisorActivationStdOut=$contextLogs.StdOutLogPath;$old.Context.SupervisorActivationStdErr=$contextLogs.StdErrLogPath
+    $contextStarts=@(Start-ContextProcess $old.Context $Python $app);if($contextStarts.Count -ne 1){throw 'PRODUCTION_LIKE_START_CONTEXT_PROCESS_MULTIPLE_OUTPUT'};$contextLaunch=$contextStarts[0]
+    $new=Get-SandboxChild
+    if($contextLaunch.Id -ne $new.Process.ProcessId -or $contextLaunch.ProcessId -ne $new.Process.ProcessId -or $contextLaunch.StdOutLogPath -ne $new.Configuration.AppStdout -or $contextLaunch.StdErrLogPath -ne $new.Configuration.AppStderr -or -not$contextLaunch.SupervisorConfiguration){throw 'PRODUCTION_LIKE_START_CONTEXT_PROCESS_CONTRACT_FAILED'}
+    Assert-SandboxLaunch $contextLaunch $app;Say 'PRODUCTION_LIKE_START_CONTEXT_PROCESS' 'PASS';Say 'PRODUCTION_LIKE_LAUNCH_CONTRACT' 'PASS'
     try{$new=Get-SandboxChild}catch{$cfg=Get-ProductionSupervisorConfiguration $old.Context;$listener=Get-SandboxListener;$debugError='MISSING';if(Test-Path $cfg.AppStderr){$debugError=Get-Content $cfg.AppStderr -Raw};Say 'SANDBOX_DEBUG_NEW_SERVICE_STATE' $cfg.ServiceState;Say 'SANDBOX_DEBUG_NEW_APPLICATION' $cfg.Application;Say 'SANDBOX_DEBUG_NEW_PARAMETERS' $cfg.AppParameters;Say 'SANDBOX_DEBUG_NEW_LISTENER' ($listener|Out-String);Say 'SANDBOX_DEBUG_NEW_STDERR' $debugError;throw};$newLaunch=[pscustomobject]@{ProcessId=$new.Process.ProcessId;StdOutLogPath=$new.Configuration.AppStdout;StdErrLogPath=$new.Configuration.AppStderr};Assert-SandboxLaunch $newLaunch $app
     if(([string]$new.Configuration.AppParameters) -notmatch '(?i)(?:^|\s)--theme\.base(?:\s+|=)(?:"dark"|dark)(?:\s|$)'){throw 'SANDBOX_THEME_CONTRACT_FAILED'};Say 'SANDBOX_SUPERVISOR_START' 'PASS';Say 'SANDBOX_NEW_CHILD_IDENTITY' 'PASS';Say 'SANDBOX_NEW_CHILD_HEALTH' 'PASS';Say 'SANDBOX_CURRENT_LOG_GATE' 'PASS';Say 'SANDBOX_STALE_LOG_IGNORED' 'PASS';Say 'SANDBOX_THEME_CONTRACT' 'PASS'
     $listeners=@(Get-SandboxListener);if($listeners.Count -ne 1){throw 'SANDBOX_DUPLICATE_CHILD'};Say 'SANDBOX_DUPLICATE_CHILD' 'NO'

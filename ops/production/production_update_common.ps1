@@ -192,7 +192,7 @@ function Get-ProductionSupervisorConfiguration([object]$Context) {
     $version='';try{$version=(Invoke-ChildProcess $nssm @('version') $Context.Root 30 @{}).StdOut.Trim()}catch{}
     $config=[pscustomobject]@{
         ServiceName=$name;ServiceDisplayName=[string]$service.DisplayName;ServiceState=[string]$service.State;ServiceWasRunning=([string]$service.State -eq 'Running');ServiceStartMode=[string]$service.StartMode;ServiceBinaryPath=[string]$service.PathName;ServiceProcessId=[int]$service.ProcessId;NssmExecutable=$nssm;NssmVersion=$version;Application=(Get-NssmValue $nssm $name 'Application' $Context.Root);AppDirectory=(Get-NssmValue $nssm $name 'AppDirectory' $Context.Root);AppParameters=(Get-NssmValue $nssm $name 'AppParameters' $Context.Root);AppStdout=(Get-NssmOptionalValue $nssm $name 'AppStdout' $Context.Root);AppStderr=(Get-NssmOptionalValue $nssm $name 'AppStderr' $Context.Root);AppRestartDelay=(Get-NssmOptionalValue $nssm $name 'AppRestartDelay' $Context.Root);AppThrottle=(Get-NssmOptionalValue $nssm $name 'AppThrottle' $Context.Root);AppExitDefault=(Get-NssmExitDefault $nssm $name $Context.Root);AppStopMethodConsole=(Get-NssmOptionalValue $nssm $name 'AppStopMethodConsole' $Context.Root);AppStopMethodWindow=(Get-NssmOptionalValue $nssm $name 'AppStopMethodWindow' $Context.Root);AppStopMethodThreads=(Get-NssmOptionalValue $nssm $name 'AppStopMethodThreads' $Context.Root);AppStopMethodSkip=(Get-NssmOptionalValue $nssm $name 'AppStopMethodSkip' $Context.Root);AppKillProcessTree=(Get-NssmOptionalValue $nssm $name 'AppKillProcessTree' $Context.Root);AppStdoutShareMode=(Get-NssmOptionalValue $nssm $name 'AppStdoutShareMode' $Context.Root);AppStderrShareMode=(Get-NssmOptionalValue $nssm $name 'AppStderrShareMode' $Context.Root);AppRotateFiles=(Get-NssmOptionalValue $nssm $name 'AppRotateFiles' $Context.Root);AppRotateOnline=(Get-NssmOptionalValue $nssm $name 'AppRotateOnline' $Context.Root);AppRotateSeconds=(Get-NssmOptionalValue $nssm $name 'AppRotateSeconds' $Context.Root);AppRotateBytes=(Get-NssmOptionalValue $nssm $name 'AppRotateBytes' $Context.Root);AppTimestampLog=(Get-NssmOptionalValue $nssm $name 'AppTimestampLog' $Context.Root);WindowsServiceFailureActions=$failure}
-    $config|Add-Member NoteProperty ConfigurationFingerprint (Get-SupervisorConfigurationFingerprint $config)
+    $null=$config|Add-Member NoteProperty ConfigurationFingerprint (Get-SupervisorConfigurationFingerprint $config)
     $config
 }
 function Assert-ProductionSupervisorOwnershipIdentity([object]$Context,[object]$Configuration,[switch]$RequireRunning,[switch]$AllowLegacyMissingThemeSource) {
@@ -209,8 +209,8 @@ function Assert-ProductionSupervisorOwnershipIdentity([object]$Context,[object]$
     if($parameters -notmatch '(?i)(?:^|\s)(?:"[^"]*|[^\s])*app_opensea_sales\.py(?:"|\s|$)'){throw 'SUPERVISOR_APP_MISMATCH'}
     if($RequireRunning -and [string]$Configuration.ServiceState -ne 'Running'){throw 'SUPERVISOR_SERVICE_NOT_RUNNING'}
     $theme=Get-StreamlitThemeBaseState $parameters
-    $Configuration | Add-Member NoteProperty SourceThemeBase $theme.State -Force
-    $Configuration | Add-Member NoteProperty SourceThemeContract $(if($theme.State -eq 'MISSING' -and $AllowLegacyMissingThemeSource){'KNOWN_LEGACY_DRIFT'}elseif($theme.State -eq 'DARK'){'PASS'}else{'FAIL'}) -Force
+    $null=$Configuration | Add-Member NoteProperty SourceThemeBase $theme.State -Force
+    $null=$Configuration | Add-Member NoteProperty SourceThemeContract $(if($theme.State -eq 'MISSING' -and $AllowLegacyMissingThemeSource){'KNOWN_LEGACY_DRIFT'}elseif($theme.State -eq 'DARK'){'PASS'}else{'FAIL'}) -Force
     $Configuration
 }
 function Assert-ProductionSupervisorActivationIdentity([object]$Context,[object]$Configuration,[switch]$RequireRunning) {
@@ -243,6 +243,23 @@ function Get-ProductionSupervisor([object]$Context,[switch]$AllowNoListener,[swi
     $child=Resolve-ProductionSupervisorChild $Context -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource
     if($child.State -eq 'NO_LISTENER' -and -not$AllowNoListener){throw 'SUPERVISOR_CHILD_NOT_LISTENING'}
     [pscustomobject]@{Configuration=$configuration;Child=$child}
+}
+function Assert-SupervisorLaunchResult {
+    param([object]$Context,[object]$Launch,[switch]$AllowLegacyMissingThemeSource)
+    if($null -eq $Launch -or $Launch -is [array] -or $Launch -is [string]){throw 'SUPERVISOR_LAUNCH_RESULT_INVALID'}
+    foreach($field in @('Id','ProcessId','Process','StdOutLogPath','StdErrLogPath','StartedAt','SupervisorConfiguration')){if($null -eq $Launch.PSObject.Properties[$field]){throw ('SUPERVISOR_LAUNCH_RESULT_MISSING_'+$field.ToUpperInvariant())}}
+    $id=0;$processId=0;try{$id=[int]$Launch.Id;$processId=[int]$Launch.ProcessId}catch{throw 'SUPERVISOR_LAUNCH_RESULT_PID_INVALID'}
+    if($id -le 0 -or $processId -le 0 -or $id -ne $processId){throw 'SUPERVISOR_LAUNCH_RESULT_PID_INVALID'}
+    if([string]::IsNullOrWhiteSpace([string]$Launch.StdOutLogPath) -or [string]::IsNullOrWhiteSpace([string]$Launch.StdErrLogPath)){throw 'SUPERVISOR_LAUNCH_RESULT_LOG_PATH_INVALID'}
+    $configuration=$Launch.SupervisorConfiguration
+    if($null -eq $configuration -or $configuration -is [string] -or $null -eq $configuration.PSObject.Properties['ServiceName'] -or [string]::IsNullOrWhiteSpace([string]$configuration.ServiceName)){throw 'SUPERVISOR_LAUNCH_RESULT_CONFIGURATION_INVALID'}
+    if($Context.Mode -eq 'PRODUCTION'){
+        if($AllowLegacyMissingThemeSource){$null=Assert-ProductionSupervisorOwnershipIdentity $Context $configuration -RequireRunning -AllowLegacyMissingThemeSource}else{$null=Assert-ProductionSupervisorActivationIdentity $Context $configuration -RequireRunning}
+        $resolvedItems=@(Resolve-ProductionSupervisorChild $Context -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource);if($resolvedItems.Count -ne 1 -or $resolvedItems[0].State -ne 'EXPECTED_PROCESS_PRESENT'){throw 'SUPERVISOR_LAUNCH_RESULT_CHILD_INVALID'};$resolved=$resolvedItems[0]
+        if([int]$resolved.ProcessId -ne $id -or -not$resolved.Process){throw 'SUPERVISOR_LAUNCH_RESULT_CHILD_INVALID'}
+        if([IO.Path]::GetFullPath([string]$configuration.AppStdout) -ne [IO.Path]::GetFullPath([string]$Launch.StdOutLogPath) -or [IO.Path]::GetFullPath([string]$configuration.AppStderr) -ne [IO.Path]::GetFullPath([string]$Launch.StdErrLogPath)){throw 'SUPERVISOR_LAUNCH_RESULT_LOG_PATH_MISMATCH'}
+    }
+    $Launch
 }
 function Wait-ProductionSupervisorStopped([object]$Context,[int]$TimeoutSeconds=60) {
     $until=(Get-Date).AddSeconds($TimeoutSeconds);do{$service=Get-CimInstance Win32_Service -Filter ("Name='"+(Get-SupervisorServiceName $Context)+"'");if($service -and [string]$service.State -eq 'Stopped'){return $true};Start-Sleep -Milliseconds 500}while((Get-Date)-lt $until);throw 'SUPERVISOR_DID_NOT_STOP'
@@ -279,7 +296,7 @@ function Set-ProductionSupervisorReleaseConfiguration([object]$Context) {
     $parameters=Get-ProductionStreamlitLaunchParameters
     $null=Assert-StreamlitLaunchContract $parameters $script:ExpectedPort
     Set-NssmValue $Context $name 'Application' $Context.ReleasePython;Set-NssmValue $Context $name 'AppDirectory' $appDirectory;Set-NssmValue $Context $name 'AppParameters' $parameters;Set-NssmValue $Context $name 'AppStdout' $stdout;Set-NssmValue $Context $name 'AppStderr' $stderr
-    $Context.SupervisorActivationStdOut=$stdout;$Context.SupervisorActivationStdErr=$stderr;$Context.SupervisorNssmExecutable=(Get-ProductionSupervisorConfiguration $Context).NssmExecutable;$configuration=Get-ProductionSupervisorConfiguration $Context;Assert-ProductionSupervisorActivationIdentity $Context $configuration;Write-KV 'STREAMLIT_THEME_BASE' 'dark';Write-KV 'STREAMLIT_THEME_CONTRACT' 'PASS'
+    $Context.SupervisorActivationStdOut=$stdout;$Context.SupervisorActivationStdErr=$stderr;$Context.SupervisorNssmExecutable=(Get-ProductionSupervisorConfiguration $Context).NssmExecutable;$configuration=Get-ProductionSupervisorConfiguration $Context;$null=Assert-ProductionSupervisorActivationIdentity $Context $configuration;Write-KV 'STREAMLIT_THEME_BASE' 'dark';Write-KV 'STREAMLIT_THEME_CONTRACT' 'PASS'
     if([IO.Path]::GetFullPath($configuration.Application) -ne [IO.Path]::GetFullPath($Context.ReleasePython)){throw 'SUPERVISOR_RELEASE_PYTHON_MISMATCH'}
     $Context.SupervisorConfiguration=$configuration;$configuration
 }
@@ -294,16 +311,21 @@ function Restore-ProductionSupervisorConfiguration([object]$Context,[object]$Bac
     $Context.SupervisorConfiguration=Get-ProductionSupervisorConfiguration $Context;$Context.SupervisorConfiguration
 }
 function Start-ProductionSupervisor([object]$Context,[switch]$AllowLegacyMissingThemeSource) {
-    $configuration=if($AllowLegacyMissingThemeSource){Assert-ProductionSupervisorOwnershipIdentity $Context (Get-ProductionSupervisorConfiguration $Context) -AllowLegacyMissingThemeSource}else{Assert-ProductionSupervisorActivationIdentity $Context (Get-ProductionSupervisorConfiguration $Context)}
+    $configurationItems=@(Get-ProductionSupervisorConfiguration $Context)
+    if($configurationItems.Count -ne 1){throw 'SUPERVISOR_CONFIGURATION_RESULT_INVALID'}
+    $configuration=$configurationItems[0]
+    if($AllowLegacyMissingThemeSource){$null=Assert-ProductionSupervisorOwnershipIdentity $Context $configuration -AllowLegacyMissingThemeSource}else{$null=Assert-ProductionSupervisorActivationIdentity $Context $configuration}
     if([IO.Path]::GetFullPath($configuration.Application) -ne [IO.Path]::GetFullPath($Context.ReleasePython)){throw 'SUPERVISOR_START_PYTHON_MISMATCH'}
     $started=$false
     try {
-        Start-Service -Name (Get-SupervisorServiceName $Context) -ErrorAction Stop;$started=$true
-        $until=(Get-Date).AddSeconds(60);$child=$null;do{try{$child=Resolve-ProductionSupervisorChild $Context -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource}catch{$child=$null};if($child -and $child.State -eq 'EXPECTED_PROCESS_PRESENT'){break};Start-Sleep -Milliseconds 500}while((Get-Date)-lt $until)
+        $null=Start-Service -Name (Get-SupervisorServiceName $Context) -ErrorAction Stop;$started=$true
+        $until=(Get-Date).AddSeconds(60);$child=$null;do{try{$childItems=@(Resolve-ProductionSupervisorChild $Context -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource);if($childItems.Count -eq 1){$child=$childItems[0]}else{$child=$null}}catch{$child=$null};if($child -and $child.State -eq 'EXPECTED_PROCESS_PRESENT'){break};Start-Sleep -Milliseconds 500}while((Get-Date)-lt $until)
         if(-not$child -or $child.State -ne 'EXPECTED_PROCESS_PRESENT'){throw 'SUPERVISOR_CHILD_START_FAILED'}
-        [pscustomobject]@{ProcessId=$child.ProcessId;Id=$child.ProcessId;Process=$child.Process;StdOutLogPath=$Context.SupervisorActivationStdOut;StdErrLogPath=$Context.SupervisorActivationStdErr;StartedAt=(Get-Date).ToUniversalTime().ToString('o');SupervisorConfiguration=$child.Configuration}
+        $launch=[pscustomobject]@{ProcessId=$child.ProcessId;Id=$child.ProcessId;Process=$child.Process;StdOutLogPath=$Context.SupervisorActivationStdOut;StdErrLogPath=$Context.SupervisorActivationStdErr;StartedAt=(Get-Date).ToUniversalTime().ToString('o');SupervisorConfiguration=$child.Configuration}
+        $null=Assert-SupervisorLaunchResult $Context $launch -AllowLegacyMissingThemeSource:$AllowLegacyMissingThemeSource
+        $launch
     } catch {
-        if($started){try{Stop-Service -Name (Get-SupervisorServiceName $Context) -Force -ErrorAction SilentlyContinue}catch{}}
+        if($started){try{$null=Stop-Service -Name (Get-SupervisorServiceName $Context) -Force -ErrorAction SilentlyContinue}catch{}}
         throw
     }
 }
@@ -657,19 +679,23 @@ function Start-ContextProcess([object]$Context,[string]$Python,[string]$App,[swi
     $logRoot=Join-Path $Context.RuntimeRoot 'logs'
     $stdoutLog=Join-Path $logRoot ('production_'+$launchId+'.out.log')
     $stderrLog=Join-Path $logRoot ('production_'+$launchId+'.err.log')
-    if($Context.Mode -eq 'SIMULATION'){
-        $state=Get-ContextState $Context
-        $state.process=if($Old){'old-healthy'}elseif($state.fail_new_health){'new-failed'}else{'new-healthy'}
-        Save-ContextState $Context $state
-        Write-AtomicText $stdoutLog ('sandbox process '+$state.process)
-        Write-AtomicText $stderrLog ''
-        return [pscustomobject]@{Pid=$Context.Port;Id=$Context.Port;Process=$null;StdOutLogPath=$stdoutLog;StdErrLogPath=$stderrLog;StartedAt=(Get-Date).ToUniversalTime().ToString('o');SupervisorConfiguration=$null}
-    }
+      if($Context.Mode -eq 'SIMULATION'){
+          $state=Get-ContextState $Context
+          $state.process=if($Old){'old-healthy'}elseif($state.fail_new_health){'new-failed'}else{'new-healthy'}
+          Save-ContextState $Context $state
+          Write-AtomicText $stdoutLog ('sandbox process '+$state.process)
+          Write-AtomicText $stderrLog ''
+          $simulationConfiguration=[pscustomobject]@{ServiceName=$Context.SupervisorServiceName;ServiceState='Running';Application=$Python;AppDirectory=(Split-Path -Parent $App);AppParameters=(Get-ProductionStreamlitLaunchParameters).Replace('--server.port 8502','--server.port '+$Context.Port);AppStdout=$stdoutLog;AppStderr=$stderrLog;ConfigurationFingerprint='simulation'}
+          $launch=[pscustomobject]@{Id=$Context.Port;ProcessId=$Context.Port;Process=$null;StdOutLogPath=$stdoutLog;StdErrLogPath=$stderrLog;StartedAt=(Get-Date).ToUniversalTime().ToString('o');SupervisorConfiguration=$simulationConfiguration}
+          $null=Assert-SupervisorLaunchResult $Context $launch
+          return $launch
+      }
     if(-not(Test-Path $Python -PathType Leaf)){throw 'RUNTIME_PYTHON_MISSING'}
-    if($Context.Mode -eq 'PRODUCTION') {
-        $Context.ReleasePython=$Python
-        $launch=Start-ProductionSupervisor $Context -AllowLegacyMissingThemeSource:$Old
-        return $launch
+      if($Context.Mode -eq 'PRODUCTION') {
+          $Context.ReleasePython=$Python
+          $launch=Start-ProductionSupervisor $Context -AllowLegacyMissingThemeSource:$Old
+          $null=Assert-SupervisorLaunchResult $Context $launch -AllowLegacyMissingThemeSource:$Old
+          return $launch
     }
     throw 'DIRECT_PROCESS_LIFECYCLE_FORBIDDEN'
 }
@@ -718,7 +744,7 @@ function Invoke-DeployCore {
         Set-Phase $Context 'DEPLOY_RUNTIME_READERS';Invoke-Readers $Context
         Set-Phase $Context 'DEPLOY_SUPERVISOR_CONFIG';Add-Mutation $Context 'DEPLOY_SUPERVISOR_CONFIG'
         if($Context.Mode -eq 'PRODUCTION'){$null=Set-ProductionSupervisorReleaseConfiguration $Context}
-        Set-Phase $Context 'DEPLOY_START';$new=Start-ContextProcess $Context $Context.ReleasePython $Context.AppPath
+        Set-Phase $Context 'DEPLOY_START';$new=Start-ContextProcess $Context $Context.ReleasePython $Context.AppPath;$null=Assert-SupervisorLaunchResult $Context $new
         Set-Phase $Context 'DEPLOY_HEALTH'
         $healthy=if($Context.Mode -eq 'SIMULATION'){(Get-ContextState $Context).process -eq 'new-healthy'}else{Invoke-HealthCheck 8502 60}
         if(-not$healthy){throw 'NEW_PRODUCTION_HEALTH_FAILED'}
