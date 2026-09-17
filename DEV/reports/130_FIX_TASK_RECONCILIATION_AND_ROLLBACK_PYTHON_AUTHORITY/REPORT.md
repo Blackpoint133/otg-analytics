@@ -1,0 +1,108 @@
+REPORT_SEQUENCE=130
+RESULT=PASS_TECHNICALLY_PREPARED_AWAITING_FINAL_THEME_CORRECTION_CUTOVER
+
+REPORT_127_AUDIT=TASK_COLLISION_OTG_Derived_Data_Refresh_Production; rollback reported SUPERVISOR_START_PYTHON_MISMATCH after production mutation; production remained on 05d9e99b6e22be7a64155dc136019a55ec1f5ad4
+REPORT_129_RECOVERY_AUDIT=PASS_PRODUCTION_SERVICE_RECOVERED; legacy service running and healthy; no application/tooling/DB/task/Caddy mutation from Report 129
+
+TASK_COLLISION_ROOT_CAUSE=Existing owned production refresh tasks contained the prior release -ReleasePython path, and the old collision rule treated that expected release-specific difference as foreign-task collision.
+TASK_OWNERSHIP_MODEL=Exact managed task name plus PowerShell executable, canonical production script, approval phrase, production working directory, one action/trigger, SYSTEM principal, Highest run level, enabled state, expected interval, IgnoreNew, StartWhenAvailable, and release-path shape.
+TASK_RECONCILIATION_MODEL=When the ownership predicate passes, reconcile the owned task to the canonical current-release definition and read it back; ownership failures remain TASK_COLLISION fail-closed.
+
+CURRENT_DERIVED_TASK_OWNERSHIP=PASS_OWNED_MANAGED_TASK
+CURRENT_METADATA_TASK_OWNERSHIP=PASS_OWNED_MANAGED_TASK
+CURRENT_DERIVED_TASK_DIFF=arguments_only; current ReleasePython=05d9e99b6e22be7a64155dc136019a55ec1f5ad4 runtime; desired ReleasePython=d526e46faab34f34121338af0891982373ea7de7 runtime
+CURRENT_METADATA_TASK_DIFF=arguments_only; current ReleasePython=05d9e99b6e22be7a64155dc136019a55ec1f5ad4 runtime; desired ReleasePython=d526e46faab34f34121338af0891982373ea7de7 runtime
+
+OLD_RELEASE_TASK_RECONCILIATION_TEST=PASS
+FOREIGN_TASK_COLLISION_TEST=PASS
+TASK_POSTWRITE_READBACK_TEST=PASS
+
+ROLLBACK_PYTHON_ROOT_CAUSE=Rollback selected the Windows-reported supervised child ExecutablePath, which was the base system Python rather than the historical NSSM launcher configured for the old release.
+OLD_ROLLBACK_PYTHON_SOURCE=manifest.old_process_executable; audit evidence only
+NEW_ROLLBACK_PYTHON_AUTHORITY=manifest.supervisor.application
+
+BACKUP_SUPERVISOR_APPLICATION=C:\VAMBAM\Projects\OTG\runtime\opensea_sales\releases\05d9e99b6e22be7a64155dc136019a55ec1f5ad4\.venv\Scripts\python.exe
+BACKUP_OLD_PROCESS_EXECUTABLE=C:\Users\Administrator\AppData\Local\Programs\Python\Python311\python.exe
+ROLLBACK_PYTHON_DIFFERENCE_CONFIRMED=YES; DETECTED_BUT_NONAUTHORITATIVE
+ROLLBACK_LOG_OVERRIDE_POLICY=AppStdout/AppStderr may use fresh guarded rollback-specific paths; all immutable historical supervisor fields remain backup-equivalent.
+
+ROLLBACK_SUPERVISOR_APPLICATION_TEST=PASS
+ROLLBACK_MISMATCH_TEST=PASS; mismatch audited and not selected as authority
+ROLLBACK_HEALTH_TEST=PASS
+
+SANDBOX_FORWARD_TASK_RECONCILIATION=PASS
+SANDBOX_FORCED_FAILURE=PASS_EXPECTED
+SANDBOX_AUTO_ROLLBACK=PASS
+SANDBOX_STATE_RESTORED=YES
+SANDBOX_CLEANUP=PASS; no service, process, listener, or orphan remained
+
+TARGETED_TESTS=58 passed in final focused production-tooling suite; includes managed-task, rollback-authority, legacy-source, supervisor, process-identity, execution-contract, refresh, preflight, PostgreSQL-discovery, and regression coverage
+FULL_TESTS=661 passed, 7 warnings, 5 subtests passed in prepared_release_130 runtime
+COMPILE_GATE=PASS
+PYTHON_COMPILE_GATE=PASS
+PIP_CHECK_GATE=PASS; No broken requirements found
+POWERSHELL_PARSE_GATE=PASS; production_update_common.ps1 parser exit 0
+DIFF_GATE=PASS; implementation commit contains only the six scoped tooling/test/doc files
+
+REAL_READ_ONLY_PREFLIGHT=PASS
+REAL_PRODUCTION_HEAD=05d9e99b6e22be7a64155dc136019a55ec1f5ad4
+REAL_PRODUCTION_SERVICE=OTG_app_opensea_sales
+REAL_PRODUCTION_SUPERVISOR_PID=318964
+REAL_PRODUCTION_PID=117712
+REAL_PRODUCTION_WORKTREE=CLEAN
+REAL_SOURCE_THEME=MISSING
+REAL_SOURCE_THEME_CONTRACT=KNOWN_LEGACY_DRIFT
+REAL_MANAGED_DERIVED_TASK=OWNED_MANAGED_TASK; arguments differ only by expected old ReleasePython
+REAL_MANAGED_METADATA_TASK=OWNED_MANAGED_TASK; arguments differ only by expected old ReleasePython
+REAL_PUBLIC_ROUTE=https://otgos.run.place/analytics
+REAL_PUBLIC_ROUTE_GATE=PASS; HTTP 200
+REAL_DB_READ_ONLY_GATE=PASS; transaction_read_only=on
+REAL_DB_SCHEMA_GATE=PASS; stable identity, trader mode, site_product_events, and user_feedback present
+REAL_ACTIVE_RUNTIME=YES; restored 05d9 state, health PASS
+REAL_TELEMETRY_LEFTOVER=NO
+REAL_CADDY_GATE=PASS; unchanged hash and valid configuration
+REAL_8501_PID=114920
+REAL_8504_PID=123544
+REAL_DRY_RUN_GATE=PASS
+REAL_PRODUCTION_MUTATION_COUNT=0
+
+APP_CODE_CHANGED=NO
+CSS_CHANGED=NO
+SQL_CHANGED=NO
+REQUIREMENTS_CHANGED=NO
+TOOLING_CODE_CHANGED=YES
+
+IMPLEMENTATION_COMMIT_SHA=d526e46faab34f34121338af0891982373ea7de7
+
+PREPARED_RELEASE_126_INVALIDATED=YES
+
+NEW_PREPARED_RELEASE_HEAD=d526e46faab34f34121338af0891982373ea7de7
+NEW_PREPARED_RELEASE_PATH=C:\VAMBAM\Projects\OTG\DEV\prepared_release_130
+NEW_PREPARED_RELEASE_MANIFEST=C:\VAMBAM\Projects\OTG\DEV\prepared_release_130\PREPARED_RELEASE_MANIFEST.json
+NEW_PREPARED_RELEASE_MANIFEST_SHA256=395dd874ae98a3c26e72b00e5394cf054673a6d90142d97e072a9f6649c8862c
+NEW_PREPARED_RELEASE_MANIFEST_GATE=PASS
+NEW_PREPARED_RELEASE_RUNTIME_GATE=PASS; Python 3.11.0, 45 locked packages, pip check/import gate PASS
+NEW_PREPARED_RELEASE_THEME_CONTRACT_GATE=PASS; streamlit_theme_base=dark
+NEW_PREPARED_RELEASE_FULL_TESTS=661 passed, 7 warnings, 5 subtests passed
+NEW_PREPARED_RELEASE_CANARY=PASS
+NEW_PREPARED_RELEASE_APPLICATION_READERS=PASS
+NEW_PREPARED_RELEASE_DYNAMIC_ARTIFACTS=PASS; supply source v3, serving schema 3, no secret artifact leak
+NEW_PREPARED_RELEASE_BACKUP_CONTRACT_GATE=PASS
+NEW_PREPARED_RELEASE_TASK_RECONCILIATION_GATE=PASS
+NEW_PREPARED_RELEASE_ROLLBACK_PYTHON_GATE=PASS; supervisor.application authority
+
+REMOTE_MAIN_TO_NEW_RELEASE_FAST_FORWARD_POSSIBLE=YES
+LIVE_PRODUCTION_TO_NEW_RELEASE_ANCESTRY_GATE=PASS
+
+MAIN_PROMOTION_EXECUTED=NO
+PRODUCTION_BACKUP_EXECUTED=NO
+PRODUCTION_DEPLOYMENT_EXECUTED=NO
+PRODUCTION_MUTATION_COUNT=0
+REPORT_130_CAUSED_PRODUCTION_WRITE=NO
+
+DEVELOP_HEAD_BEFORE=a95e14971c721f370c794a14122acf6bec721872
+DEVELOP_HEAD_AFTER_IMPLEMENTATION=d526e46faab34f34121338af0891982373ea7de7
+ORIGIN_DEVELOP_SYNC=NOT_COMPLETED; normal push encountered Schannel SEC_E_NO_CREDENTIALS and external-publication safety review rejected an unsandboxed retry; no workaround used
+
+TECHNICAL_UPDATE_PREPARATION=PASS_TECHNICALLY_PREPARED_AWAITING_FINAL_THEME_CORRECTION_CUTOVER
+FINAL_PRODUCTION_DEPLOYMENT_AUTHORIZED=NO
