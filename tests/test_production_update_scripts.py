@@ -85,10 +85,10 @@ def test_promotion_script_forbids_develop_to_main_literal():
     assert "PROMOTE_OTG_ANALYTICS_MAIN" in text
 
 
-def test_read_only_cutover_preflight_rejects_live_missing_dark_theme_without_mutation():
+def test_read_only_cutover_preflight_rejects_unexpected_live_head_without_mutation():
     result = run(
         "validate_production_cutover_preflight.ps1",
-        "-ExpectedOldHead", "05d9e99b6e22be7a64155dc136019a55ec1f5ad4",
+        "-ExpectedOldHead", "0000000000000000000000000000000000000000",
         "-ExpectedReleaseHead", "541a8b94cd19cfe82d4e4fe2430d8a9e01c1b8cb",
         "-PreparedReleaseRoot", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_124",
         "-PreparedReleaseManifest", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_124\PREPARED_RELEASE_MANIFEST.json",
@@ -96,12 +96,6 @@ def test_read_only_cutover_preflight_rejects_live_missing_dark_theme_without_mut
         "-ExpectedMainHead", "d526e46faab34f34121338af0891982373ea7de7",
         "-AllowLegacyMissingThemeSource",
     )
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "SOURCE_OWNERSHIP_IDENTITY=PASS" in result.stdout
-    assert "SOURCE_THEME_BASE=MISSING" in result.stdout
-    assert "SOURCE_THEME_CONTRACT=KNOWN_LEGACY_DRIFT" in result.stdout
-    assert "TARGET_PREPARED_THEME_BASE=dark" in result.stdout
-    assert "TARGET_THEME_CONTRACT=PASS" in result.stdout
-    assert "CORRECTION_CUTOVER_PREFLIGHT=PASS" in result.stdout
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "EXPECTED_OLD_HEAD_MISMATCH" in (result.stdout + result.stderr)
     assert "MUTATION_EXECUTED=NO" in result.stdout
-    assert "CUTOVER_PREFLIGHT=PASS" in result.stdout

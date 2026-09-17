@@ -86,14 +86,17 @@ def test_real_nssm_sandbox_proves_service_ownership_respawn_cutover_and_rollback
 
 
 def test_production_supervisor_source_policy_accepts_legacy_but_activation_remains_strict():
+    root = Path(os.environ.get("TEMP", str(ROOT / ".test-temp"))) / "otg-supervisor-source-policy"
     script = f"""
 . {ps(str(COMMON))}
-$ctx=New-ProductionExecutionContext @{{ExpectedOldHead='30e49a2090712e3e6233c4bbb324d6f70a7751eb';ExpectedReleaseHead='30e49a2090712e3e6233c4bbb324d6f70a7751eb';PreparedReleaseRoot='';PreparedReleaseManifest='';PreparedReleaseManifestSha256='';BackupManifest='';BackupRoot=''}}
-try {{ $source=Get-ProductionSupervisor $ctx -AllowLegacyMissingThemeSource; 'SOURCE='+$source.Configuration.SourceThemeBase+'/'+$source.Configuration.SourceThemeContract }} catch {{ 'SOURCE_REJECTED='+$_.Exception.Message }}
-try {{ $null=Get-ProductionSupervisor $ctx; 'UNEXPECTED_STRICT_PASS' }} catch {{ 'STRICT_REJECTED='+$_.Exception.Message }}
+$root={ps(str(root))};$app=Join-Path $root 'streamlit_opensea_sales/app_opensea_sales.py';$python=Join-Path $root '.venv/Scripts/python.exe';New-Item -ItemType Directory -Path (Split-Path $app), (Split-Path $python) -Force|Out-Null;New-Item -ItemType File -Path $app,$python -Force|Out-Null
+$ctx=[pscustomobject]@{{SupervisorServiceName='SANDBOX_NSSM';SupervisorAppDirectory=(Split-Path $app);Port=18520}}
+$config=[pscustomobject]@{{ServiceName='SANDBOX_NSSM';NssmExecutable='C:/sandbox/nssm.exe';AppDirectory=(Split-Path $app);Application=$python;AppParameters='-m streamlit run app_opensea_sales.py --server.address 127.0.0.1 --server.port 18520 --server.fileWatcherType none --server.headless true --browser.gatherUsageStats false';ServiceState='Running'}}
+try {{ $source=Assert-ProductionSupervisorOwnershipIdentity $ctx $config -RequireRunning -AllowLegacyMissingThemeSource; 'SOURCE='+$source.SourceThemeBase+'/'+$source.SourceThemeContract; try {{ $null=Assert-ProductionSupervisorActivationIdentity $ctx $config -RequireRunning; 'UNEXPECTED_STRICT_PASS' }} catch {{ 'STRICT_REJECTED='+$_.Exception.Message }} }} catch {{ 'SOURCE_REJECTED='+$_.Exception.Message }}
 """
     result = run_ps(script)
     assert result.returncode == 0, result.stdout + result.stderr
+    assert "SOURCE_REJECTED=" not in result.stdout
     assert "SOURCE=MISSING/KNOWN_LEGACY_DRIFT" in result.stdout
     assert "STRICT_REJECTED=SUPERVISOR_THEME_BASE_DARK_REQUIRED" in result.stdout
     assert "UNEXPECTED_STRICT_PASS" not in result.stdout
