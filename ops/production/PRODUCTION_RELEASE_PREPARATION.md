@@ -84,6 +84,26 @@ gate. After the correction deployment makes production dark, ordinary future
 cutovers use the strict source predicate again; missing theme is not a
 permanent production allowance.
 
+## Managed refresh task reconciliation
+
+`OTG_Derived_Data_Refresh_Production` and
+`OTG_Metadata_Refresh_Production` are deployment-owned tasks. Their ownership
+predicate checks the exact task name, PowerShell action, production working
+directory, expected refresh script and approval phrase, one unchained action,
+SYSTEM/Highest execution, `IgnoreNew`, `StartWhenAvailable`, enabled state,
+and the canonical 15/60-minute repetition. An owned task may therefore be
+reconciled in place when only the release-specific `-ReleasePython` changes;
+the task is read back and the complete desired definition is checked after the
+write. A same-name task that fails any ownership check remains a hard
+`TASK_COLLISION` and is never deleted or overwritten.
+
+Rollback restores task XML/state from the cutover backup. For an NSSM
+supervised service, the historical rollback Python is the backed-up
+`supervisor.application`. The Windows-reported child executable remains
+audit-only evidence and is never used as the NSSM restore launcher authority.
+Fresh rollback stdout/stderr paths are explicit activation overrides; all
+other supervisor configuration is restored exactly.
+
 ## Mandatory Streamlit launch contract
 
 `Get-ProductionStreamlitLaunchParameters` is the single source of truth for a

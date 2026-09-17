@@ -6,6 +6,7 @@ $Sandbox='C:\VAMBAM\Projects\OTG\DEV\production_tooling_sandbox_110'
 $Prefix='C:\VAMBAM\Projects\OTG\DEV\production_tooling_sandbox_110'
 $Port=18502
 $Ops=$PSScriptRoot
+. (Join-Path $Ops 'production_update_common.ps1')
 
 function Write-State([object]$Value) {
     $Value | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath (Join-Path $Sandbox 'simulation_state.json')
@@ -69,7 +70,11 @@ $git=Get-Command git.exe -ErrorAction Stop
 & $git.Source -c ('safe.directory='+$prod) -C $prod commit -qm sandbox-old
 if($LASTEXITCODE -ne 0){throw 'SANDBOX_GIT_FIXTURE_FAILED'}
 $statePath=Join-Path $Sandbox 'simulation_state.json'
-Write-State ([ordered]@{current_head='old';main_head='old';process='old-healthy';tasks=@{};canary='';canary_fail=$false;reader_fail=$false;fail_new_health=$false;foreign_listener=$false})
+$taskContext=New-SimulationExecutionContext @{SimulationRoot=$Sandbox;SimulationPort=$Port;ExpectedOldHead='old';ExpectedReleaseHead='release';ReleasePython='';PreparedReleaseManifest='';PreparedReleaseManifestSha256='';BackupManifest='';BackupRoot=(Join-Path $Sandbox 'backups')}
+$oldTasks=[ordered]@{}
+foreach($name in $script:ManagedTasks){$desired=Get-DesiredTaskDefinition $taskContext $name;$oldPath=Join-Path $Sandbox 'runtime\releases\old\.venv\Scripts\python.exe';$old=[pscustomobject]$desired;$old.arguments=$desired.arguments.Replace($taskContext.ReleasePython,$oldPath);$oldTasks[$name]=$old}
+Write-State ([ordered]@{current_head='old';main_head='old';process='old-healthy';tasks=$oldTasks;canary='';canary_fail=$false;reader_fail=$false;fail_new_health=$false;foreign_listener=$false})
+$oldTaskStateJson=$oldTasks|ConvertTo-Json -Compress -Depth 20
 foreach($i in 0..5){if($i -ne 4){$artifact=(Get-ArtifactState $data)[$i];New-Item -ItemType Directory -Force -Path (Split-Path $artifact.Path) | Out-Null;Set-Content -LiteralPath $artifact.Path -Value ('old-'+$i)}}
 $oldArtifactState=Get-ArtifactState $data
 $oldEnvHash=(Get-FileHash -LiteralPath (Join-Path $prod '.env') -Algorithm SHA256).Hash
@@ -118,6 +123,7 @@ if($newState.current_head -ne 'release' -or $newState.process -ne 'new-healthy')
 $active=Get-Content -LiteralPath (Join-Path $Sandbox 'runtime\ACTIVE_RUNTIME.json') -Raw|ConvertFrom-Json
 if($active.release_head -ne 'release' -or $active.health -ne 'PASS'){throw 'SANDBOX_ACTIVE_RUNTIME_INVALID'}
 if($newState.tasks.OTG_Derived_Data_Refresh_Production.arguments -notmatch [regex]::Escape((Join-Path $Sandbox 'runtime\releases\release\.venv\Scripts\python.exe'))){throw 'SANDBOX_TASK_RUNTIME_MISMATCH'}
+'SANDBOX_FORWARD_TASK_RECONCILIATION=PASS'
 'SANDBOX_DERIVED_REFRESH_EXECUTION_TEST=PASS'
 'SANDBOX_METADATA_REFRESH_EXECUTION_TEST=PASS'
     'SANDBOX_DEPLOY_START_LOG_CONTRACT=PASS'
@@ -141,7 +147,7 @@ if($restored.current_head -ne 'old' -or $restored.process -ne 'old-healthy'){thr
 if((Get-FileHash -LiteralPath (Join-Path $prod '.env') -Algorithm SHA256).Hash -ne $oldEnvHash){throw 'SANDBOX_OLD_ENV_HASH_FAILED'}
 if(Test-Path -LiteralPath $oldActive){throw 'SANDBOX_ACTIVE_RUNTIME_ABSENCE_NOT_RESTORED'}
 Assert-ArtifactState $oldArtifactState
-if(@((Read-State).tasks.PSObject.Properties).Count -ne 0){throw 'SANDBOX_OLD_TASK_STATE_FAILED'}
+if(($restored.tasks|ConvertTo-Json -Compress -Depth 20) -ne $oldTaskStateJson){throw 'SANDBOX_OLD_TASK_STATE_FAILED'}
 'SANDBOX_ROLLBACK_EXECUTION=PASS'
 'SANDBOX_STATE_RESTORED=PASS'
 'SANDBOX_ROLLBACK_START_LOG_CONTRACT=PASS'

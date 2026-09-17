@@ -270,6 +270,7 @@ def _run_real_log_lock_probe(tmp_path: Path, fatal: bool = False, stale: bool = 
     child_path = str(child_script).replace("'", "''")
     script = f"""
 . '{common}';
+[Environment]::SetEnvironmentVariable('PATH',$null,'Process');
 $out=Join-Path '{temp}' 'current.out.log';
 $err=Join-Path '{temp}' 'current.err.log';
 $stale=Join-Path '{temp}' 'older-launch.out.log';

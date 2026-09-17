@@ -93,7 +93,7 @@ def test_read_only_cutover_preflight_rejects_live_missing_dark_theme_without_mut
         "-PreparedReleaseRoot", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_124",
         "-PreparedReleaseManifest", r"C:\VAMBAM\Projects\OTG\DEV\prepared_release_124\PREPARED_RELEASE_MANIFEST.json",
         "-PreparedReleaseManifestSha256", "b8bcc997887ad542aff879fecae62f9449612477b91e1abef48050f42bbe3309",
-        "-ExpectedMainHead", "05d9e99b6e22be7a64155dc136019a55ec1f5ad4",
+        "-ExpectedMainHead", "19503f2e512dfba1f196f0540bd0969cd3af915e",
         "-AllowLegacyMissingThemeSource",
     )
     assert result.returncode == 0, result.stdout + result.stderr
