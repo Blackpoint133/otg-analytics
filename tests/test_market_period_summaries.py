@@ -26,7 +26,7 @@ def _sales():
 
 
 def _daily():
-    return pd.DataFrame({"date": pd.to_datetime(["2026-01-01", "2026-01-15"])})
+    return pd.DataFrame({"date": pd.to_datetime(["2026-01-01"])})
 
 
 def test_period_bounds_and_payload_match_frontend_semantics():

@@ -12,6 +12,8 @@ import pandas as pd
 import sys
 sys.path.insert(0, str(Path(__file__).parents[1] / 'streamlit_opensea_sales'))
 from market_data_access import get_market_build_id_from_manifest  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from market_snapshot_contract import inspect_market_snapshot  # noqa: E402
 
 
 PERIOD_MONTHS = {'3m': 3, '6m': 6, '12m': 12}
@@ -37,11 +39,22 @@ def build_period_summary(sales_df: pd.DataFrame) -> dict:
 
 
 def build_payload(sales_df: pd.DataFrame, daily_df: pd.DataFrame, source_market_build_id: str = '') -> dict:
-    daily_dates = pd.to_datetime(daily_df['date'])
+    raw_dates = pd.to_datetime(sales_df['sale_date'], errors='coerce', utc=True).dropna()
+    daily_dates = pd.to_datetime(daily_df['date'], errors='coerce', utc=True).dropna()
+    if raw_dates.empty:
+        raise ValueError('MARKET_RAW_SALES_DATE_MISSING')
+    if daily_dates.empty:
+        raise ValueError('MARKET_DAILY_AXIS_DATE_MISSING')
+    raw_latest = raw_dates.max().date()
+    daily_latest = daily_dates.max().date()
+    if raw_latest != daily_latest:
+        raise ValueError(
+            f'MARKET_BASE_SNAPSHOT_STALE:raw_latest_date={raw_latest}:daily_latest_date={daily_latest}'
+        )
     latest_date = daily_dates.max().normalize()
     periods = {'all': build_period_summary(sales_df)}
     dated = sales_df.copy()
-    dated['sale_date'] = pd.to_datetime(dated['sale_date'])
+    dated['sale_date'] = pd.to_datetime(dated['sale_date'], errors='coerce', utc=True)
     for period, months in PERIOD_MONTHS.items():
         start = latest_date - pd.DateOffset(months=months)
         filtered = dated[(dated['sale_date'] >= start) & (dated['sale_date'] < latest_date + pd.Timedelta(days=1))]
@@ -56,6 +69,7 @@ def build_payload(sales_df: pd.DataFrame, daily_df: pd.DataFrame, source_market_
 
 
 def build_from_directory(data_dir: Path) -> dict:
+    contract = inspect_market_snapshot(data_dir)
     sales_dir = data_dir / 'sales_enriched'
     overview_dir = data_dir / 'market_overview_enriched'
     frames = [pd.read_csv(path) for path in sorted(sales_dir.glob('*.csv'))]
@@ -63,8 +77,8 @@ def build_from_directory(data_dir: Path) -> dict:
     daily_df = pd.read_csv(overview_dir / 'daily_market_metrics.csv')
     manifest = json.loads((overview_dir / 'market_overview_enriched_manifest.json').read_text(encoding='utf-8'))
     build_id = get_market_build_id_from_manifest(manifest)
-    if not build_id:
-        raise RuntimeError('Market manifest has no build identity')
+    if not build_id or build_id != contract['market_build_id']:
+        raise RuntimeError('MARKET_BUILD_ID_MISSING')
     return build_payload(sales_df, daily_df, build_id)
 
 

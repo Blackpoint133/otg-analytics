@@ -120,6 +120,20 @@ invalid `--theme.base` values fail closed with
 `SUPERVISOR_THEME_BASE_DARK_REQUIRED` (or the prepared-manifest equivalent).
 This is a launch contract; CSS is not a substitute.
 
+## Coherent Market snapshot contract
+
+`refresh_common_data.py` publishes the complete canonical
+`market_overview_enriched` base from the authoritative source before running
+the period, expansion, or trader builders. The base manifest is published last
+as the snapshot commit marker. The shared Market contract requires the raw
+`sales_enriched` maximum UTC date to equal the daily axis maximum, the monthly
+axis to contain that date, and the Market manifest to have a build identity.
+Both derived Market builders fail closed with `MARKET_BASE_SNAPSHOT_STALE` (or
+the more specific contract error) before replacing output when those checks do
+not pass. Prepared releases additionally record raw/base/derived hashes and
+dates; `validate_prepared_snapshot.py` checks those values against the exact
+final frozen tree before the 8505 canary.
+
 ## Corrected rollback contract
 
 Rollback resolves 8502 through the supervisor into exactly one of these states:

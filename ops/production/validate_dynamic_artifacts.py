@@ -43,6 +43,10 @@ def _sha256(path: Path) -> str:
 
 
 def validate(repo_root: Path, data_dir: Path, env_path: Path | None) -> dict[str, object]:
+    sys.path.insert(0, str(repo_root / "scripts"))
+    from market_snapshot_contract import inspect_market_snapshot  # noqa: PLC0415
+
+    market_contract = inspect_market_snapshot(data_dir)
     package_root = repo_root / "streamlit_opensea_sales"
     sys.path.insert(0, str(package_root))
     if env_path and env_path.exists():
@@ -65,7 +69,7 @@ def validate(repo_root: Path, data_dir: Path, env_path: Path | None) -> dict[str
     build_id = market_data_access.get_market_build_id_from_manifest(manifest)
     if not build_id:
         raise ValueError("market build identity missing")
-    expected_latest = _max_enriched_date(data_dir)
+    expected_latest = market_contract["raw_latest_date"]
     if not expected_latest:
         raise ValueError("enriched source date missing")
     period = market_data_access.load_market_period_summaries(
@@ -146,6 +150,7 @@ def validate(repo_root: Path, data_dir: Path, env_path: Path | None) -> dict[str
     return {
         "market_build_id": build_id,
         "source_latest_date": expected_latest,
+        "market_base_snapshot": market_contract,
         "trader_event_count": trader_payload["event_count"],
         "trader_wallet_count": trader_payload["wallet_count"],
         "supply_source": "v3",

@@ -13,6 +13,9 @@ from pathlib import Path
 
 import pandas as pd
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from market_snapshot_contract import inspect_market_snapshot, market_base_files
+
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "streamlit_opensea_sales"
 LOG = ROOT.parent.parent / "DEV" / "staging_runtime" / "common_data_sync.log"
@@ -45,6 +48,25 @@ def sync_sales(source: Path, target: Path) -> int:
         changed += publish_file(item, target_dir / item.name)
     for item in sorted(enriched_source_dir.glob("*.csv")):
         changed += publish_file(item, enriched_target_dir / item.name)
+    return changed
+
+
+def sync_market_base(source: Path, target: Path) -> int:
+    """Publish the complete source Market base before derived builders run.
+
+    The source is the canonical Market generator's output.  The manifest is
+    published last so it remains the commit marker if a file copy fails.
+    Derived period/expansion files are intentionally rebuilt by this refresh.
+    """
+
+    source_overview = source / "market_overview_enriched"
+    target_overview = target / "market_overview_enriched"
+    if not source_overview.is_dir():
+        raise FileNotFoundError(source_overview)
+    changed = 0
+    target_overview.mkdir(parents=True, exist_ok=True)
+    for source_file in market_base_files(source_overview):
+        changed += publish_file(source_file, target_overview / source_file.name)
     return changed
 
 
@@ -97,12 +119,23 @@ def run(source: Path, target: Path) -> int:
         if not target.is_dir(): raise FileNotFoundError(target)
         source_date = get_sales_date_max(source)
         if source_date is None: raise ValueError("source has no parseable sale dates")
+        stage = "source_market_base"
+        source_market = inspect_market_snapshot(source)
+        if source_market["raw_latest_date"] != source_market["daily_latest_date"]:
+            raise ValueError("MARKET_BASE_SNAPSHOT_STALE")
         stage = "sync"
         changed = sync_sales(source, target)
+        changed += sync_market_base(source, target)
         stage = "target_freshness"
         target_date = get_sales_date_max(target)
         if target_date is None or target_date < source_date:
             raise ValueError("target sales are older than source")
+        stage = "target_market_base"
+        target_market = inspect_market_snapshot(target)
+        if target_market["raw_latest_date"] != target_market["daily_latest_date"]:
+            raise ValueError("MARKET_BASE_SNAPSHOT_STALE")
+        if target_market["raw_latest_date"] != source_market["raw_latest_date"]:
+            raise ValueError("MARKET_BASE_SNAPSHOT_SOURCE_TARGET_MISMATCH")
         py = sys.executable
         stages = [
             ("market_period", "build_market_period_summaries.py"),

@@ -63,6 +63,23 @@ def _dirs(tmp_path, source_date="2026-09-12T18:42:37Z", target_date=None):
     (source / "sales_enriched" / "one.csv").write_text(f"sale_date\n{source_date}\n", encoding="utf-8")
     if target_date is not None:
         (target / "sales_enriched" / "one.csv").write_text(f"sale_date\n{target_date}\n", encoding="utf-8")
+    else:
+        (target / "sales_enriched" / "one.csv").write_text(f"sale_date\n{source_date}\n", encoding="utf-8")
+    for root in (source, target):
+        overview = root / "market_overview_enriched"
+        overview.mkdir()
+        day = source_date[:10]
+        (overview / "daily_market_metrics.csv").write_text(f"date\n{day}\n", encoding="utf-8")
+        month = day[:7]
+        (overview / "monthly_market_metrics.csv").write_text(
+            f"month,month_start,month_end\n{month},{month}-01,{month}-30\n", encoding="utf-8"
+        )
+        (overview / "market_summary.json").write_text(
+            json.dumps({"date_range": {"max_sale_date": day}}), encoding="utf-8"
+        )
+        (overview / "market_overview_enriched_manifest.json").write_text(
+            json.dumps({"created_at_utc": "build-1"}), encoding="utf-8"
+        )
     return source, target
 
 
