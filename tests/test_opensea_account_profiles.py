@@ -2,6 +2,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parents[1]
 APP = ROOT / "streamlit_opensea_sales"
 SPEC = importlib.util.spec_from_file_location("profile_refresh", ROOT / "scripts" / "refresh_opensea_account_profiles.py")
@@ -9,6 +11,55 @@ refresh = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(refresh)
 
 from opensea_account_profiles import allocate_fallback_names, avatar_style_attribute, fallback_avatar_filename, fallback_name, is_canonical_wallet_label, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
+
+
+def test_dedicated_profile_key_wins_over_general_key(monkeypatch, tmp_path):
+    env = tmp_path / ".env"
+    env.write_text(
+        "OPENSEA_API_KEY=general-secret\n"
+        "OPENSEA_PROFILE_API_KEY=dedicated-secret\n"
+        "OPENSEA_API_OLD=legacy-secret\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(refresh, "ENV_FILE", env)
+    assert refresh._load_profile_key() == ("dedicated-secret", "OPENSEA_PROFILE_API_KEY")
+    assert refresh._load_key() == "dedicated-secret"
+    assert refresh._load_key_source() == "OPENSEA_PROFILE_API_KEY"
+
+
+def test_profile_key_falls_back_when_dedicated_key_is_absent_or_empty(monkeypatch, tmp_path):
+    env = tmp_path / ".env"
+    monkeypatch.setattr(refresh, "ENV_FILE", env)
+    env.write_text("OPENSEA_API_KEY=general-secret\n", encoding="utf-8")
+    assert refresh._load_profile_key() == ("general-secret", "OPENSEA_API_KEY_FALLBACK")
+    env.write_text("OPENSEA_PROFILE_API_KEY=  \nOPENSEA_API_KEY=general-secret\n", encoding="utf-8")
+    assert refresh._load_profile_key() == ("general-secret", "OPENSEA_API_KEY_FALLBACK")
+
+
+def test_legacy_profile_key_variable_is_ignored(monkeypatch, tmp_path):
+    env = tmp_path / ".env"
+    monkeypatch.setattr(refresh, "ENV_FILE", env)
+    env.write_text("OPENSEA_API_OLD=legacy-secret\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="OPENSEA_PROFILE_API_KEY or OPENSEA_API_KEY"):
+        refresh._load_profile_key()
+
+
+def test_profile_key_diagnostics_use_source_label_without_secret(monkeypatch, tmp_path):
+    env = tmp_path / ".env"
+    secret = "dedicated-secret-not-for-output"
+    env.write_text(f"OPENSEA_PROFILE_API_KEY={secret}\nOPENSEA_API_KEY=general-secret\n", encoding="utf-8")
+    output = tmp_path / "profiles.json"
+    wallet = "0x" + "a" * 40
+    output.write_text(json.dumps({"schema_version": 1, "source": "opensea", "profiles": {}}), encoding="utf-8")
+    monkeypatch.setattr(refresh, "ENV_FILE", env)
+    monkeypatch.setattr(refresh, "PROFILE_SNAPSHOT", output)
+    monkeypatch.setattr(refresh, "_wallets", lambda: [wallet])
+    monkeypatch.setattr(refresh, "_request", lambda address, key: ("error", {}, {"http_status": 503}))
+    result = refresh.refresh(limit=1, min_remaining=0)
+    serialized = json.dumps(result) + (tmp_path / refresh.SYNC_STATE_FILENAME).read_text(encoding="utf-8")
+    assert result["profile_key_source"] == "OPENSEA_PROFILE_API_KEY"
+    assert "PROFILE_KEY_SOURCE" not in serialized
+    assert secret not in serialized
 
 
 def test_canonical_wallet_label_is_a_strict_predicate():

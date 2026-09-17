@@ -30,15 +30,45 @@ DEFAULT_MIN_REMAINING = 60
 BACKOFF_BASE_SECONDS = 3600
 BACKOFF_MAX_SECONDS = 24 * 3600
 RETRYABLE_RESULTS = {"error", "rate_limited"}
+PROFILE_KEY_VARIABLE = "OPENSEA_PROFILE_API_KEY"
+GENERAL_KEY_VARIABLE = "OPENSEA_API_KEY"
+
+
+def _load_profile_key() -> tuple[str, str]:
+    """Return the profile API key and a non-secret source label.
+
+    Profile enrichment may use a dedicated OpenSea credential, while the
+    general parser credential remains the safe compatibility fallback.  The
+    legacy OPENSEA_API_OLD variable is intentionally not recognized.
+    """
+    values: dict[str, str] = {}
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        name, separator, raw_value = line.partition("=")
+        if not separator:
+            continue
+        name = name.strip()
+        if name not in {PROFILE_KEY_VARIABLE, GENERAL_KEY_VARIABLE}:
+            continue
+        value = raw_value.strip().strip('"').strip("'").strip()
+        if value and name not in values:
+            values[name] = value
+    dedicated = values.get(PROFILE_KEY_VARIABLE)
+    if dedicated:
+        return dedicated, PROFILE_KEY_VARIABLE
+    general = values.get(GENERAL_KEY_VARIABLE)
+    if general:
+        return general, f"{GENERAL_KEY_VARIABLE}_FALLBACK"
+    raise RuntimeError(
+        f"{PROFILE_KEY_VARIABLE} or {GENERAL_KEY_VARIABLE} was not found in the approved .env"
+    )
 
 
 def _load_key() -> str:
-    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-        if line.strip().startswith("OPENSEA_API_KEY="):
-            value = line.split("=", 1)[1].strip().strip('"').strip("'")
-            if value:
-                return value
-    raise RuntimeError("OPENSEA_API_KEY was not found in the approved .env")
+    return _load_profile_key()[0]
+
+
+def _load_key_source() -> str:
+    return _load_profile_key()[1]
 
 
 def _now() -> datetime:
@@ -275,6 +305,7 @@ def refresh(
     eligible = _eligible_targets(targets, profiles, state, cutoff, started, force)
     selected = eligible[:requested_limit]
     key = _load_key() if selected else ""
+    key_source = _load_key_source() if selected else None
     diagnostics: dict[str, Any] = {
         "started_at": started.isoformat(),
         "completed_at": None,
@@ -296,6 +327,7 @@ def refresh(
         "stopped_for_rate_limit": False,
         "stopped_for_reserve": False,
         "snapshot_write_executed": False,
+        "profile_key_source": key_source,
     }
     for item in selected:
         attempt_time = _now()
