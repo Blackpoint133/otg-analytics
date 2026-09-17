@@ -32,8 +32,10 @@ def test_refresh_cores_invoke_all_steps_in_order():
     common = (OPS / "production_update_common.ps1").read_text(encoding="utf-8")
     for marker in ("market_period", "market_expansion", "trader_analytics", "item_class", "gunzscope_v3", "profile_sync"):
         assert marker in common
-    assert common.index("market_period") < common.index("market_expansion") < common.index("trader_analytics")
-    assert common.index("item_class") < common.index("gunzscope_v3") < common.index("profile_sync")
+    derived = common[common.index("function Invoke-DerivedRefreshCore") : common.index("function Invoke-MetadataRefreshCore")]
+    metadata = common[common.index("function Invoke-MetadataRefreshCore") : common.index("function Get-DesiredTaskDefinition")]
+    assert derived.index("market_period") < derived.index("market_expansion") < derived.index("trader_analytics")
+    assert metadata.index("item_class") < metadata.index("gunzscope_v3") < metadata.index("profile_sync")
 
 
 def test_reader_helper_is_tracked_and_read_only():

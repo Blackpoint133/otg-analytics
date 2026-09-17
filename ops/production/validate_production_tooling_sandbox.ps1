@@ -59,6 +59,8 @@ if(Test-Path -LiteralPath $Sandbox){Remove-Item -LiteralPath $Sandbox -Recurse -
 $prod=Join-Path $Sandbox 'production'
 $release=Join-Path $Sandbox 'release'
 $data=Join-Path $prod 'streamlit_opensea_sales\data_opensea_sales'
+$syncPath=Join-Path $data 'opensea_account_profile_sync_state.json'
+$profilePath=Join-Path $data 'opensea_account_profiles_snapshot.json'
 New-Item -ItemType Directory -Force -Path $data,(Join-Path $prod 'streamlit_opensea_sales'),(Join-Path $prod 'ops\production'),(Join-Path $release 'wheelhouse'),(Join-Path $Sandbox 'runtime') | Out-Null
 Set-Content -LiteralPath (Join-Path $prod 'streamlit_opensea_sales\app_opensea_sales.py') -Value '# sandbox app'
 Set-Content -LiteralPath (Join-Path $prod '.env') -Value @('POSTGRES_HOST=fake','POSTGRES_PORT=5432','POSTGRES_USER=fake','POSTGRES_PASSWORD=fake','POSTGRES_DB=fake','KEEP_ME=yes')
@@ -94,6 +96,7 @@ $preparedPayload=[ordered]@{
     streamlit_theme_base='dark'
     streamlit_theme_contract='PASS'
     source_legacy_theme_correction_supported='YES'
+    profile_api_key_contract=[ordered]@{preferred_variable='OPENSEA_PROFILE_API_KEY';fallback_variable='OPENSEA_API_KEY';legacy_variable_ignored='OPENSEA_API_OLD';secret_values_in_manifest='NO'}
     wheelhouse=[ordered]@{package_count=45;manifest_path='wheelhouse\WHEELHOUSE_MANIFEST.json';manifest_sha256=$wheelHash}
     runtime_contract=[ordered]@{python_version='3.11';locked_package_count=45;exact_lock_match=45;pip_check='PASS';import_gate='PASS'}
     validation=[ordered]@{full_tests_failure_count=0;canary='PASS';application_readers='PASS'}
@@ -108,6 +111,7 @@ if(-not$manifestLine){throw 'SANDBOX_BACKUP_MANIFEST_MISSING'}
 $backupManifest=$manifestLine -replace '^BACKUP_MANIFEST_PATH=',''
 $backupPayload=Get-Content -LiteralPath $backupManifest -Raw|ConvertFrom-Json
 if($backupPayload.manifest_version -ne 2 -or -not$backupPayload.backup_complete -or $backupPayload.active_runtime_existed){throw 'SANDBOX_BACKUP_STATE_INVALID'}
+if($backupPayload.profile_sync_state_contract -ne 'OPTIONAL_SIDECAR_V1' -or $backupPayload.profile_sync_state_existed_before -or (Test-Path (Join-Path (Split-Path $backupManifest -Parent) 'artifacts\opensea_account_profile_sync_state.json'))){throw 'SANDBOX_ABSENT_PROFILE_SYNC_STATE_BACKUP_INVALID'}
 'SANDBOX_BACKUP_EXECUTION_TEST=PASS'
 'SANDBOX_ACTIVE_RUNTIME_ABSENT_BEFORE=PASS'
 
@@ -127,7 +131,7 @@ if($newState.tasks.OTG_Derived_Data_Refresh_Production.arguments -notmatch [rege
 'SANDBOX_DERIVED_REFRESH_EXECUTION_TEST=PASS'
 'SANDBOX_METADATA_REFRESH_EXECUTION_TEST=PASS'
     'SANDBOX_DEPLOY_START_LOG_CONTRACT=PASS'
-    $receipt=Get-Content -LiteralPath (Join-Path $Sandbox 'DEPLOYMENT_RECEIPT.json') -Raw|ConvertFrom-Json;if([string]$receipt.streamlit_theme_base -ne 'dark' -or [string]$receipt.theme_contract -ne 'PASS'){throw 'SANDBOX_THEME_CONTRACT_OUTPUT_FAILED'}
+    $receipt=Get-Content -LiteralPath (Join-Path $Sandbox 'DEPLOYMENT_RECEIPT.json') -Raw|ConvertFrom-Json;Assert-DeploymentReceipt $receipt $true;if([string]$receipt.streamlit_theme_base -ne 'dark' -or [string]$receipt.theme_contract -ne 'PASS' -or [string]$receipt.profile_key_source -ne 'OPENSEA_PROFILE_API_KEY'){throw 'SANDBOX_THEME_CONTRACT_OUTPUT_FAILED'}
     'SANDBOX_THEME_CONTRACT=PASS'
 'SANDBOX_TASK_REGISTRATION_TEST=PASS'
 'SANDBOX_DEPLOY_EXECUTION=PASS'
@@ -155,6 +159,29 @@ if(($restored.tasks|ConvertTo-Json -Compress -Depth 20) -ne $oldTaskStateJson){t
 'SANDBOX_ROLLBACK_TASK_STATE_MATCH=PASS'
 'SANDBOX_OLD_APP_HEALTH=PASS'
 'SANDBOX_LISTENERLESS_ROLLBACK=PASS'
+if(Test-Path -LiteralPath $syncPath -PathType Leaf){throw 'SANDBOX_ABSENT_PROFILE_SYNC_ROLLBACK_FAILED'}
+'SANDBOX_ABSENT_PROFILE_SYNC_ROLLBACK=PASS'
+
+Write-AtomicText $syncPath '{"schema_version":1,"source":"opensea","last_run":{"started_at":"old","completed_at":"old","candidate_count":1,"selected_count":1,"attempted":1,"successful":1,"not_found":0,"errors":0,"rate_limited":0,"remaining_targets":0,"stopped_for_rate_limit":false,"stopped_for_reserve":false,"snapshot_write_executed":true}}'
+$profileHashBefore=(Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash
+$backupPresentLines=& (Join-Path $Ops 'backup_production.ps1') -Execute -Simulation -SimulationRoot $Sandbox -SimulationPort $Port -ApprovalPhrase BACKUP_OTG_ANALYTICS_8502
+$backupPresentLine=$backupPresentLines|Where-Object {$_ -match '^BACKUP_MANIFEST_PATH='}|Select-Object -Last 1
+if(-not$backupPresentLine){throw 'SANDBOX_PRESENT_PROFILE_SYNC_BACKUP_MISSING'}
+$backupPresentManifest=$backupPresentLine -replace '^BACKUP_MANIFEST_PATH=',''
+$backupPresentPayload=Get-Content -LiteralPath $backupPresentManifest -Raw|ConvertFrom-Json
+if(-not$backupPresentPayload.profile_sync_state_existed_before -or [string]::IsNullOrWhiteSpace([string]$backupPresentPayload.profile_sync_state_sha256) -or -not(Test-Path (Join-Path (Split-Path $backupPresentManifest -Parent) 'artifacts\opensea_account_profile_sync_state.json') -PathType Leaf)){throw 'SANDBOX_PRESENT_PROFILE_SYNC_BACKUP_INVALID'}
+'SANDBOX_PRESENT_PROFILE_SYNC_BACKUP=PASS'
+Set-Content -LiteralPath $syncPath -Value '{"malformed":true}'
+$rollbackPresent=& (Join-Path $Ops 'rollback_production.ps1') -Execute -Simulation -SimulationRoot $Sandbox -SimulationPort $Port -BackupManifest $backupPresentManifest -ApprovalPhrase ROLLBACK_OTG_ANALYTICS_8502
+if(-not($rollbackPresent -match 'ROLLBACK_RESULT=PASS') -or (Get-FileHash -LiteralPath $syncPath -Algorithm SHA256).Hash -ne [string]$backupPresentPayload.profile_sync_state_sha256){throw 'SANDBOX_PRESENT_PROFILE_SYNC_RESTORE_FAILED'}
+'SANDBOX_PRESENT_PROFILE_SYNC_ROLLBACK=PASS'
+$rollbackPresentAgain=& (Join-Path $Ops 'rollback_production.ps1') -Execute -Simulation -SimulationRoot $Sandbox -SimulationPort $Port -BackupManifest $backupPresentManifest -ApprovalPhrase ROLLBACK_OTG_ANALYTICS_8502
+if(-not($rollbackPresentAgain -match 'ROLLBACK_RESULT=PASS')){throw 'SANDBOX_REPEATED_ROLLBACK_FAILED'}
+'SANDBOX_REPEATED_ROLLBACK=PASS'
+if((Get-FileHash -LiteralPath $profilePath -Algorithm SHA256).Hash -ne $profileHashBefore){throw 'SANDBOX_PROFILE_SNAPSHOT_INDEPENDENCE_FAILED'}
+Remove-Item -LiteralPath $syncPath -Force
+if(Test-Path -LiteralPath $syncPath -PathType Leaf){throw 'SANDBOX_ABSENT_PROFILE_SYNC_STATE_RESTORE_FAILED'}
+'SANDBOX_PROFILE_SNAPSHOT_INDEPENDENCE=PASS'
 
 $state=Read-State
 $state.reader_fail=$true
