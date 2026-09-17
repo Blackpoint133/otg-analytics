@@ -100,9 +100,11 @@ def test_stale_and_error_are_selected_and_transient_error_preserves_updated_at(m
     monkeypatch.setattr(refresh, "_request", lambda wallet, key: ("error", {}, {"rate_limit_remaining": 10, "rate_limit_reset": 0}))
     result = refresh.refresh()
     saved = json.loads(output.read_text(encoding="utf-8"))["profiles"][wallet]
+    sync_state = json.loads((tmp_path / refresh.SYNC_STATE_FILENAME).read_text(encoding="utf-8"))
     assert result["attempted"] == 1 and saved["status"] == "stale"
     assert saved["updated_at"] == old_time
-    assert "last_attempt_at" in saved
+    assert sync_state["wallets"][wallet]["last_attempt_result"] == "error"
+    assert "last_attempt_at" in sync_state["wallets"][wallet]
 
 
 def test_1334_aliases_are_unique_and_stable_when_wallets_are_added():
