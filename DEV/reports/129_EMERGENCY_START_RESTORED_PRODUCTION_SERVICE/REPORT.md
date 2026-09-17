@@ -61,6 +61,6 @@ NO_DUPLICATE_8502=YES
 PROTECTED_SERVICE_STATE=8501_AND_8504_HEALTHY
 
 FINAL_PRODUCTION_RECOVERY_STATUS=HEALTHY_LEGACY_PRODUCTION_RESTORED
-PRODUCTION_MUTATION_COUNT=0
+PRODUCTION_MUTATION_COUNT=1_SERVICE_START_ONLY
 
 The service was started only after accepting the explicitly permitted rollback-log path drift. No NSSM value was rewritten, no Python process was launched directly, and no database, task, ACTIVE_RUNTIME, Git checkout, Caddy configuration, 8501 service, or 8504 service was modified by Report 129.
