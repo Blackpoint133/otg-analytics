@@ -100,6 +100,11 @@ def test_global_candidate_loader_uses_complete_catalog(monkeypatch):
         "load_items_index",
         lambda: (catalog, SimpleNamespace(success=True)),
     )
+    # This test exercises the legacy complete-catalog branch.  The normal
+    # prepared/runtime configuration selects the v3 provider branch, which
+    # intentionally derives identities from its provider snapshot instead of
+    # the local catalog loader.
+    monkeypatch.setattr(top_items_overview, "selected_supply_source", lambda: "legacy")
     result = top_items_overview._load_global_total_supply_candidates()
     assert result["item_key"].tolist() == ["a", "b", "c"]
     assert len(result) == len(catalog)
