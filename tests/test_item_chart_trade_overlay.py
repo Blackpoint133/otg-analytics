@@ -94,3 +94,31 @@ def test_wallet_filter_rerender_rebinds_current_plot_and_rejects_stale_nodes():
     assert SOURCE.count("boundPlot.on('plotly_click'") == 1
     assert SOURCE.count("addEventListener('pointermove',nativePlotClickHandler)") == 1
     assert SOURCE.count("addEventListener('pointerdown',nativePlotClickHandler)") == 1
+
+def test_empty_chart_click_closes_overlays_without_closing_point_click():
+    for value in (
+        'nativeChartClickHandler=null',
+        'function scheduleBackgroundClose',
+        'interactionToken=0',
+        'pointClickToken=0',
+        'pointClickToken=interactionToken',
+        'if(pointClickToken===token){pointClickToken=0;return}',
+        'if(dead||token!==interactionToken)return',
+        "boundPlot.addEventListener('click',nativeChartClickHandler)",
+        "boundPlot.removeEventListener('click',nativeChartClickHandler)",
+        'closeAll()',
+    ):
+        assert value in SOURCE
+    assert SOURCE.count("boundPlot.addEventListener('click',nativeChartClickHandler)") == 1
+    assert SOURCE.count("boundPlot.removeEventListener('click',nativeChartClickHandler)") == 1
+
+def test_empty_chart_click_handler_follows_rebind_and_destroy_lifecycle():
+    bind = SOURCE.index('nativeChartClickHandler=scheduleBackgroundClose')
+    add = SOURCE.index("boundPlot.addEventListener('click',nativeChartClickHandler)")
+    remove = SOURCE.index("boundPlot.removeEventListener('click',nativeChartClickHandler)")
+    clear = SOURCE.index('nativeChartClickHandler=null', bind)
+    destroy = SOURCE.index('if(backgroundTimer)w.clearTimeout(backgroundTimer)')
+
+    assert bind < add < remove < clear
+    assert destroy >= 0
+    assert 'if(boundPlot){unbindPlot();closeAll()}' in SOURCE
