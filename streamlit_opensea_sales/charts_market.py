@@ -72,6 +72,19 @@ def _price_range_layout(title: str, mobile_layout: bool, *, barmode: str | None 
     return layout
 
 
+def _add_price_range_total_hover_trace(fig: go.Figure, x_values, total_values) -> None:
+    """Add one invisible prepared-total trace for Plotly unified hover."""
+    fig.add_trace(go.Scatter(
+        x=x_values,
+        y=pd.to_numeric(total_values, errors='coerce').fillna(0),
+        mode='markers',
+        name='Total sales',
+        marker=dict(size=8, color='rgba(0,0,0,0)', opacity=0),
+        hovertemplate='Total sales: %{y:,.0f}<extra></extra>',
+        showlegend=False,
+    ))
+
+
 def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: bool = False) -> Optional[go.Figure]:
     """Build the prepared daily stacked-area sales-by-price-range chart."""
     if price_range_df is None or price_range_df.empty:
@@ -94,12 +107,9 @@ def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: b
                 name=bucket['label'],
                 stackgroup='price_ranges',
                 line=dict(color=bucket['color'], width=1.2),
-                customdata=pd.to_numeric(df['total_sales'], errors='coerce').fillna(0),
-                hovertemplate=(
-                    f"<b>%{{x|%Y-%m-%d}}</b><br>{bucket['label']}: %{{y:,.0f}} sales"
-                    "<br>Total sales: %{customdata:,.0f}<extra></extra>"
-                ),
+                hovertemplate=f"{bucket['label']}: %{{y:,.0f}} sales<extra></extra>",
             ))
+        _add_price_range_total_hover_trace(fig, df['date'], df['total_sales'])
         fig.update_layout(**_price_range_layout('DAILY SALES BY PRICE RANGE — USD AT SALE', mobile_layout))
         fig.update_xaxes(title=None)
         return fig
@@ -125,12 +135,9 @@ def build_monthly_price_range_chart(price_range_df: pd.DataFrame, mobile_layout:
                 y=pd.to_numeric(df[bucket_id], errors='coerce').fillna(0),
                 name=bucket['label'],
                 marker=dict(color=bucket['color']),
-                customdata=pd.to_numeric(df['total_sales'], errors='coerce').fillna(0),
-                hovertemplate=(
-                    f"<b>%{{x}}</b><br>{bucket['label']}: %{{y:,.0f}} sales"
-                    "<br>Total sales: %{customdata:,.0f}<extra></extra>"
-                ),
+                hovertemplate=f"{bucket['label']}: %{{y:,.0f}} sales<extra></extra>",
             ))
+        _add_price_range_total_hover_trace(fig, df['month'], df['total_sales'])
         fig.update_layout(**_price_range_layout('MONTHLY SALES BY PRICE RANGE — USD AT SALE', mobile_layout, barmode='stack'))
         fig.update_xaxes(title=None)
         return fig

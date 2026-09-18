@@ -90,15 +90,37 @@ def test_daily_and_monthly_charts_have_same_fixed_series_contract():
     monthly_frame = pd.DataFrame(payload["monthly"])
     daily_fig = build_daily_price_range_chart(daily_frame)
     monthly_fig = build_monthly_price_range_chart(monthly_frame)
-    assert len(daily_fig.data) == len(monthly_fig.data) == 7
-    assert all(trace.type == "scatter" and trace.stackgroup == "price_ranges" for trace in daily_fig.data)
-    assert all(trace.type == "bar" for trace in monthly_fig.data)
+    labels = [bucket["label"] for bucket in PRICE_RANGE_BUCKETS]
+    daily_buckets = [trace for trace in daily_fig.data if trace.name in labels]
+    monthly_buckets = [trace for trace in monthly_fig.data if trace.name in labels]
+    daily_helpers = [trace for trace in daily_fig.data if trace.name == "Total sales"]
+    monthly_helpers = [trace for trace in monthly_fig.data if trace.name == "Total sales"]
+    assert len(daily_buckets) == len(monthly_buckets) == 7
+    assert len(daily_helpers) == len(monthly_helpers) == 1
+    assert all(trace.type == "scatter" and trace.stackgroup == "price_ranges" for trace in daily_buckets)
+    assert all(trace.type == "bar" for trace in monthly_buckets)
     assert monthly_fig.layout.barmode == "stack"
-    assert [trace.name for trace in daily_fig.data] == [bucket["label"] for bucket in PRICE_RANGE_BUCKETS]
-    assert [trace.name for trace in monthly_fig.data] == [bucket["label"] for bucket in PRICE_RANGE_BUCKETS]
+    assert [trace.name for trace in daily_buckets] == labels
+    assert [trace.name for trace in monthly_buckets] == labels
+    assert all("Total sales" not in (trace.hovertemplate or "") for trace in daily_buckets + monthly_buckets)
+    assert all("%{x" not in (trace.hovertemplate or "") for trace in daily_buckets + monthly_buckets)
+    for trace, label in zip(daily_buckets, labels):
+        assert label in (trace.hovertemplate or "") and "sales" in (trace.hovertemplate or "")
+    for trace, label in zip(monthly_buckets, labels):
+        assert label in (trace.hovertemplate or "") and "sales" in (trace.hovertemplate or "")
+    assert all("sales" in (trace.hovertemplate or "") for trace in daily_buckets + monthly_buckets)
+    for helper, expected in ((daily_helpers[0], daily_frame["total_sales"].tolist()), (monthly_helpers[0], monthly_frame["total_sales"].tolist())):
+        assert helper.showlegend is False
+        assert helper.stackgroup is None
+        assert helper.marker.opacity == 0
+        assert helper.marker.color == "rgba(0,0,0,0)"
+        assert helper.hovertemplate.count("Total sales") == 1
+        assert list(helper.y) == expected
+    assert [trace.line.color for trace in daily_buckets] == [bucket["color"] for bucket in PRICE_RANGE_BUCKETS]
+    assert [trace.marker.color for trace in monthly_buckets] == [bucket["color"] for bucket in PRICE_RANGE_BUCKETS]
     assert "USD AT SALE" in daily_fig.layout.title.text
     assert "USD AT SALE" in monthly_fig.layout.title.text
-    assert "volume" not in (daily_fig.data[0].hovertemplate or "").lower()
+    assert "volume" not in (daily_buckets[0].hovertemplate or "").lower()
 
 
 def test_current_snapshot_reconciles_expected_counts():
