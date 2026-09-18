@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "retrieved_at": "2026-09-18",
+  "assets": [
+    {
+      "project_id": "off_the_grid",
+      "local_asset_path": "img/Off_The_Grid_Logo.png",
+      "source_page": "https://gameoffthegrid.com/",
+      "asset_origin": "existing repository asset",
+      "retrieval_date": "2026-09-18"
+    },
+    {
+      "project_id": "gunzscope",
+      "local_asset_path": "img/gunz_scope/logo_1.png",
+      "source_page": "https://gunzscope.xyz/",
+      "asset_origin": "existing tracked repository asset",
+      "retrieval_date": "2026-09-18"
+    }
+  ],
+  "fallback_projects": [
+    "gunz",
+    "technocore",
+    "otg_companion",
+    "gunz_wallet",
+    "gunzscan",
+    "gunz_bridge",
+    "gunz_developers",
+    "opensea_otg",
+    "otgstats",
+    "walletzero"
+  ],
+  "notes": "No runtime-hotlinked logos were added. img/gunz_scope/logo_2.png was intentionally not touched."
+}

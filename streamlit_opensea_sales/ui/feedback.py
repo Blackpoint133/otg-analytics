@@ -15,18 +15,18 @@ def _context():
     source = str(raw_source or "unknown").strip().lower()
     if source == "top_traders":
         source = "trader"
-    if source not in {"item", "market", "top_items", "top_traders", "trader", "roadmap"}:
+    if source not in {"item", "market", "top_items", "top_traders", "trader", "roadmap", "ecosystem"}:
         source = "unknown"
     item = sanitize_source_item(st.query_params.get("item")) if source == "item" else None
     return source, item
 
 
 def _source_label(source):
-    return {"item": "ITEM ANALYTICS", "market": "MARKET", "top_items": "TOP ITEMS", "top_traders": "TOP TRADERS", "trader": "TOP TRADERS", "roadmap": "ROADMAP"}.get(source, "UNKNOWN")
+    return {"item": "ITEM ANALYTICS", "market": "MARKET", "top_items": "TOP ITEMS", "top_traders": "TOP TRADERS", "trader": "TOP TRADERS", "roadmap": "ROADMAP", "ecosystem": "ECOSYSTEM"}.get(source, "UNKNOWN")
 
 
 def _back_target(source, item):
-    mode = {"item": "item", "market": "market", "top_items": "top_items", "top_traders": "top_traders", "trader": "top_traders", "roadmap": "roadmap"}.get(source, "item")
+    mode = {"item": "item", "market": "market", "top_items": "top_items", "top_traders": "top_traders", "trader": "top_traders", "roadmap": "roadmap", "ecosystem": "ecosystem"}.get(source, "item")
     params = {"mode": mode}
     if source == "item" and item:
         params["item"] = item
@@ -34,7 +34,7 @@ def _back_target(source, item):
 
 
 def _back_label(source):
-    return {"item": "ITEM ANALYTICS", "market": "MARKET", "top_items": "TOP ITEMS", "trader": "TOP TRADERS", "roadmap": "ROADMAP"}.get(source, "ANALYTICS")
+    return {"item": "ITEM ANALYTICS", "market": "MARKET", "top_items": "TOP ITEMS", "trader": "TOP TRADERS", "roadmap": "ROADMAP", "ecosystem": "ECOSYSTEM"}.get(source, "ANALYTICS")
 
 
 def render_feedback_page() -> None:
