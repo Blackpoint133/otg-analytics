@@ -69,3 +69,28 @@ def test_anchor_resolution_is_shared_by_hover_and_click():
     assert 'xaxis.l2p' in SOURCE
     assert 'yaxis.l2p' in SOURCE
     assert 'r.left+r.width/2' in SOURCE
+
+
+def test_wallet_filter_rerender_rebinds_current_plot_and_rejects_stale_nodes():
+    """The overlay must follow Streamlit's replacement Plotly node."""
+    for value in (
+        'function isCurrentItemPlot',
+        'function findCurrentPlot',
+        'function ensureBound',
+        'plot.isConnected',
+        'new w.MutationObserver',
+        'observer.observe',
+        'observer.disconnect',
+        'if(plot===boundPlot&&plot&&plot.isConnected)return',
+        'if(boundPlot){unbindPlot();closeAll()}',
+    ):
+        assert value in SOURCE
+    assert 'plots[plots.length-1]' in SOURCE
+    assert 'function poll(n)' in SOURCE
+    assert 'poll(0)' in SOURCE
+    assert SOURCE.index('observer.disconnect') < SOURCE.index('unbindPlot();d.removeEventListener')
+    assert SOURCE.count("boundPlot.on('plotly_hover'") == 1
+    assert SOURCE.count("boundPlot.on('plotly_unhover'") == 1
+    assert SOURCE.count("boundPlot.on('plotly_click'") == 1
+    assert SOURCE.count("addEventListener('pointermove',nativePlotClickHandler)") == 1
+    assert SOURCE.count("addEventListener('pointerdown',nativePlotClickHandler)") == 1
