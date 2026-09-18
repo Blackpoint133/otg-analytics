@@ -85,36 +85,38 @@ def _card_markup(project: dict) -> str:
 
 def _page_css() -> str:
     return """<style>
-.st-key-ecosystem_page{width:100%;max-width:1240px;margin:0 auto;padding:0;color:#F4F5F6}
+.st-key-ecosystem_page{width:100%;max-width:1560px;margin:0 auto;padding:0;color:#F4F5F6}
 .st-key-ecosystem_page .ecosystem-title{margin:0 0 5px;color:#FFFFFF;font-size:30px;font-weight:700;letter-spacing:1.8px;line-height:1.04;text-transform:uppercase}
 .st-key-ecosystem_page .ecosystem-intro{max-width:760px;margin:0;color:#9FA5AD;font-size:13px;line-height:1.55}
 .st-key-ecosystem_page .ecosystem-disclaimer{max-width:760px;margin:8px 0 0;color:#6D737B;font-size:10px;line-height:1.45}
-.st-key-ecosystem_page .ecosystem-section{margin-top:24px}
+.st-key-ecosystem_page .ecosystem-section{margin-top:20px}
 .st-key-ecosystem_page .ecosystem-section-heading{display:flex;align-items:center;gap:10px;margin:0 0 10px;color:#F4F5F6;font-size:12px;letter-spacing:1.25px;line-height:1.2;text-transform:uppercase}
 .st-key-ecosystem_page .ecosystem-section-heading::after{content:"";height:1px;flex:1;background:#26292D}
 .st-key-ecosystem_page .ecosystem-section-count{color:#777D85;font-size:9px;letter-spacing:.8px}
-.st-key-ecosystem_page .ecosystem-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.st-key-ecosystem_page .ecosystem-grid-marketplaces{grid-template-columns:minmax(0,380px);justify-content:start}
-.st-key-ecosystem_page .ecosystem-card{display:flex;min-width:0;min-height:0;aspect-ratio:1 / 1;box-sizing:border-box;flex-direction:column;padding:14px;background:#050505;border:1px solid #292C31;border-radius:0}
+.st-key-ecosystem_page .ecosystem-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.st-key-ecosystem_page .ecosystem-grid-marketplaces{grid-template-columns:minmax(0,250px);justify-content:start}
+.st-key-ecosystem_page .ecosystem-card{display:flex;min-width:0;min-height:0;aspect-ratio:1 / .92;box-sizing:border-box;flex-direction:column;padding:10px;background:#050505;border:1px solid #292C31;border-radius:0}
 .st-key-ecosystem_page .ecosystem-card:hover{border-color:#555A62}
 .st-key-ecosystem_page .ecosystem-card-featured{border-color:#383B41}
-.st-key-ecosystem_page .ecosystem-card-logo{display:flex;align-items:flex-start;justify-content:flex-start;width:100%;height:50px;margin:0 0 10px}
-.st-key-ecosystem_page .ecosystem-card-logo-image{display:block;max-width:118px;max-height:50px;width:auto;height:auto;object-fit:contain;object-position:left center}
-.st-key-ecosystem_page .ecosystem-card-logo-fallback{display:inline-flex;align-items:center;justify-content:center;min-width:50px;height:50px;padding:0 8px;box-sizing:border-box;border:1px solid #42464D;border-left:2px solid #FF003A;color:#D5D8DC;font-size:14px;font-weight:700;letter-spacing:1px}
-.st-key-ecosystem_page .ecosystem-card-meta{display:flex;align-items:center;gap:8px;min-height:17px;margin:0 0 7px}
-.st-key-ecosystem_page .ecosystem-badge{display:inline-flex;align-items:center;min-height:19px;padding:0 6px;border:1px solid #596069;color:#D8DBDE;font-size:8px;font-weight:700;letter-spacing:.7px;line-height:1;text-transform:uppercase}
+.st-key-ecosystem_page .ecosystem-card-logo{display:flex;align-items:flex-start;justify-content:flex-start;width:100%;height:40px;margin:0 0 8px}
+.st-key-ecosystem_page .ecosystem-card-logo-image{display:block;max-width:108px;max-height:40px;width:auto;height:auto;object-fit:contain;object-position:left center}
+.st-key-ecosystem_page .ecosystem-card-logo-fallback{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:40px;padding:0 7px;box-sizing:border-box;border:1px solid #42464D;border-left:2px solid #FF003A;color:#D5D8DC;font-size:12px;font-weight:700;letter-spacing:1px}
+.st-key-ecosystem_page .ecosystem-card-meta{display:flex;align-items:center;gap:6px;min-height:15px;margin:0 0 5px}
+.st-key-ecosystem_page .ecosystem-badge{display:inline-flex;align-items:center;min-height:17px;padding:0 5px;border:1px solid #596069;color:#D8DBDE;font-size:7px;font-weight:700;letter-spacing:.65px;line-height:1;text-transform:uppercase}
 .st-key-ecosystem_page .ecosystem-badge-official{border-color:#FF003A;color:#FFFFFF}
 .st-key-ecosystem_page .ecosystem-badge-external_officially_linked{border-color:#B1B6BD;color:#F0F1F2}
 .st-key-ecosystem_page .ecosystem-badge-community{border-color:#656B73;color:#C8CDD2}
 .st-key-ecosystem_page .ecosystem-category{color:#777D85;font-size:8px;font-weight:700;letter-spacing:.75px;text-transform:uppercase}
-.st-key-ecosystem_page .ecosystem-card-name{margin:0;color:#FFFFFF;font-size:16px;font-weight:700;letter-spacing:.6px;line-height:1.15;text-transform:uppercase}
-.st-key-ecosystem_page .ecosystem-card-description{display:-webkit-box;flex:1;margin:8px 0 10px;overflow:hidden;color:#9FA5AD;font-size:11px;line-height:1.45;-webkit-box-orient:vertical;-webkit-line-clamp:3}
-.st-key-ecosystem_page .ecosystem-card-footer{display:flex;align-items:flex-end;min-height:22px}
-.st-key-ecosystem_page .ecosystem-card-visit{display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;padding:0 0 4px;border:0;border-bottom:1px solid #383C42;color:#E6E8EA!important;font-size:9px;font-weight:700;letter-spacing:1px;line-height:1;text-decoration:none!important}
+.st-key-ecosystem_page .ecosystem-card-name{margin:0;color:#FFFFFF;font-size:14px;font-weight:700;letter-spacing:.55px;line-height:1.15;text-transform:uppercase}
+.st-key-ecosystem_page .ecosystem-card-description{display:-webkit-box;flex:1;margin:6px 0 7px;overflow:hidden;color:#9FA5AD;font-size:10px;line-height:1.3;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+.st-key-ecosystem_page .ecosystem-card-footer{display:flex;align-items:flex-end;min-height:18px}
+.st-key-ecosystem_page .ecosystem-card-visit{display:inline-flex;align-items:center;gap:6px;box-sizing:border-box;padding:0 0 3px;border:0;border-bottom:1px solid #383C42;color:#E6E8EA!important;font-size:8px;font-weight:700;letter-spacing:.9px;line-height:1;text-decoration:none!important}
 .st-key-ecosystem_page .ecosystem-card-visit:hover,.st-key-ecosystem_page .ecosystem-card-visit:focus-visible{border-color:#FF003A;color:#FF003A!important;outline:none}
 @media (min-width:769px){.st-key-ecosystem_page{margin-top:-44px!important}}
-@media (max-width:1024px){.st-key-ecosystem_page .ecosystem-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:768px){.st-key-ecosystem_page{max-width:100%}.st-key-ecosystem_page .ecosystem-title{font-size:25px}.st-key-ecosystem_page .ecosystem-grid,.st-key-ecosystem_page .ecosystem-grid-marketplaces{grid-template-columns:1fr;gap:11px}.st-key-ecosystem_page .ecosystem-card{aspect-ratio:auto;min-height:238px}.st-key-ecosystem_page .ecosystem-section{margin-top:21px}}
+@media (min-width:1500px){.st-key-ecosystem_page .ecosystem-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (max-width:1100px){.st-key-ecosystem_page .ecosystem-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:900px){.st-key-ecosystem_page .ecosystem-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:768px){.st-key-ecosystem_page{max-width:100%}.st-key-ecosystem_page .ecosystem-title{font-size:25px}.st-key-ecosystem_page .ecosystem-grid,.st-key-ecosystem_page .ecosystem-grid-marketplaces{grid-template-columns:1fr;gap:9px}.st-key-ecosystem_page .ecosystem-card{aspect-ratio:auto;min-height:205px}.st-key-ecosystem_page .ecosystem-section{margin-top:18px}}
 @media (prefers-reduced-motion:reduce){.st-key-ecosystem_page .ecosystem-card,.st-key-ecosystem_page .ecosystem-card-visit{transition:none}}
 </style>"""
 

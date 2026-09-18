@@ -74,7 +74,8 @@ def test_ecosystem_page_uses_one_reusable_secure_card_contract():
     assert "search" not in source.lower()
     assert "selectbox" not in source.lower()
     assert "st.tabs" not in source
-    assert "repeat(3,minmax(0,1fr))" in source
+    assert "repeat(4,minmax(0,1fr))" in source
+    assert "repeat(5,minmax(0,1fr))" in source
     assert "repeat(2,minmax(0,1fr))" in source
     assert "grid-template-columns:1fr" in source
     assert "OFFICIAL ECOSYSTEM" in source
@@ -113,10 +114,14 @@ def test_ecosystem_route_is_top_level_and_bypasses_analytics_writers():
 def test_ecosystem_v2_is_compact_directory_layout_and_other_routes_keep_sidebar():
     source = (APP / "ui" / "ecosystem.py").read_text(encoding="utf-8")
     app = (APP / "app_opensea_sales.py").read_text(encoding="utf-8")
-    assert "aspect-ratio:1 / 1" in source
-    assert "-webkit-line-clamp:3" in source
+    assert "aspect-ratio:1 / .92" in source
+    assert "-webkit-line-clamp:2" in source
     assert "ecosystem-grid-marketplaces" in source
-    assert "min-height:292px" not in source
+    assert "min-height:238px" not in source
+    assert "min-height:205px" in source
+    assert "padding:10px" in source
+    assert "@media (max-width:1100px)" in source
+    assert "@media (max-width:900px)" in source
     assert "width:100%;min-height:31px" not in source
     assert "st.sidebar.markdown" in app
     assert "render_sidebar_logo()" in app
