@@ -187,7 +187,7 @@ def validate_sales_by_price_range_payload(
         previous = ""
         total = 0
         for row in rows:
-            if not isinstance(row, dict) or any(key not in row for key in required):
+            if not isinstance(row, dict) or set(row) != set(required):
                 return False
             ordering_key = str(row[required[0]])
             if not ordering_key or ordering_key <= previous:

@@ -145,3 +145,13 @@ def test_loader_rejects_malformed_or_stale_price_range_payload(tmp_path, monkeyp
     assert mda.load_market_expansion_metrics.__wrapped__(cache_buster="build", expected_source_latest_date="2026-03-01") is None
     path.write_text(json.dumps(base), encoding="utf-8")
     assert mda.load_market_expansion_metrics.__wrapped__(cache_buster="build", expected_source_latest_date="2026-02-01") == base
+
+
+def test_validator_rejects_extra_row_schema_and_bucket_order():
+    daily, monthly = _axes()
+    payload = build_sales_by_price_range(_sales(), daily, monthly)
+    payload["daily"][0]["unexpected_bucket"] = 0
+    assert not validate_sales_by_price_range_payload(payload)
+    payload = build_sales_by_price_range(_sales(), daily, monthly)
+    payload["buckets"] = list(reversed(payload["buckets"]))
+    assert not validate_sales_by_price_range_payload(payload)
