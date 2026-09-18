@@ -11,6 +11,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parents[1] / 'streamlit_opensea_sales'))
 from market_data_access import get_market_build_id_from_manifest  # noqa: E402
+from market_price_ranges import build_sales_by_price_range  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from market_snapshot_contract import inspect_market_snapshot  # noqa: E402
 
@@ -52,9 +53,11 @@ def build_payload(sales_df: pd.DataFrame, daily_df: pd.DataFrame, monthly_df: pd
                              'month_end': row['month_end'].strftime('%Y-%m-%d'),
                              'unique_wallets': _wallets(frame)})
     latest = daily_axis['date'].max().strftime('%Y-%m-%d')
+    sales_by_price_range = build_sales_by_price_range(sales, daily_df, monthly_df)
     return {'schema_version': 1, 'built_at_utc': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             'source_market_build_id': build_id, 'source_latest_date': latest,
-            'unique_wallets': {'daily': daily_rows, 'monthly': monthly_rows}}
+            'unique_wallets': {'daily': daily_rows, 'monthly': monthly_rows},
+            'sales_by_price_range': sales_by_price_range}
 
 
 def build_from_directory(data_dir: Path):

@@ -25,6 +25,7 @@ import pandas as pd
 import streamlit as st
 
 from config import get_data_dir, USE_ENRICHED_MARKET_OVERVIEW
+from market_price_ranges import validate_sales_by_price_range_payload
 
 
 def get_market_overview_dir() -> Path:
@@ -317,6 +318,12 @@ def load_market_expansion_metrics(cache_buster: str = None, file_version: str = 
         for row in wallets['monthly']:
             if not isinstance(row, dict) or not row.get('month') or not row.get('month_start') or not row.get('month_end') or not isinstance(row.get('unique_wallets'), (int, float)) or row['unique_wallets'] < 0:
                 return None
+        price_ranges = payload.get('sales_by_price_range')
+        if price_ranges is not None and not validate_sales_by_price_range_payload(
+            price_ranges,
+            expected_source_latest_date=payload.get('source_latest_date', ''),
+        ):
+            return None
         return payload
     except (OSError, ValueError, TypeError):
         return None

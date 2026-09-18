@@ -15,6 +15,7 @@ import pandas as pd
 from typing import Optional
 from formatters import format_number
 from price_history_access import enrich_daily_metrics_with_token_price, enrich_monthly_metrics_with_average_token_price
+from market_price_ranges import PRICE_RANGE_BUCKETS, PRICE_RANGE_BUCKET_IDS
 
 # OTG Color scheme
 COLOR_BACKGROUND = '#000000'  # Pure black
@@ -23,6 +24,119 @@ COLOR_ACCENT_RED = '#FF003A'  # OTG brand red
 COLOR_GRID = '#1a1a1a'
 COLOR_LINE = '#FF003A'  # OTG brand red for line charts
 COLOR_MARKER = '#CC0030'  # Darker red for markers/dots
+
+
+def _price_range_layout(title: str, mobile_layout: bool, *, barmode: str | None = None) -> dict:
+    """Return the shared dark layout for the fixed price-range chart family."""
+    layout = dict(
+        title=dict(text=title, font=dict(color='#FFFFFF')),
+        template='plotly_dark',
+        plot_bgcolor=COLOR_BACKGROUND,
+        paper_bgcolor=COLOR_BACKGROUND,
+        font=dict(color=COLOR_TEXT, family='monospace'),
+        hovermode='x unified',
+        xaxis=dict(
+            showgrid=True,
+            gridwidth=1,
+            gridcolor=COLOR_GRID,
+            tickfont=dict(color='#FFFFFF'),
+            showline=True,
+            linecolor=COLOR_ACCENT_RED,
+            linewidth=2,
+            zeroline=False,
+        ),
+        yaxis=dict(
+            title=dict(text='Sales count'),
+            showgrid=True,
+            gridwidth=1,
+            gridcolor=COLOR_GRID,
+            tickfont=dict(color='#FFFFFF'),
+            showline=False,
+            zeroline=False,
+            rangemode='tozero',
+        ),
+        legend=dict(
+            orientation='h',
+            x=0,
+            xanchor='left',
+            y=-0.2 if mobile_layout else 1.02,
+            yanchor='top' if mobile_layout else 'bottom',
+            font=dict(family='monospace', size=9 if mobile_layout else 10, color='white'),
+        ),
+        margin=dict(l=8, r=8, t=46, b=92) if mobile_layout else dict(l=50, r=50, t=80, b=70),
+        height=340 if mobile_layout else 410,
+        showlegend=True,
+    )
+    if barmode is not None:
+        layout['barmode'] = barmode
+    return layout
+
+
+def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: bool = False) -> Optional[go.Figure]:
+    """Build the prepared daily stacked-area sales-by-price-range chart."""
+    if price_range_df is None or price_range_df.empty:
+        return None
+    required = {'date', 'total_sales', *PRICE_RANGE_BUCKET_IDS}
+    if not required.issubset(price_range_df.columns):
+        return None
+    try:
+        df = price_range_df.copy()
+        df['date'] = pd.to_datetime(df['date'], errors='coerce', utc=True)
+        if df['date'].isna().any():
+            return None
+        fig = go.Figure()
+        for bucket in PRICE_RANGE_BUCKETS:
+            bucket_id = bucket['id']
+            fig.add_trace(go.Scatter(
+                x=df['date'],
+                y=pd.to_numeric(df[bucket_id], errors='coerce').fillna(0),
+                mode='lines',
+                name=bucket['label'],
+                stackgroup='price_ranges',
+                line=dict(color=bucket['color'], width=1.2),
+                customdata=pd.to_numeric(df['total_sales'], errors='coerce').fillna(0),
+                hovertemplate=(
+                    f"<b>%{{x|%Y-%m-%d}}</b><br>{bucket['label']}: %{{y:,.0f}} sales"
+                    "<br>Total sales: %{customdata:,.0f}<extra></extra>"
+                ),
+            ))
+        fig.update_layout(**_price_range_layout('DAILY SALES BY PRICE RANGE — USD AT SALE', mobile_layout))
+        fig.update_xaxes(title=None)
+        return fig
+    except Exception as exc:
+        print(f'Error building daily price range chart: {exc}')
+        return None
+
+
+def build_monthly_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: bool = False) -> Optional[go.Figure]:
+    """Build the prepared monthly stacked-bar sales-by-price-range chart."""
+    if price_range_df is None or price_range_df.empty:
+        return None
+    required = {'month', 'total_sales', *PRICE_RANGE_BUCKET_IDS}
+    if not required.issubset(price_range_df.columns):
+        return None
+    try:
+        df = price_range_df.copy()
+        fig = go.Figure()
+        for bucket in PRICE_RANGE_BUCKETS:
+            bucket_id = bucket['id']
+            fig.add_trace(go.Bar(
+                x=df['month'],
+                y=pd.to_numeric(df[bucket_id], errors='coerce').fillna(0),
+                name=bucket['label'],
+                marker=dict(color=bucket['color']),
+                customdata=pd.to_numeric(df['total_sales'], errors='coerce').fillna(0),
+                hovertemplate=(
+                    f"<b>%{{x}}</b><br>{bucket['label']}: %{{y:,.0f}} sales"
+                    "<br>Total sales: %{customdata:,.0f}<extra></extra>"
+                ),
+            ))
+        fig.update_layout(**_price_range_layout('MONTHLY SALES BY PRICE RANGE — USD AT SALE', mobile_layout, barmode='stack'))
+        fig.update_xaxes(title=None)
+        return fig
+    except Exception as exc:
+        print(f'Error building monthly price range chart: {exc}')
+        return None
 
 
 def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = False, unique_wallets_df: Optional[pd.DataFrame] = None, show_unique_wallets: bool = False) -> Optional[go.Figure]:
