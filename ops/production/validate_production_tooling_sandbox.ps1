@@ -63,7 +63,7 @@ $syncPath=Join-Path $data 'opensea_account_profile_sync_state.json'
 $profilePath=Join-Path $data 'opensea_account_profiles_snapshot.json'
 New-Item -ItemType Directory -Force -Path $data,(Join-Path $prod 'streamlit_opensea_sales'),(Join-Path $prod 'ops\production'),(Join-Path $release 'wheelhouse'),(Join-Path $Sandbox 'runtime') | Out-Null
 Set-Content -LiteralPath (Join-Path $prod 'streamlit_opensea_sales\app_opensea_sales.py') -Value '# sandbox app'
-Set-Content -LiteralPath (Join-Path $prod '.env') -Value @('POSTGRES_HOST=fake','POSTGRES_PORT=5432','POSTGRES_USER=fake','POSTGRES_PASSWORD=fake','POSTGRES_DB=fake','KEEP_ME=yes')
+Set-Content -LiteralPath (Join-Path $prod '.env') -Value @('POSTGRES_HOST=fake','POSTGRES_PORT=5432','POSTGRES_USER=fake','POSTGRES_PASSWORD=fake','POSTGRES_DB=fake','OTG_ANALYTICS_WRITES_ENABLED=true','OTG_SITE_ANALYTICS_ENABLED=true','OTG_PRODUCT_EVENTS_ENABLED=true','OTG_FEEDBACK_WRITES_ENABLED=true','OTG_FEEDBACK_TELEGRAM_ENABLED=false','KEEP_ME=yes')
 $git=Get-Command git.exe -ErrorAction Stop
 & $git.Source -c ('safe.directory='+$prod) -C $prod init -q
 & $git.Source -c ('safe.directory='+$prod) -C $prod config user.email sandbox@example.invalid
@@ -149,11 +149,13 @@ if(-not($rollback -match 'ROLLBACK_RESULT=PASS')){throw 'SANDBOX_ROLLBACK_FAILED
 $restored=Read-State
 if($restored.current_head -ne 'old' -or $restored.process -ne 'old-healthy'){throw 'SANDBOX_OLD_STATE_FAILED'}
 if((Get-FileHash -LiteralPath (Join-Path $prod '.env') -Algorithm SHA256).Hash -ne $oldEnvHash){throw 'SANDBOX_OLD_ENV_HASH_FAILED'}
+if((Get-Content -LiteralPath (Join-Path $prod '.env') -Raw) -notmatch 'OTG_ANALYTICS_WRITES_ENABLED=true' -or (Get-Content -LiteralPath (Join-Path $prod '.env') -Raw) -notmatch 'OTG_FEEDBACK_WRITES_ENABLED=true'){throw 'SANDBOX_FEATURE_FLAG_STATE_NOT_RESTORED'}
 if(Test-Path -LiteralPath $oldActive){throw 'SANDBOX_ACTIVE_RUNTIME_ABSENCE_NOT_RESTORED'}
 Assert-ArtifactState $oldArtifactState
 if(($restored.tasks|ConvertTo-Json -Compress -Depth 20) -ne $oldTaskStateJson){throw 'SANDBOX_OLD_TASK_STATE_FAILED'}
 'SANDBOX_ROLLBACK_EXECUTION=PASS'
 'SANDBOX_STATE_RESTORED=PASS'
+'SANDBOX_FEATURE_FLAG_ROLLBACK=PASS'
 'SANDBOX_ROLLBACK_START_LOG_CONTRACT=PASS'
 'SANDBOX_ROLLBACK_ARTIFACT_STATE_MATCH=PASS'
 'SANDBOX_ROLLBACK_TASK_STATE_MATCH=PASS'

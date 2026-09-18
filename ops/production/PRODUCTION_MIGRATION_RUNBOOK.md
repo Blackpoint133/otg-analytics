@@ -151,15 +151,21 @@ starts the service, checks child identity/health/logs, writes
 deployment receipt. The active pointer is never written merely to make a
 pre-health refresh pass.
 
-The first boot remains fail-closed:
+The environment transition remains fail-closed for missing, invalid, or
+conflicting write flags. Explicitly configured boolean values are preserved;
+the deployment does not silently turn an approved production write path off.
+An owner-authorized repair may pass `-EnableApprovedProductionWritePaths` to
+enable the approved analytics, product-event, and feedback persistence paths
+in the same atomic environment update. Telegram remains disabled unless its
+existing flag and both required credentials are present.
 
 ```text
 GUNZSCOPE_SUPPLY_SOURCE=v3
-OTG_ANALYTICS_WRITES_ENABLED=false
-OTG_SITE_ANALYTICS_ENABLED=false
-OTG_PRODUCT_EVENTS_ENABLED=false
-OTG_FEEDBACK_WRITES_ENABLED=false
-OTG_FEEDBACK_TELEGRAM_ENABLED=false
+OTG_ANALYTICS_WRITES_ENABLED=<preserved-or-false>
+OTG_SITE_ANALYTICS_ENABLED=<preserved-or-false>
+OTG_PRODUCT_EVENTS_ENABLED=<preserved-or-false>
+OTG_FEEDBACK_WRITES_ENABLED=<preserved-or-false>
+OTG_FEEDBACK_TELEGRAM_ENABLED=<preserved-or-false>
 ```
 
 Each NSSM activation uses a unique stdout/stderr log pair under the external

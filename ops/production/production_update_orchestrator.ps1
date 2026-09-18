@@ -4,14 +4,14 @@ param(
     [switch]$Execute,[switch]$Simulation,[string]$ApprovalPhrase,
     [string]$SimulationRoot='C:\VAMBAM\Projects\OTG\DEV\production_tooling_sandbox_110',[int]$SimulationPort=18502,
     [string]$ExpectedOldHead,[string]$ExpectedReleaseHead,[string]$PreparedReleaseRoot,[string]$PreparedReleaseManifest,[string]$PreparedReleaseManifestSha256,
-    [string]$BackupManifest,[string]$BackupRoot='C:\VAMBAM\Projects\OTG\DEV\production_backups',[string]$ReleasePython,[switch]$AllowLegacyMissingThemeSource
+    [string]$BackupManifest,[string]$BackupRoot='C:\VAMBAM\Projects\OTG\DEV\production_backups',[string]$ReleasePython,[switch]$AllowLegacyMissingThemeSource,[switch]$EnableApprovedProductionWritePaths
 )
 $ErrorActionPreference='Stop'
 $context=$null
 try {
     . (Join-Path $PSScriptRoot 'production_update_common.ps1')
-    if($Simulation){$context=New-SimulationExecutionContext @{SimulationRoot=$SimulationRoot;SimulationPort=$SimulationPort;ExpectedOldHead=$ExpectedOldHead;ExpectedReleaseHead=$ExpectedReleaseHead;PreparedReleaseRoot=$PreparedReleaseRoot;PreparedReleaseManifest=$PreparedReleaseManifest;PreparedReleaseManifestSha256=$PreparedReleaseManifestSha256;BackupManifest=$BackupManifest;ReleasePython=$ReleasePython;AllowLegacyMissingThemeSource=$AllowLegacyMissingThemeSource}}
-    else{$context=New-ProductionExecutionContext @{ExpectedOldHead=$ExpectedOldHead;ExpectedReleaseHead=$ExpectedReleaseHead;PreparedReleaseRoot=$PreparedReleaseRoot;PreparedReleaseManifest=$PreparedReleaseManifest;PreparedReleaseManifestSha256=$PreparedReleaseManifestSha256;BackupManifest=$BackupManifest;BackupRoot=$BackupRoot;AllowLegacyMissingThemeSource=$AllowLegacyMissingThemeSource}}
+    if($Simulation){$context=New-SimulationExecutionContext @{SimulationRoot=$SimulationRoot;SimulationPort=$SimulationPort;ExpectedOldHead=$ExpectedOldHead;ExpectedReleaseHead=$ExpectedReleaseHead;PreparedReleaseRoot=$PreparedReleaseRoot;PreparedReleaseManifest=$PreparedReleaseManifest;PreparedReleaseManifestSha256=$PreparedReleaseManifestSha256;BackupManifest=$BackupManifest;ReleasePython=$ReleasePython;AllowLegacyMissingThemeSource=$AllowLegacyMissingThemeSource;EnableApprovedProductionWritePaths=$EnableApprovedProductionWritePaths}}
+    else{$context=New-ProductionExecutionContext @{ExpectedOldHead=$ExpectedOldHead;ExpectedReleaseHead=$ExpectedReleaseHead;PreparedReleaseRoot=$PreparedReleaseRoot;PreparedReleaseManifest=$PreparedReleaseManifest;PreparedReleaseManifestSha256=$PreparedReleaseManifestSha256;BackupManifest=$BackupManifest;BackupRoot=$BackupRoot;AllowLegacyMissingThemeSource=$AllowLegacyMissingThemeSource;EnableApprovedProductionWritePaths=$EnableApprovedProductionWritePaths}}
     $expected=switch($Operation){'Backup'{'BACKUP_OTG_ANALYTICS_8502'}'Deploy'{'UPDATE_OTG_ANALYTICS_8502'}'Rollback'{'ROLLBACK_OTG_ANALYTICS_8502'}'DerivedRefresh'{'REFRESH_OTG_DERIVED_8502'}'MetadataRefresh'{'REFRESH_OTG_METADATA_8502'}'ConfigureTasks'{'CONFIGURE_OTG_REFRESH_8502'}}
     Assert-Approval -Execute:$Execute -Actual $ApprovalPhrase -Expected $expected
     switch($Operation){'Backup'{Invoke-BackupCore $context -Execute:$Execute}'Deploy'{Invoke-DeployCore $context -Execute:$Execute}'Rollback'{Invoke-RollbackCore $context -Execute:$Execute}'DerivedRefresh'{Invoke-DerivedRefreshCore $context -Execute:$Execute}'MetadataRefresh'{Invoke-MetadataRefreshCore $context -Execute:$Execute}'ConfigureTasks'{Invoke-TaskConfigurationCore $context -Execute:$Execute}}

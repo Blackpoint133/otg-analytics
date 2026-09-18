@@ -339,14 +339,14 @@ function New-ProductionExecutionContext {
     Assert-ProductionTarget
     $head=[string]$Arguments.ExpectedReleaseHead;$python='';if($head){$python=Get-FinalRuntimePython $head ([pscustomobject]@{Mode='PRODUCTION'})}
     $allowLegacy=[bool]$(if($Arguments.ContainsKey('AllowLegacyMissingThemeSource')){$Arguments['AllowLegacyMissingThemeSource']}else{$false})
-    [pscustomobject]@{Mode='PRODUCTION';Root=$script:ExpectedRoot;RuntimeRoot=$script:ExpectedRuntimeRoot;AppPath=$script:ExpectedApp;Port=8502;EnvPath=(Join-Path $script:ExpectedRoot '.env');DataRoot=(Join-Path $script:ExpectedRoot 'streamlit_opensea_sales\data_opensea_sales');RepoRoot=$script:ExpectedRoot;PreparedReleaseRoot=$Arguments.PreparedReleaseRoot;ReleaseRoot=$Arguments.PreparedReleaseRoot;ReleasePython=$python;DeploymentRefreshPython='';BackupRoot=$Arguments.BackupRoot;PreparedReleaseManifest=$Arguments.PreparedReleaseManifest;PreparedReleaseManifestSha256=$Arguments.PreparedReleaseManifestSha256;BackupManifest=$Arguments.BackupManifest;ExpectedOldHead=$Arguments.ExpectedOldHead;ExpectedReleaseHead=$head;SimulationStatePath='';SupervisorServiceName=$script:ProductionServiceName;SupervisorType=$script:ProductionSupervisorType;SupervisorAppDirectory=(Split-Path -Parent $script:ExpectedApp);SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';ProfileSyncContractRequired=$false;ProfileKeySource='';ProfileSyncContract='NOT_RUN';ProfileSyncStateGate='NOT_RUN';ProfileCoverageGate='NOT_RUN';ProfileReaderGate='NOT_RUN';ProfileCount=0;ProfileOkCount=0;ProfileHumanUsernameCount=0;ProfileHumanDisplayNameCount=0;ProfileRemoteAvatarCount=0;ProfileSyncAttempted=0;ProfileSyncSuccessful=0;ProfileSyncNotFound=0;ProfileSyncErrors=0;ProfileSyncRateLimited=0;ProfileSyncHealth='NOT_RUN';MetadataRefreshResult='NOT_RUN';AllowLegacyMissingThemeSource=$allowLegacy;MutationStarted=$false;MutationPhases=(New-Object Collections.ArrayList);RollbackAttempted=$false;RollbackSucceeded=$false;StateRestored=$false}
+    [pscustomobject]@{Mode='PRODUCTION';Root=$script:ExpectedRoot;RuntimeRoot=$script:ExpectedRuntimeRoot;AppPath=$script:ExpectedApp;Port=8502;EnvPath=(Join-Path $script:ExpectedRoot '.env');DataRoot=(Join-Path $script:ExpectedRoot 'streamlit_opensea_sales\data_opensea_sales');RepoRoot=$script:ExpectedRoot;PreparedReleaseRoot=$Arguments.PreparedReleaseRoot;ReleaseRoot=$Arguments.PreparedReleaseRoot;ReleasePython=$python;DeploymentRefreshPython='';BackupRoot=$Arguments.BackupRoot;PreparedReleaseManifest=$Arguments.PreparedReleaseManifest;PreparedReleaseManifestSha256=$Arguments.PreparedReleaseManifestSha256;BackupManifest=$Arguments.BackupManifest;ExpectedOldHead=$Arguments.ExpectedOldHead;ExpectedReleaseHead=$head;SimulationStatePath='';SupervisorServiceName=$script:ProductionServiceName;SupervisorType=$script:ProductionSupervisorType;SupervisorAppDirectory=(Split-Path -Parent $script:ExpectedApp);SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';ProfileSyncContractRequired=$false;ProfileKeySource='';ProfileSyncContract='NOT_RUN';ProfileSyncStateGate='NOT_RUN';ProfileCoverageGate='NOT_RUN';ProfileReaderGate='NOT_RUN';ProfileCount=0;ProfileOkCount=0;ProfileHumanUsernameCount=0;ProfileHumanDisplayNameCount=0;ProfileRemoteAvatarCount=0;ProfileSyncAttempted=0;ProfileSyncSuccessful=0;ProfileSyncNotFound=0;ProfileSyncErrors=0;ProfileSyncRateLimited=0;ProfileSyncHealth='NOT_RUN';MetadataRefreshResult='NOT_RUN';ApprovedProductionWritePaths=[bool]$(if($Arguments.ContainsKey('EnableApprovedProductionWritePaths')){$Arguments['EnableApprovedProductionWritePaths']}else{$false});AllowLegacyMissingThemeSource=$allowLegacy;MutationStarted=$false;MutationPhases=(New-Object Collections.ArrayList);RollbackAttempted=$false;RollbackSucceeded=$false;StateRestored=$false}
 }
 function New-SimulationExecutionContext {
     param([hashtable]$Arguments)
     $root=[IO.Path]::GetFullPath($Arguments.SimulationRoot);$app=Join-Path $root 'production\streamlit_opensea_sales\app_opensea_sales.py';Assert-SimulationTarget $root ([int]$Arguments.SimulationPort) $app
     $old=if($Arguments.ExpectedOldHead){$Arguments.ExpectedOldHead}else{'old'};$release=if($Arguments.ExpectedReleaseHead){$Arguments.ExpectedReleaseHead}else{'release'};$python=if($Arguments.ReleasePython){$Arguments.ReleasePython}else{Get-FinalRuntimePython $release ([pscustomobject]@{Mode='SIMULATION';RuntimeRoot=(Join-Path $root 'runtime')})}
     $allowLegacy=[bool]$(if($Arguments.ContainsKey('AllowLegacyMissingThemeSource')){$Arguments['AllowLegacyMissingThemeSource']}else{$false})
-    [pscustomobject]@{Mode='SIMULATION';Root=$root;RuntimeRoot=(Join-Path $root 'runtime');AppPath=$app;Port=([int]$Arguments.SimulationPort);EnvPath=(Join-Path $root 'production\.env');DataRoot=(Join-Path $root 'production\streamlit_opensea_sales\data_opensea_sales');RepoRoot=(Join-Path $root 'production');PreparedReleaseRoot=(Join-Path $root 'release');ReleaseRoot=(Join-Path $root 'release');ReleasePython=$python;DeploymentRefreshPython='';BackupRoot=(Join-Path $root 'backups');PreparedReleaseManifest=$Arguments.PreparedReleaseManifest;PreparedReleaseManifestSha256=$Arguments.PreparedReleaseManifestSha256;BackupManifest=$Arguments.BackupManifest;ExpectedOldHead=$old;ExpectedReleaseHead=$release;SimulationStatePath=(Join-Path $root 'simulation_state.json');SupervisorServiceName='SANDBOX_NSSM';SupervisorType='NSSM';SupervisorAppDirectory=(Split-Path -Parent $app);SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';ProfileSyncContractRequired=$false;ProfileKeySource='';ProfileSyncContract='NOT_RUN';ProfileSyncStateGate='NOT_RUN';ProfileCoverageGate='NOT_RUN';ProfileReaderGate='NOT_RUN';ProfileCount=0;ProfileOkCount=0;ProfileHumanUsernameCount=0;ProfileHumanDisplayNameCount=0;ProfileRemoteAvatarCount=0;ProfileSyncAttempted=0;ProfileSyncSuccessful=0;ProfileSyncNotFound=0;ProfileSyncErrors=0;ProfileSyncRateLimited=0;ProfileSyncHealth='NOT_RUN';MetadataRefreshResult='NOT_RUN';AllowLegacyMissingThemeSource=$allowLegacy;MutationStarted=$false;MutationPhases=(New-Object Collections.ArrayList);RollbackAttempted=$false;RollbackSucceeded=$false;StateRestored=$false}
+    [pscustomobject]@{Mode='SIMULATION';Root=$root;RuntimeRoot=(Join-Path $root 'runtime');AppPath=$app;Port=([int]$Arguments.SimulationPort);EnvPath=(Join-Path $root 'production\.env');DataRoot=(Join-Path $root 'production\streamlit_opensea_sales\data_opensea_sales');RepoRoot=(Join-Path $root 'production');PreparedReleaseRoot=(Join-Path $root 'release');ReleaseRoot=(Join-Path $root 'release');ReleasePython=$python;DeploymentRefreshPython='';BackupRoot=(Join-Path $root 'backups');PreparedReleaseManifest=$Arguments.PreparedReleaseManifest;PreparedReleaseManifestSha256=$Arguments.PreparedReleaseManifestSha256;BackupManifest=$Arguments.BackupManifest;ExpectedOldHead=$old;ExpectedReleaseHead=$release;SimulationStatePath=(Join-Path $root 'simulation_state.json');SupervisorServiceName='SANDBOX_NSSM';SupervisorType='NSSM';SupervisorAppDirectory=(Split-Path -Parent $app);SupervisorNssmExecutable='';SupervisorConfiguration=$null;SupervisorActivationStdOut='';SupervisorActivationStdErr='';ProfileSyncContractRequired=$false;ProfileKeySource='';ProfileSyncContract='NOT_RUN';ProfileSyncStateGate='NOT_RUN';ProfileCoverageGate='NOT_RUN';ProfileReaderGate='NOT_RUN';ProfileCount=0;ProfileOkCount=0;ProfileHumanUsernameCount=0;ProfileHumanDisplayNameCount=0;ProfileRemoteAvatarCount=0;ProfileSyncAttempted=0;ProfileSyncSuccessful=0;ProfileSyncNotFound=0;ProfileSyncErrors=0;ProfileSyncRateLimited=0;ProfileSyncHealth='NOT_RUN';MetadataRefreshResult='NOT_RUN';ApprovedProductionWritePaths=[bool]$(if($Arguments.ContainsKey('EnableApprovedProductionWritePaths')){$Arguments['EnableApprovedProductionWritePaths']}else{$false});AllowLegacyMissingThemeSource=$allowLegacy;MutationStarted=$false;MutationPhases=(New-Object Collections.ArrayList);RollbackAttempted=$false;RollbackSucceeded=$false;StateRestored=$false}
 }
 
 function Invoke-ChildProcess {
@@ -700,7 +700,55 @@ function Start-ContextProcess([object]$Context,[string]$Python,[string]$App,[swi
     throw 'DIRECT_PROCESS_LIFECYCLE_FORBIDDEN'
 }
 function Invoke-HealthCheck([int]$Port,[int]$Seconds=60){$until=(Get-Date).AddSeconds($Seconds);do{try{$response=Invoke-WebRequest ('http://127.0.0.1:'+ $Port) -UseBasicParsing -TimeoutSec 5;if($response.StatusCode -ge 200 -and $response.StatusCode -lt 500){return $true}}catch{};Start-Sleep -Milliseconds 500}while((Get-Date)-lt $until);$false}
-function Set-FailClosedEnv([object]$Context){$lines=@();if(Test-Path $Context.EnvPath){$lines=Get-Content $Context.EnvPath};$updates=@{GUNZSCOPE_SUPPLY_SOURCE='v3';OTG_ANALYTICS_WRITES_ENABLED='false';OTG_SITE_ANALYTICS_ENABLED='false';OTG_PRODUCT_EVENTS_ENABLED='false';OTG_FEEDBACK_WRITES_ENABLED='false';OTG_FEEDBACK_TELEGRAM_ENABLED='false'};$seen=@{};$result=@();foreach($line in $lines){if($line -match '^\s*([^#=][^=]*)='){$key=$Matches[1].Trim();if($updates.ContainsKey($key)){$result+=($key+'='+$updates[$key]);$seen[$key]=$true}else{$result+=$line}}else{$result+=$line}};foreach($key in $updates.Keys){if(-not$seen.ContainsKey($key)){$result+=($key+'='+$updates[$key])}};Add-Mutation $Context 'DEPLOY_ENV';Write-AtomicText $Context.EnvPath (($result -join [Environment]::NewLine)+[Environment]::NewLine)}
+function Get-PreservedFeatureFlagValue([hashtable]$Values,[string]$Name){
+    $rawValues=@($Values[$Name])
+    if($rawValues.Count -eq 0){return 'false'}
+    $normalized=@()
+    foreach($raw in $rawValues){
+        $value=([string]$raw).Trim().Trim('"').Trim("'").ToLowerInvariant()
+        if($value -in @('1','true','yes','on')){$normalized+='true'}
+        elseif($value -in @('0','false','no','off')){$normalized+='false'}
+        else{return 'false'}
+    }
+    $distinct=@($normalized|Select-Object -Unique)
+    if($distinct.Count -ne 1){return 'false'}
+    $distinct[0]
+}
+function Set-FailClosedEnv([object]$Context){
+    $lines=@();if(Test-Path $Context.EnvPath){$lines=Get-Content $Context.EnvPath}
+    $flagNames=@('OTG_ANALYTICS_WRITES_ENABLED','OTG_SITE_ANALYTICS_ENABLED','OTG_PRODUCT_EVENTS_ENABLED','OTG_FEEDBACK_WRITES_ENABLED','OTG_FEEDBACK_TELEGRAM_ENABLED')
+    $credentialNames=@('OTG_FEEDBACK_TELEGRAM_BOT_TOKEN','OTG_FEEDBACK_TELEGRAM_CHAT_ID')
+    $trackedNames=$flagNames+$credentialNames
+    $existing=@{}
+    foreach($line in $lines){
+        if($line -match '^\s*([^#=][^=]*)=(.*)$'){
+            $key=$Matches[1].Trim()
+            if($key -in $trackedNames){
+                if(-not$existing.ContainsKey($key)){$existing[$key]=@()}
+                $existing[$key]+=$Matches[2].Trim()
+            }
+        }
+    }
+    $approved=[ordered]@{}
+    if($Context.PSObject.Properties['ApprovedProductionWritePaths'] -and $Context.ApprovedProductionWritePaths){
+        foreach($key in @('OTG_ANALYTICS_WRITES_ENABLED','OTG_SITE_ANALYTICS_ENABLED','OTG_PRODUCT_EVENTS_ENABLED','OTG_FEEDBACK_WRITES_ENABLED')){$approved[$key]='true'}
+    }
+    $updates=[ordered]@{GUNZSCOPE_SUPPLY_SOURCE='v3'}
+    foreach($key in $flagNames){$updates[$key]=if($approved.Contains($key)){$approved[$key]}else{Get-PreservedFeatureFlagValue $existing $key}}
+    $telegramToken='';if($existing.ContainsKey('OTG_FEEDBACK_TELEGRAM_BOT_TOKEN')){$telegramToken=([string]$existing['OTG_FEEDBACK_TELEGRAM_BOT_TOKEN'][0]).Trim().Trim('"').Trim("'")}
+    $telegramChat='';if($existing.ContainsKey('OTG_FEEDBACK_TELEGRAM_CHAT_ID')){$telegramChat=([string]$existing['OTG_FEEDBACK_TELEGRAM_CHAT_ID'][0]).Trim().Trim('"').Trim("'")}
+    if($updates['OTG_FEEDBACK_TELEGRAM_ENABLED'] -eq 'true' -and ([string]::IsNullOrWhiteSpace($telegramToken) -or [string]::IsNullOrWhiteSpace($telegramChat))){$updates['OTG_FEEDBACK_TELEGRAM_ENABLED']='false'}
+    $seen=@{};$result=@()
+    foreach($line in $lines){
+        if($line -match '^\s*([^#=][^=]*)='){
+            $key=$Matches[1].Trim()
+            if($updates.Contains($key)){$result+=($key+'='+$updates[$key]);$seen[$key]=$true}else{$result+=$line}
+        }else{$result+=$line}
+    }
+    foreach($key in $updates.Keys){if(-not$seen.ContainsKey($key)){$result+=($key+'='+$updates[$key])}}
+    Add-Mutation $Context 'DEPLOY_ENV'
+    Write-AtomicText $Context.EnvPath (($result -join [Environment]::NewLine)+[Environment]::NewLine)
+}
 function Invoke-ContextMigrations([object]$Context){Set-Phase $Context 'DEPLOY_MIGRATIONS';Assert-AllowedMigrationSet $script:AllowedMigrations;Add-Mutation $Context 'DEPLOY_MIGRATIONS';if($Context.Mode -eq 'SIMULATION'){Set-Content (Join-Path $Context.Root 'migrations.log') ($script:AllowedMigrations -join [Environment]::NewLine);return};$tools=Get-PostgresTools;if(-not$tools.ContainsKey('psql')){throw 'PSQL_MISSING'};$env=Get-DatabaseEnvironment $Context.EnvPath -Required;foreach($migration in $script:AllowedMigrations){$path=Join-Path $Context.RepoRoot $migration;if(-not(Test-Path $path)){throw ('MIGRATION_MISSING:'+ $migration)};Invoke-ChildProcess $tools.psql @('-X','-v','ON_ERROR_STOP=1','-f',$path) $Context.Root 300 $env|Out-Null}}
 function Invoke-ContextGitFastForward([object]$Context,[string]$ReleaseHead){Set-Phase $Context 'DEPLOY_FAST_FORWARD';Add-Mutation $Context 'DEPLOY_FAST_FORWARD';if($Context.Mode -eq 'SIMULATION'){$state=Get-ContextState $Context;$state.current_head=$ReleaseHead;Save-ContextState $Context $state;return};& git -c ('safe.directory='+$Context.Root) -C $Context.Root fetch origin main;if($LASTEXITCODE -ne 0){throw 'GIT_FETCH_FAILED'};& git -c ('safe.directory='+$Context.Root) -C $Context.Root merge --ff-only origin/main;if($LASTEXITCODE -ne 0){throw 'GIT_FAST_FORWARD_FAILED'}}
 function Invoke-ContextGitReset([object]$Context,[string]$OldHead){Set-Phase $Context 'ROLLBACK_GIT';Add-Mutation $Context 'ROLLBACK_GIT';if($Context.Mode -eq 'SIMULATION'){$state=Get-ContextState $Context;$state.current_head=$OldHead;Save-ContextState $Context $state;return};& git -c ('safe.directory='+$Context.Root) -C $Context.Root reset --hard $OldHead;if($LASTEXITCODE -ne 0){throw 'GIT_ROLLBACK_FAILED'}}
