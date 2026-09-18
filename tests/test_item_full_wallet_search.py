@@ -56,12 +56,12 @@ def test_item_component_has_one_shared_sorted_match_helper():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
     assert source.count("function matches(") == 1
     assert "localeCompare" in source and "max-height:260px" in source
-    assert "matches(browse?'':q.value)" in source
+    assert "matches(focused&&!editing?'':q.value)" in source
 
 def test_item_keyboard_uses_shared_matches():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
     assert "ArrowDown" in source and "ArrowUp" in source and "Enter" in source and "Escape" in source
-    assert "matches(browse?'':q.value)" in source
+    assert "matches(focused&&!editing?'':q.value)" in source
 
 def test_item_component_uses_safe_text_and_json_protocol():
     source = (APP / "ui" / "item_search_component" / "index.html").read_text()
