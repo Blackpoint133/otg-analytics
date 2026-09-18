@@ -75,7 +75,7 @@ DB_MUTATION=NO
 ## Validation
 
 FOCUSED_TESTS=11 passed: catalog validation, classification, route ordering, top navigation, card security/responsive contract, local assets/fallbacks, and transitional feedback context.
-FULL_TESTS=719 passed; 2 warnings; 5 subtests passed; 1 identical known non-elevated WMI access-denied supervisor sandbox limitation. Elevated `tests/test_production_supervisor.py` regression: 4 passed.
+FULL_TESTS=719 passed; 1 identical known non-elevated WMI access-denied supervisor sandbox failure; 2 warnings; 5 subtests passed. Elevated `tests/test_production_supervisor.py` regression: 4 passed.
 
 The full suite and elevated supervisor regression were run after implementation.
 The known WMI limitation is external execution-context permission behavior and
