@@ -98,12 +98,29 @@ def test_ecosystem_route_is_top_level_and_bypasses_analytics_writers():
     assert "@media(max-width:768px)" in nav
     assert "width:176px" in nav
 
-    branch = app.index("if current_mode == 'ecosystem':")
+    branch = app.index('if requested_mode == "ecosystem":')
+    sidebar_logo = app.index("render_sidebar_logo()")
     session = app.index("    record_current_session_once(")
     event = app.index("            record_product_event(")
     item_loading = app.index("items_index, diagnostics = load_items_index()")
-    assert branch < session < event < item_loading
+    assert branch < sidebar_logo < session < event < item_loading
+    ecosystem_block = app[branch:sidebar_logo]
+    assert "render_ecosystem_page()" in ecosystem_block
+    assert "render_sidebar_footer()" not in ecosystem_block
     assert "record_product_event" not in ecosystem
+
+
+def test_ecosystem_v2_is_compact_directory_layout_and_other_routes_keep_sidebar():
+    source = (APP / "ui" / "ecosystem.py").read_text(encoding="utf-8")
+    app = (APP / "app_opensea_sales.py").read_text(encoding="utf-8")
+    assert "aspect-ratio:1 / 1" in source
+    assert "-webkit-line-clamp:3" in source
+    assert "ecosystem-grid-marketplaces" in source
+    assert "min-height:292px" not in source
+    assert "width:100%;min-height:31px" not in source
+    assert "st.sidebar.markdown" in app
+    assert "render_sidebar_logo()" in app
+    assert "render_sidebar_footer()" in app
 
 
 def test_ecosystem_feedback_is_display_and_back_navigation_safe_without_db_migration():

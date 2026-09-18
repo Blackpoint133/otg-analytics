@@ -116,6 +116,13 @@ def main():
         render_feedback_page()
         return
 
+    # Ecosystem is a lightweight public directory. Keep it outside the normal
+    # analytics shell so it does not render the sidebar or load analytics data.
+    if requested_mode == "ecosystem":
+        mode_switch.render_mode_switch()
+        render_ecosystem_page()
+        return
+
     # technical implementation note technical implementation note technical implementation note
     st.sidebar.markdown("<div style='flex: 1'></div>", unsafe_allow_html=True)
 
@@ -133,11 +140,6 @@ def main():
     # technical implementation note technical implementation note: ITEM vs MARKET vs TOP ITEMS ANALYTICS
     # ════════════════════════════════════════════════════════════════
     current_mode = mode_switch.render_mode_switch()
-    if current_mode == 'ecosystem':
-        render_ecosystem_page()
-        render_sidebar_footer()
-        return
-
     browser_identity = get_browser_identity()
     record_current_session_once(
         mode=current_mode,
