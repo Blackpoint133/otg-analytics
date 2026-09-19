@@ -67,6 +67,7 @@ from ui import (
     get_current_page,
     paginate_dataframe,
     render_sidebar_footer,
+    render_global_status_bar,
     render_sidebar_logo,
     mode_switch
 )
@@ -112,6 +113,8 @@ def main():
     requested_mode = st.query_params.get("mode", "item")
     if isinstance(requested_mode, list):
         requested_mode = requested_mode[0] if requested_mode else "item"
+    if requested_mode != "internal_analytics":
+        render_global_status_bar()
     if requested_mode == "feedback":
         render_feedback_page()
         return

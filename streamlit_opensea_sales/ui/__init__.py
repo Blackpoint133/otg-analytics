@@ -11,6 +11,7 @@ from .metrics import render_metrics
 from .wallets import render_wallet_activity
 from .tables import render_sales_table, render_sales_table_collapsible, get_current_page, paginate_dataframe
 from .footer import render_sidebar_footer
+from .status_bar import render_global_status_bar
 from .logo import render_sidebar_logo
 from .item_overview import render_item_overview
 from . import mode_switch
@@ -28,6 +29,7 @@ __all__ = [
     'get_current_page',
     'paginate_dataframe',
     'render_sidebar_footer',
+    'render_global_status_bar',
     'render_sidebar_logo',
     'render_item_overview',
     'mode_switch',
