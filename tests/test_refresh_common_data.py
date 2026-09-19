@@ -54,6 +54,35 @@ def test_no_production_default_and_atomic_publisher(tmp_path):
     assert target.read_text(encoding="utf-8") == "fresh"
 
 
+def test_price_history_sync_is_atomic_idempotent_and_scoped(tmp_path):
+    source = tmp_path / "source"; target = tmp_path / "target"
+    source_file = source / "price_history" / "gun_usd_price_history.csv"
+    target_file = target / "price_history" / "gun_usd_price_history.csv"
+    source_file.parent.mkdir(parents=True); target.mkdir()
+    source_file.write_text("date,price_usd\n2026-01-01,0.03\n", encoding="utf-8")
+
+    assert MODULE.sync_price_history(source, target) == 1
+    assert target_file.read_text(encoding="utf-8") == source_file.read_text(encoding="utf-8")
+    assert MODULE.sync_price_history(source, target) == 0
+    (source / "price_history" / "unrelated.csv").write_text("not copied", encoding="utf-8")
+    assert not (target / "price_history" / "unrelated.csv").exists()
+
+    source_file.write_text("date,price_usd\n2026-01-01,0.04\n", encoding="utf-8")
+    assert MODULE.sync_price_history(source, target) == 1
+    assert "0.04" in target_file.read_text(encoding="utf-8")
+
+
+def test_price_history_sync_requires_approved_source_file(tmp_path):
+    source = tmp_path / "source"; target = tmp_path / "target"
+    source.mkdir(); target.mkdir()
+    try:
+        MODULE.sync_price_history(source, target)
+    except FileNotFoundError:
+        pass
+    else:
+        raise AssertionError("missing price history must fail closed")
+
+
 def _dirs(tmp_path, source_date="2026-09-12T18:42:37Z", target_date=None):
     source = tmp_path / "source"; target = tmp_path / "target"
     (source / "sales").mkdir(parents=True); (target / "sales").mkdir(parents=True)
@@ -66,6 +95,10 @@ def _dirs(tmp_path, source_date="2026-09-12T18:42:37Z", target_date=None):
     else:
         (target / "sales_enriched" / "one.csv").write_text(f"sale_date\n{source_date}\n", encoding="utf-8")
     for root in (source, target):
+        (root / "price_history").mkdir()
+        (root / "price_history" / "gun_usd_price_history.csv").write_text(
+            "date,price_usd\n2026-09-12,0.03\n", encoding="utf-8"
+        )
         (root / "item_class_snapshot.json").write_text(json.dumps({"schema_version": 1, "items": {"Example": {"class": "Weapon"}}}), encoding="utf-8")
         overview = root / "market_overview_enriched"
         overview.mkdir()

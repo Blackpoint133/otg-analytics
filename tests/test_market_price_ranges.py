@@ -121,6 +121,11 @@ def test_daily_and_monthly_charts_have_same_fixed_series_contract():
     assert "USD AT SALE" in daily_fig.layout.title.text
     assert "USD AT SALE" in monthly_fig.layout.title.text
     assert "volume" not in (daily_buckets[0].hovertemplate or "").lower()
+    assert daily_fig.layout.showlegend is False
+    assert monthly_fig.layout.showlegend is False
+    actual_range = pd.to_datetime(list(daily_fig.layout.xaxis.range), utc=True)
+    source_dates = pd.to_datetime(daily_frame["date"], utc=True)
+    assert list(actual_range) == [source_dates.min() - pd.Timedelta(hours=12), source_dates.max() + pd.Timedelta(hours=12)]
 
 
 def test_current_snapshot_reconciles_expected_counts():

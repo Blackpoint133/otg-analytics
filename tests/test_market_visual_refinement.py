@@ -52,6 +52,31 @@ def test_market_titles_are_white_and_token_price_axis_line_is_hidden():
         assert fig.layout.yaxis2.ticks == ""
         assert fig.layout.yaxis2.tickfont.color == "#AFFF01"
         assert any(trace.name.startswith("GUN/USD") for trace in fig.data)
+    assert all(fig.layout.showlegend is False for fig in figures)
+
+
+def test_daily_market_charts_use_visual_half_day_edge_padding():
+    daily = _daily().copy()
+    daily = pd.concat([daily, daily.assign(date=pd.Timestamp("2026-01-02"))], ignore_index=True)
+    expected = [pd.Timestamp("2025-12-31 12:00"), pd.Timestamp("2026-01-02 12:00")]
+    for fig in (
+        build_daily_liquidity_chart(daily),
+        build_daily_volume_chart(daily, show_token_price=False),
+        build_daily_volume_chart(daily, show_token_price=True),
+    ):
+        assert list(fig.layout.xaxis.range) == expected
+        assert len(fig.data[0].x) == len(daily)
+        assert fig.layout.showlegend is False
+
+
+def test_monthly_market_charts_hide_legends_with_token_overlay_states():
+    monthly = _monthly()
+    figures = [
+        build_monthly_liquidity_chart(monthly),
+        build_monthly_volume_chart(monthly, show_token_price=False),
+        build_monthly_volume_chart(monthly, show_token_price=True),
+    ]
+    assert all(fig is not None and fig.layout.showlegend is False for fig in figures)
 
 
 def test_market_spacing_uses_compact_divider_and_sell_palette_is_updated():

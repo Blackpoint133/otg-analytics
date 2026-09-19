@@ -154,6 +154,10 @@ def test_item_class_charts_have_stable_stacked_series_and_single_total_helper():
     assert monthly_fig.layout.barmode == "stack"
     assert daily_fig.data[-1].name == monthly_fig.data[-1].name == "Total sales"
     assert daily_fig.data[-1].showlegend is False and monthly_fig.data[-1].showlegend is False
+    assert daily_fig.layout.showlegend is False and monthly_fig.layout.showlegend is False
+    actual_range = pd.to_datetime(list(daily_fig.layout.xaxis.range), utc=True)
+    source_dates = pd.to_datetime(daily.head(3)["date"], utc=True)
+    assert list(actual_range) == [source_dates.min() - pd.Timedelta(hours=12), source_dates.max() + pd.Timedelta(hours=12)]
     assert all("Total sales" not in (trace.hovertemplate or "") for trace in daily_fig.data[:-1] + monthly_fig.data[:-1])
     assert [trace.line.color for trace in daily_fig.data[:-1]] == [entry["color"] for entry in classes]
     assert [trace.marker.color for trace in monthly_fig.data[:-1]] == [entry["color"] for entry in classes]

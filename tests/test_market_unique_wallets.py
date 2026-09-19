@@ -36,7 +36,7 @@ def test_liquidity_overlays_use_yellow_right_axis_and_integer_tooltip():
     assert fig.layout.showlegend is False
     assert fig.data[1].line.color == "#FFD400"
     assert fig.layout.yaxis2.showline is False and fig.layout.yaxis2.tickfont.color == "#FFD400"
-    assert list(fig.layout.xaxis.range) == [pd.Timestamp("2026-01-01"), pd.Timestamp("2026-01-02")]
+    assert list(fig.layout.xaxis.range) == [pd.Timestamp("2025-12-31 12:00"), pd.Timestamp("2026-01-02 12:00")]
     assert ":,.0f" in fig.data[1].hovertemplate
 
 

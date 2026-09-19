@@ -26,6 +26,15 @@ COLOR_LINE = '#FF003A'  # OTG brand red for line charts
 COLOR_MARKER = '#CC0030'  # Darker red for markers/dots
 
 
+def _padded_daily_range(date_values) -> Optional[list]:
+    """Return a visual-only half-day pad around the visible daily dates."""
+    parsed = pd.to_datetime(pd.Series(date_values), errors='coerce').dropna()
+    if parsed.empty:
+        return None
+    padding = pd.Timedelta(hours=12)
+    return [parsed.min() - padding, parsed.max() + padding]
+
+
 def _price_range_layout(title: str, mobile_layout: bool, *, barmode: str | None = None) -> dict:
     """Return the shared dark layout for the fixed price-range chart family."""
     layout = dict(
@@ -65,7 +74,7 @@ def _price_range_layout(title: str, mobile_layout: bool, *, barmode: str | None 
         ),
         margin=dict(l=8, r=8, t=46, b=92) if mobile_layout else dict(l=50, r=50, t=80, b=70),
         height=340 if mobile_layout else 410,
-        showlegend=True,
+        showlegend=False,
     )
     if barmode is not None:
         layout['barmode'] = barmode
@@ -111,7 +120,7 @@ def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: b
             ))
         _add_price_range_total_hover_trace(fig, df['date'], df['total_sales'])
         fig.update_layout(**_price_range_layout('DAILY SALES BY PRICE RANGE — USD AT SALE', mobile_layout))
-        fig.update_xaxes(title=None)
+        fig.update_xaxes(title=None, range=_padded_daily_range(df['date']))
         return fig
     except Exception as exc:
         print(f'Error building daily price range chart: {exc}')
@@ -176,7 +185,7 @@ def build_daily_item_class_chart(item_class_df: pd.DataFrame, classes: list[dict
             ))
         _add_item_class_total_hover_trace(fig, df['date'], df['total_sales'])
         fig.update_layout(**_price_range_layout('DAILY SALES BY ITEM CLASS', mobile_layout))
-        fig.update_xaxes(title=None)
+        fig.update_xaxes(title=None, range=_padded_daily_range(df['date']))
         return fig
     except Exception as exc:
         print(f'Error building daily item class chart: {exc}')
@@ -263,10 +272,7 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             linewidth=2,
             zeroline=False,
         )
-        if show_unique_wallets and unique_wallets_df is not None and not unique_wallets_df.empty:
-            date_values = pd.to_datetime(df['date'], errors='coerce').dropna()
-            if len(date_values) > 1:
-                xaxis_config['range'] = [date_values.min(), date_values.max()]
+        xaxis_config['range'] = _padded_daily_range(df['date'])
         yaxis_config = dict(
             showgrid=True,
             gridwidth=1,
@@ -464,6 +470,7 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
             linewidth=2,
             zeroline=False,
         )
+        xaxis_config['range'] = _padded_daily_range(df['date'])
         yaxis_config = dict(
             showgrid=True,
             gridwidth=1,
@@ -496,7 +503,7 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
             yaxis2=yaxis2_config,
             margin=dict(l=4, r=4, t=36, b=40) if mobile_layout else dict(l=50, r=70 if show_token_price else 50, t=90, b=50),
             height=280 if mobile_layout else 400,
-            showlegend=False if mobile_layout else show_token_price,
+            showlegend=False,
             legend=dict(
                 orientation="h",
                 x=0,
@@ -802,7 +809,7 @@ def build_monthly_volume_chart(monthly_df: pd.DataFrame, show_usd: bool = False,
             yaxis2=yaxis2_config,
             margin=dict(l=4, r=4, t=36, b=40) if mobile_layout else dict(l=50, r=70 if show_token_price else 50, t=90, b=50),
             height=260 if mobile_layout else 400,
-            showlegend=False if mobile_layout else show_token_price,
+            showlegend=False,
             legend=dict(
                 orientation="h",
                 x=0,

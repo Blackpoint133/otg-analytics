@@ -70,6 +70,15 @@ def sync_market_base(source: Path, target: Path) -> int:
     return changed
 
 
+def sync_price_history(source: Path, target: Path) -> int:
+    """Publish only the canonical GUN/USD history required by chart overlays."""
+    source_file = source / "price_history" / "gun_usd_price_history.csv"
+    target_file = target / "price_history" / "gun_usd_price_history.csv"
+    if not source_file.is_file():
+        raise FileNotFoundError(source_file)
+    return int(publish_file(source_file, target_file))
+
+
 def sync_item_class_snapshot(source: Path, target: Path) -> int:
     """Publish the class snapshot before any class-aware derived builders run."""
     source_file = source / "item_class_snapshot.json"
@@ -135,6 +144,8 @@ def run(source: Path, target: Path) -> int:
         stage = "sync"
         changed = sync_sales(source, target)
         changed += sync_market_base(source, target)
+        stage = "price_history"
+        changed += sync_price_history(source, target)
         stage = "target_freshness"
         target_date = get_sales_date_max(target)
         if target_date is None or target_date < source_date:
