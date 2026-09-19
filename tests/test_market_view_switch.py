@@ -137,11 +137,27 @@ def test_market_guide_documents_view_without_changing_period():
     assert "Changing VIEW does not change the selected PERIOD." in source
 
 
-def test_roadmap_marks_market_expansion_items_one_through_five_complete():
+def test_roadmap_transitions_market_expansion_to_live_and_stage_two_to_development():
     source = ROADMAP.read_text(encoding="utf-8")
     expansion = source[source.index("<h3>Market Analytics Expansion</h3>"):source.index("<section class=\"stage s2\"", source.index("<h3>Market Analytics Expansion</h3>"))]
-    assert "5 / 5 completed" in expansion
-    assert expansion.count('class="card-status completed"') >= 5
+    assert "6 / 6 completed" in expansion
+    assert expansion.count('class="card-status completed"') >= 6
+    stage_one = source[source.index('<section class="stage s1" id="stage-1">'):source.index('<section class="stage s2"')]
+    assert 'status-icon-live' in stage_one
+    assert 'status-label status-live">Live' in stage_one
+    assert 'stage s1 live-core' not in expansion
     assert "03 / Chart set" in expansion
     assert "04 / Chart set" in expansion
     assert "05 / Mode switch" in expansion
+    assert "Display Layout <span class=\"card-status completed\">Completed</span>" in expansion
+    stage_two = source[source.index('<section class="stage s2"'):source.index('<section class="stage s3"')]
+    assert 'status-icon-development' in stage_two
+    assert 'status-label status-development">In Development' in stage_two
+    assert 'card-status completed' not in stage_two
+    assert 'class="stage s3"' in source and 'class="stage s4"' in source
+    assert 'class="stage infra"' in source
+    assert '.s1{--stage-color:#afff01}' in source
+    assert '.s2{--stage-color:var(--red)}' in source
+    assert 'href="#stage-2"' in source
+    assert 'href="#stage-3"' in source
+    assert 'href="#stage-1"' not in source

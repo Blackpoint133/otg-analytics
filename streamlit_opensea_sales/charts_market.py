@@ -55,7 +55,7 @@ def _price_range_layout(title: str, mobile_layout: bool, *, barmode: str | None 
             zeroline=False,
         ),
         yaxis=dict(
-            title=dict(text='Sales count'),
+            title=dict(text=''),
             showgrid=True,
             gridwidth=1,
             gridcolor=COLOR_GRID,
@@ -249,7 +249,7 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             mode='lines',
             name='Daily Liquidity',
             line=dict(color=COLOR_LINE, width=1.2),
-            hovertemplate='<b>%{x|%Y-%m-%d}</b><br>Liquidity: %{y:,.0f} transactions<extra></extra>',
+            hovertemplate='Liquidity: %{y:,.0f} transactions<extra></extra>',
             fill='tozeroy',
             fillcolor='rgba(255, 0, 58, 0.15)'
         ))
@@ -260,7 +260,7 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
                 x=wallet_df['date'], y=pd.to_numeric(wallet_df['unique_wallets'], errors='coerce'),
                 mode='lines', name='Unique Wallets', yaxis='y2',
                 line=dict(color='#FFD400', width=1.2),
-                hovertemplate='<b>%{x|%Y-%m-%d}</b><br>Unique Wallets: %{y:,.0f}<extra></extra>',
+                hovertemplate='Unique Wallets: %{y:,.0f}<extra></extra>',
             ))
         
         xaxis_config = dict(
@@ -395,16 +395,9 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
         
         fig = go.Figure()
         
-        # Create hover template showing both currencies and token price (skip token price if overlay is shown)
-        if show_token_price:
-            hover_template = '<b>%{x|%Y-%m-%d}</b><br>' + \
-                            f'{main_currency}: %{{customdata[0]}}<br>' + \
-                            f'{secondary_currency}: %{{customdata[1]}}<extra></extra>'
-        else:
-            hover_template = '<b>%{x|%Y-%m-%d}</b><br>' + \
-                            f'{main_currency}: %{{customdata[0]}}<br>' + \
-                            f'{secondary_currency}: %{{customdata[1]}}<br>' + \
-                            f'GUN/USD: %{{customdata[2]}}<extra></extra>'
+        # Unified hover supplies the date header. The volume trace exposes
+        # only the selected traded-value currency; Token Price is separate.
+        hover_template = f'{main_currency}: %{{customdata[0]}}<extra></extra>'
         
         fig.add_trace(go.Scatter(
             x=df['date'],
@@ -412,7 +405,7 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
             mode='lines',
             name=f'Daily Volume ({main_currency})',
             line=dict(color=COLOR_LINE, width=1.2),
-            customdata=list(zip(main_values, secondary_values, token_prices)),
+            customdata=[(value,) for value in main_values],
             hovertemplate=hover_template,
             fill='tozeroy',
             fillcolor='rgba(255, 0, 58, 0.15)'
@@ -425,7 +418,7 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
             token_price_plot = df.copy()
             
             # Create hover template for token price trace
-            token_hover = '<b>%{x|%Y-%m-%d}</b><br>GUN/USD: %{y:.6f}<extra></extra>'
+            token_hover = 'GUN/USD: %{y:.6f}<extra></extra>'
             
             fig.add_trace(go.Scatter(
                 x=token_price_plot['date'],
@@ -554,7 +547,7 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
             y=df['liquidity'],
             name='Monthly Liquidity',
             marker=dict(color=COLOR_LINE),
-            hovertemplate='<b>%{x}</b><br>Liquidity: %{y:,.0f} transactions<extra></extra>',
+            hovertemplate='Liquidity: %{y:,.0f} transactions<extra></extra>',
             offsetgroup='liquidity',
             yaxis='y',
         ))
@@ -565,7 +558,7 @@ def build_monthly_liquidity_chart(monthly_df: pd.DataFrame, mobile_layout: bool 
                 x=wallet_df['month'], y=pd.to_numeric(wallet_df['unique_wallets'], errors='coerce'),
                 name='Unique Wallets', yaxis='y2',
                 marker=dict(color='#FFD400', line=dict(color='#8A7300', width=1.2)),
-                hovertemplate='<b>%{x}</b><br>Unique Wallets: %{y:,.0f}<extra></extra>',
+                hovertemplate='Unique Wallets: %{y:,.0f}<extra></extra>',
                 offsetgroup='unique_wallets',
             ))
         
@@ -702,23 +695,16 @@ def build_monthly_volume_chart(monthly_df: pd.DataFrame, show_usd: bool = False,
         
         fig = go.Figure()
         
-        # Create hover template showing both currencies and token price (skip token price if overlay is shown)
-        if show_token_price:
-            hover_template = '<b>%{x}</b><br>' + \
-                            f'{main_currency}: %{{customdata[0]}}<br>' + \
-                            f'{secondary_currency}: %{{customdata[1]}}<extra></extra>'
-        else:
-            hover_template = '<b>%{x}</b><br>' + \
-                            f'{main_currency}: %{{customdata[0]}}<br>' + \
-                            f'{secondary_currency}: %{{customdata[1]}}<br>' + \
-                            f'GUN/USD (avg): %{{customdata[2]}}<extra></extra>'
+        # Unified hover supplies the month header. The volume trace exposes
+        # only the selected traded-value currency; Token Price is separate.
+        hover_template = f'{main_currency}: %{{customdata[0]}}<extra></extra>'
         
         fig.add_trace(go.Bar(
             x=df['month_label'],
             y=y_values,
             name=f'Monthly Volume ({main_currency})',
             marker=dict(color=COLOR_LINE),
-            customdata=list(zip(main_values, secondary_values, token_prices)),
+            customdata=[(value,) for value in main_values],
             hovertemplate=hover_template,
             offsetgroup='volume',
             yaxis='y'
@@ -731,7 +717,7 @@ def build_monthly_volume_chart(monthly_df: pd.DataFrame, show_usd: bool = False,
             token_price_plot = df.copy()
             
             # Create hover template for token price trace
-            token_hover = '<b>%{x}</b><br>GUN/USD (avg): %{y:.6f}<extra></extra>'
+            token_hover = 'GUN/USD Avg: %{y:.6f}<extra></extra>'
             
             fig.add_trace(go.Bar(
                 x=token_price_plot['month_label'],
