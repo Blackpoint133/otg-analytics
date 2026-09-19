@@ -120,8 +120,30 @@ def test_lower_chart_y_axis_titles_are_removed_but_ticks_remain():
         build_daily_item_class_chart(_classes_daily(), CLASSES),
         build_monthly_item_class_chart(_classes_monthly(), CLASSES),
     ]
+    assert [figure.layout.title.text for figure in figures] == [
+        "Daily Sales by Price Range",
+        "Monthly Sales by Price Range",
+        "Daily Sales by Item Class",
+        "Monthly Sales by Item Class",
+    ]
     assert all(fig.layout.yaxis.title.text in (None, "") for fig in figures)
     assert all(fig.layout.yaxis.showticklabels is not False for fig in figures)
+
+
+def test_lower_chart_plot_gutter_matches_upper_market_chart_shell():
+    daily_upper = build_daily_liquidity_chart(_daily())
+    monthly_upper = build_monthly_liquidity_chart(_monthly())
+    daily_lower = build_daily_price_range_chart(_price_range_daily())
+    monthly_lower = build_monthly_price_range_chart(_price_range_monthly())
+
+    assert daily_lower.layout.margin.l == daily_upper.layout.margin.l
+    assert daily_lower.layout.margin.r == daily_upper.layout.margin.r
+    assert daily_lower.layout.margin.b == daily_upper.layout.margin.b
+    assert monthly_lower.layout.margin.l == monthly_upper.layout.margin.l
+    assert monthly_lower.layout.margin.r == monthly_upper.layout.margin.r
+    assert monthly_lower.layout.margin.b == monthly_upper.layout.margin.b
+    assert daily_lower.layout.yaxis.title.text in (None, "")
+    assert monthly_lower.layout.yaxis.title.text in (None, "")
 
 
 def test_price_range_and_item_class_unified_hover_contracts_remain_clean():

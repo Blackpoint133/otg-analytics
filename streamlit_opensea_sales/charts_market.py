@@ -55,7 +55,6 @@ def _price_range_layout(title: str, mobile_layout: bool, *, barmode: str | None 
             zeroline=False,
         ),
         yaxis=dict(
-            title=dict(text=''),
             showgrid=True,
             gridwidth=1,
             gridcolor=COLOR_GRID,
@@ -72,7 +71,9 @@ def _price_range_layout(title: str, mobile_layout: bool, *, barmode: str | None 
             yanchor='top' if mobile_layout else 'bottom',
             font=dict(family='monospace', size=9 if mobile_layout else 10, color='white'),
         ),
-        margin=dict(l=8, r=8, t=46, b=92) if mobile_layout else dict(l=50, r=50, t=80, b=70),
+        # Match the upper Market chart shell. The lower charts have no axis
+        # title, so they must not reserve a different left or bottom gutter.
+        margin=dict(l=4, r=4, t=36, b=40) if mobile_layout else dict(l=50, r=50, t=80, b=50),
         height=340 if mobile_layout else 410,
         showlegend=False,
     )
@@ -120,7 +121,7 @@ def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: b
                 hovertemplate=f"{bucket['label']}: %{{y:,.0f}} sales<extra></extra>",
             ))
         _add_price_range_total_hover_trace(fig, df['date'], df['total_sales'])
-        fig.update_layout(**_price_range_layout('DAILY SALES BY PRICE RANGE', mobile_layout))
+        fig.update_layout(**_price_range_layout('Daily Sales by Price Range', mobile_layout))
         fig.update_xaxes(title=None, range=_padded_daily_range(df['date']))
         return fig
     except Exception as exc:
@@ -149,7 +150,7 @@ def build_monthly_price_range_chart(price_range_df: pd.DataFrame, mobile_layout:
                 hovertemplate=f"{bucket['label']}: %{{y:,.0f}} sales<extra></extra>",
             ))
         _add_price_range_total_hover_trace(fig, df['month'], df['total_sales'])
-        fig.update_layout(**_price_range_layout('MONTHLY SALES BY PRICE RANGE', mobile_layout, barmode='stack'))
+        fig.update_layout(**_price_range_layout('Monthly Sales by Price Range', mobile_layout, barmode='stack'))
         fig.update_xaxes(title=None)
         return fig
     except Exception as exc:
@@ -186,7 +187,7 @@ def build_daily_item_class_chart(item_class_df: pd.DataFrame, classes: list[dict
                 hovertemplate=f"{entry['name']}: %{{y:,.0f}} sales<extra></extra>",
             ))
         _add_item_class_total_hover_trace(fig, df['date'], df['total_sales'])
-        fig.update_layout(**_price_range_layout('DAILY SALES BY ITEM CLASS', mobile_layout))
+        fig.update_layout(**_price_range_layout('Daily Sales by Item Class', mobile_layout))
         fig.update_xaxes(title=None, range=_padded_daily_range(df['date']))
         return fig
     except Exception as exc:
@@ -210,7 +211,7 @@ def build_monthly_item_class_chart(item_class_df: pd.DataFrame, classes: list[di
                 hovertemplate=f"{entry['name']}: %{{y:,.0f}} sales<extra></extra>",
             ))
         _add_item_class_total_hover_trace(fig, df['month'], df['total_sales'])
-        fig.update_layout(**_price_range_layout('MONTHLY SALES BY ITEM CLASS', mobile_layout, barmode='stack'))
+        fig.update_layout(**_price_range_layout('Monthly Sales by Item Class', mobile_layout, barmode='stack'))
         fig.update_xaxes(title=None)
         return fig
     except Exception as exc:

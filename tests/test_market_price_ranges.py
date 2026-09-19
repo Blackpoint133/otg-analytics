@@ -105,10 +105,10 @@ def test_daily_and_monthly_charts_select_same_currency_mode_and_clean_hover():
     usd_monthly_fig = build_monthly_price_range_chart(usd_monthly, mode="usd")
     gun_daily_fig = build_daily_price_range_chart(gun_daily, mode="gun")
     gun_monthly_fig = build_monthly_price_range_chart(gun_monthly, mode="gun")
-    assert usd_daily_fig.layout.title.text == "DAILY SALES BY PRICE RANGE"
-    assert usd_monthly_fig.layout.title.text == "MONTHLY SALES BY PRICE RANGE"
-    assert gun_daily_fig.layout.title.text == "DAILY SALES BY PRICE RANGE"
-    assert gun_monthly_fig.layout.title.text == "MONTHLY SALES BY PRICE RANGE"
+    assert usd_daily_fig.layout.title.text == "Daily Sales by Price Range"
+    assert usd_monthly_fig.layout.title.text == "Monthly Sales by Price Range"
+    assert gun_daily_fig.layout.title.text == "Daily Sales by Price Range"
+    assert gun_monthly_fig.layout.title.text == "Monthly Sales by Price Range"
     assert "USD AT SALE" not in usd_daily_fig.layout.title.text
     for fig, buckets in ((usd_daily_fig, PRICE_RANGE_BUCKETS), (usd_monthly_fig, PRICE_RANGE_BUCKETS),
                          (gun_daily_fig, GUN_PRICE_RANGE_BUCKETS), (gun_monthly_fig, GUN_PRICE_RANGE_BUCKETS)):

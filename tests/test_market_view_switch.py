@@ -161,3 +161,12 @@ def test_roadmap_transitions_market_expansion_to_live_and_stage_two_to_developme
     assert 'href="#stage-2"' in source
     assert 'href="#stage-3"' in source
     assert 'href="#stage-1"' not in source
+
+
+def test_roadmap_display_layout_view_labels_use_neutral_body_tone():
+    source = ROADMAP.read_text(encoding="utf-8")
+    display_layout = source[source.index("<h4 class=\"card-title\">Display Layout"):source.index("</article>", source.index("<h4 class=\"card-title\">Display Layout"))]
+    neutral_style = 'style="margin-bottom:10px;color:var(--muted)"'
+    assert display_layout.count(neutral_style) == 2
+    assert "Daily View" in display_layout
+    assert "Monthly View" in display_layout
