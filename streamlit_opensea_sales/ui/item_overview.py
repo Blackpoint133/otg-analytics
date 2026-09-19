@@ -29,6 +29,7 @@ from ui.item_chart_trade_overlay import build_item_chart_trade_overlay_html, ren
 # Image URL normalization
 IMAGE_CDN_BASE = "https://cdne-g01-livepc-wu-itemsthumbnails.azureedge.net"
 ITEM_ANALYTICS_DESKTOP_CARD_HEIGHT = 720
+ITEM_ANALYTICS_TABLE_PAGE_SIZE = 14
 ITEM_ANALYTICS_DESKTOP_CHART_HEIGHT = 750
 
 
@@ -706,6 +707,37 @@ def _render_item_chart(
     render_item_chart_trade_overlay_wiring()
 
 
+def _render_item_table_pager(current_page: int, total_pages: int) -> None:
+    if total_pages <= 1:
+        return
+    st.markdown("""
+        <style>
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] { display:grid!important; grid-template-columns:110px minmax(0,1fr) 110px!important; column-gap:0!important; width:100%!important; align-items:start!important; }
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { width:100%!important; min-width:0!important; max-width:none!important; padding:0!important; flex:none!important; }
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child { display:flex!important; justify-content:flex-start!important; }
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child { display:flex!important; justify-content:flex-end!important; }
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) { display:flex!important; justify-content:center!important; }
+        .st-key-item_table_pagination button { width:110px!important; background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; }
+        .st-key-item_table_pagination button:hover:not(:disabled) { background:#FF003A!important; color:#000!important; }
+        .st-key-item_table_pagination button:disabled { opacity:.35!important; }
+        </style>
+    """, unsafe_allow_html=True)
+    with st.container(key="item_table_pagination"):
+        left, center, right = st.columns([1, 2, 1], gap="small")
+        with left:
+            previous = st.button("Previous", disabled=current_page <= 1, key="item_table_previous", use_container_width=False)
+        with center:
+            st.markdown(f"<div style='text-align:center;padding:8px;color:#FFF'>Page {current_page} of {total_pages}</div>", unsafe_allow_html=True)
+        with right:
+            next_page = st.button("Next", disabled=current_page >= total_pages, key="item_table_next", use_container_width=False)
+    if previous:
+        st.query_params["page"] = str(current_page - 1)
+        st.rerun()
+    if next_page:
+        st.query_params["page"] = str(current_page + 1)
+        st.rerun()
+
+
 def _render_item_sales_table(
     filtered_df: pd.DataFrame,
     show_usd: bool,
@@ -740,25 +772,7 @@ def _render_item_sales_table(
         # Render table directly (no accordion)
         render_sales_table(page_data, show_usd, current_gun_price)
         
-        # Pagination
-        if total_pages > 1:
-            st.markdown("---")
-            col1, col2, col3 = st.columns([1, 2, 1])
-            
-            with col1:
-                if current_page > 1:
-                    if st.button("Previous", key="prev_page", use_container_width=True):
-                        st.query_params["page"] = str(current_page - 1)
-                        st.rerun()
-            
-            with col2:
-                st.markdown(f"<div class='item-table-pagination-label'>Page {current_page} of {total_pages}</div>", unsafe_allow_html=True)
-            
-            with col3:
-                if current_page < total_pages:
-                    if st.button("Next", key="next_page", use_container_width=True):
-                        st.query_params["page"] = str(current_page + 1)
-                        st.rerun()
+        _render_item_table_pager(current_page, total_pages)
     else:
         st.info("No sales data for the selected date range")
 
@@ -898,21 +912,6 @@ def render_item_overview(
         .st-key-item_sales_table_wrapper .sales-table tbody td {
             color: #FFFFFF !important;
         }
-        .st-key-item_sales_table_wrapper .item-table-pagination-label {
-            color: #FFFFFF !important;
-            text-align: center;
-            padding: 8px;
-            font-weight: 700;
-        }
-        .st-key-item_sales_table_wrapper button {
-            background-color: #11141C !important;
-            color: #FFFFFF !important;
-            border: 1px solid #303540 !important;
-        }
-        .st-key-item_sales_table_wrapper button:hover {
-            background-color: #181D27 !important;
-        }
-
         </style>
         <div class="item-overview-header">
             <h3>ITEM ANALYTICS</h3>
@@ -964,4 +963,4 @@ def render_item_overview(
             )
         elif effective_item_view_mode == "table":
             with st.container(key="item_sales_table_wrapper"):
-                _render_item_sales_table(filtered_df, show_usd, current_gun_price, items_per_page, highlight_wallet)
+                _render_item_sales_table(filtered_df, show_usd, current_gun_price, ITEM_ANALYTICS_TABLE_PAGE_SIZE, highlight_wallet)
