@@ -24,10 +24,18 @@ def test_community_section_has_explicit_status_bar_clearance_without_card_change
     assert "repeat(5,minmax(0,1fr))" in ECOSYSTEM
 
 
-def test_item_table_uses_local_fourteen_row_page_without_changing_global_page_size():
+def test_item_table_uses_local_twelve_row_page_without_changing_global_page_size():
     assert "ITEMS_PER_PAGE = 10" in CONFIG
-    assert "ITEM_ANALYTICS_TABLE_PAGE_SIZE = 14" in ITEM
+    assert "ITEM_ANALYTICS_TABLE_PAGE_SIZE = 12" in ITEM
     assert "_render_item_sales_table(filtered_df, show_usd, current_gun_price, ITEM_ANALYTICS_TABLE_PAGE_SIZE, highlight_wallet)" in ITEM
+
+
+def test_item_table_has_scoped_compact_bottom_margin_without_changing_global_table_rule():
+    global_styles = (APP / "ui" / "styles.py").read_text(encoding="utf-8")
+    assert ".st-key-item_sales_table_wrapper .sales-table {" in ITEM
+    assert "margin-bottom: 8px !important" in ITEM
+    assert ".sales-table {{" in global_styles
+    assert "margin: 25px 0;" in global_styles
 
 
 def test_item_pager_matches_approved_top_items_geometry_and_button_style():

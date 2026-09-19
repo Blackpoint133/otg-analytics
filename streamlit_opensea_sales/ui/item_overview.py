@@ -29,7 +29,7 @@ from ui.item_chart_trade_overlay import build_item_chart_trade_overlay_html, ren
 # Image URL normalization
 IMAGE_CDN_BASE = "https://cdne-g01-livepc-wu-itemsthumbnails.azureedge.net"
 ITEM_ANALYTICS_DESKTOP_CARD_HEIGHT = 720
-ITEM_ANALYTICS_TABLE_PAGE_SIZE = 14
+ITEM_ANALYTICS_TABLE_PAGE_SIZE = 12
 ITEM_ANALYTICS_DESKTOP_CHART_HEIGHT = 750
 
 
@@ -911,6 +911,9 @@ def render_item_overview(
 
         .st-key-item_sales_table_wrapper .sales-table tbody td {
             color: #FFFFFF !important;
+        }
+        .st-key-item_sales_table_wrapper .sales-table {
+            margin-bottom: 8px !important;
         }
         </style>
         <div class="item-overview-header">
