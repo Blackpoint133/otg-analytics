@@ -266,7 +266,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
         _render_no_data_state(status)
         return
 
-    market_time_range = st.session_state.get('market_time_range', '12m')
+    market_time_range = st.session_state.get('market_time_range', '3m')
     period_label = _get_market_period_label(market_time_range)
     
     # Header - OTG style

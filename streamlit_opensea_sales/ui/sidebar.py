@@ -33,11 +33,25 @@ SIDEBAR_LOGGER = get_module_logger("sidebar", log_file=SIDEBAR_LOG_PATH, module_
 
 TRADER_VISIBLE_SORT_OPTIONS = ("EARNED", "INVESTED", "SOLD", "TRADES")
 MARKET_VIEW_VALUES = ("daily", "monthly")
+MARKET_SESSION_DEFAULTS = {
+    "market_show_usd": True,
+    "market_show_token_price": True,
+    "market_show_unique_wallets": True,
+    "market_view": "daily",
+    "market_time_range": "3m",
+}
 
 
 def normalize_market_view(value: Any) -> str:
     """Return the only supported Market temporal view, defaulting to daily."""
     return value if value in MARKET_VIEW_VALUES else "daily"
+
+
+def initialize_market_session_state(session_state: Any) -> None:
+    """Apply first-session Market defaults without overwriting user choices."""
+    for key, default in MARKET_SESSION_DEFAULTS.items():
+        if key not in session_state:
+            session_state[key] = default
 
 
 def _record_product_event_safe(*args, **kwargs) -> bool:
@@ -543,9 +557,7 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
     from ui.section_guide import section_guide_button_css
     st.sidebar.html(section_guide_button_css("market"))
     st.sidebar.header("Display Options")
-    
-    if 'market_show_usd' not in st.session_state:
-        st.session_state.market_show_usd = True
+    initialize_market_session_state(st.session_state)
 
     # Display options
     st.sidebar.html(SHARED_DISPLAY_OPTIONS_CSS)
@@ -557,19 +569,15 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
     )
     show_token_price = st.sidebar.checkbox(
         'Token Price',
-        value=False,
         key='market_show_token_price', on_change=_checkbox_product_event,
         args=("market", "token_price", "market_show_token_price")
     )
     show_unique_wallets = st.sidebar.checkbox(
         'Unique Wallets',
-        value=False,
         key='market_show_unique_wallets', on_change=_checkbox_product_event,
         args=("market", "unique_wallets", "market_show_unique_wallets")
     )
 
-    if 'market_view' not in st.session_state:
-        st.session_state.market_view = 'daily'
     current_view = normalize_market_view(st.session_state.get('market_view'))
     st.session_state.market_view = current_view
 
@@ -651,9 +659,6 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
                 _record_product_event_safe("market", "view_change", control_key="view", value_key="monthly")
                 st.session_state.market_view = 'monthly'
                 st.rerun()
-
-    if 'market_time_range' not in st.session_state:
-        st.session_state.market_time_range = '12m'
 
     current_period = st.session_state.market_time_range
 

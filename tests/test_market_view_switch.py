@@ -10,7 +10,9 @@ from ui.market_overview import (  # noqa: E402
     normalize_market_view as normalize_overview_view,
 )
 from ui.sidebar import (  # noqa: E402
+    MARKET_SESSION_DEFAULTS,
     MARKET_VIEW_VALUES,
+    initialize_market_session_state,
     normalize_market_view as normalize_sidebar_view,
 )
 
@@ -29,6 +31,39 @@ def test_market_view_has_exact_allowed_values_and_daily_default():
     assert normalize_sidebar_view("daily") == "daily"
     assert normalize_sidebar_view("monthly") == "monthly"
     assert normalize_overview_view("unsupported") == "daily"
+
+
+def test_fresh_market_session_uses_requested_defaults_without_event_side_effects():
+    state = {}
+    initialize_market_session_state(state)
+    assert state == MARKET_SESSION_DEFAULTS
+    assert state["market_show_usd"] is True
+    assert state["market_show_token_price"] is True
+    assert state["market_show_unique_wallets"] is True
+    assert state["market_view"] == "daily"
+    assert state["market_time_range"] == "3m"
+    assert "_record_product_event_safe" not in initialize_market_session_state.__code__.co_names
+
+
+def test_existing_market_session_choices_are_preserved():
+    state = {
+        "market_show_usd": True,
+        "market_show_token_price": False,
+        "market_show_unique_wallets": False,
+        "market_view": "monthly",
+        "market_time_range": "12m",
+    }
+    initialize_market_session_state(state)
+    assert state["market_show_token_price"] is False
+    assert state["market_show_unique_wallets"] is False
+    assert state["market_view"] == "monthly"
+    assert state["market_time_range"] == "12m"
+
+
+def test_existing_all_time_period_is_preserved():
+    state = {"market_time_range": "all"}
+    initialize_market_session_state(state)
+    assert state["market_time_range"] == "all"
 
 
 def test_market_view_chart_plan_renders_exactly_four_selected_charts():
@@ -59,7 +94,11 @@ def test_sidebar_view_control_is_top_level_between_value_display_and_period():
     assert 'key="market_view_monthly"' in source
     assert 'type="primary" if current_view == \'daily\'' in source
     assert 'type="primary" if current_view == \'monthly\'' in source
-    view_block_end = source.index("if 'market_time_range' not in st.session_state", view)
+    assert 'type="primary" if current_period == \'3m\'' in source
+    assert '"market_time_range": "3m"' in source
+    assert '"market_show_token_price": True' in source
+    assert '"market_show_unique_wallets": True' in source
+    view_block_end = source.index("current_period = st.session_state.market_time_range", view)
     assert "st.session_state.market_time_range" not in source[view:view_block_end]
 
 
@@ -70,7 +109,7 @@ def test_view_is_explicitly_passed_to_market_overview_and_other_state_is_not_res
     assert "view_mode=market_controls['view']" in app_source
     assert "view_mode: str = \"daily\"" in overview_source
     assert "Changing VIEW does not change the selected PERIOD." in overview_source
-    assert "market_time_range = st.session_state.get('market_time_range', '12m')" in overview_source
+    assert "market_time_range = st.session_state.get('market_time_range', '3m')" in overview_source
     assert "market_show_usd" in sidebar_source
     assert "market_show_token_price" in sidebar_source
     assert "market_show_unique_wallets" in sidebar_source
