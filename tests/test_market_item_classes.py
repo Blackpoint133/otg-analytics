@@ -21,6 +21,7 @@ from market_item_classes import (  # noqa: E402
     validate_sales_by_item_class_payload,
 )
 from scripts.build_market_expansion_metrics import build_from_directory  # noqa: E402
+from ui.market_overview import _filter_item_class_series, _get_market_period_bounds  # noqa: E402
 
 
 def _snapshot(mapping=None):
@@ -85,6 +86,50 @@ def test_current_snapshot_reconciles_current_22297_sales():
     monthly_totals = {entry["id"]: int(monthly[entry["id"]].sum()) for entry in classes}
     assert daily_totals == monthly_totals
     assert [daily_totals[entry["id"]] for entry in classes] == [11128, 6162, 2575, 1036, 1047, 349]
+
+
+def test_payload_to_frames_normalizes_utc_calendar_fields_to_naive_dates():
+    data_dir = Path(__file__).parents[1] / "streamlit_opensea_sales" / "data_opensea_sales"
+    payload = build_from_directory(data_dir)["sales_by_item_class"]
+    daily, monthly, _ = payload_to_frames(payload)
+
+    assert str(daily["date"].dtype) == "datetime64[ns]"
+    assert str(monthly["month_start"].dtype) == "datetime64[ns]"
+    assert str(monthly["month_end"].dtype) == "datetime64[ns]"
+    assert daily["date"].dt.tz is None
+    assert monthly["month_start"].dt.tz is None
+    assert monthly["month_end"].dt.tz is None
+    assert daily.iloc[0]["date"] == pd.Timestamp(payload["daily"][0]["date"])
+    assert monthly.iloc[0]["month_start"] == pd.Timestamp(payload["monthly"][0]["month_start"])
+    assert monthly.iloc[0]["month_end"] == pd.Timestamp(payload["monthly"][0]["month_end"])
+
+
+def test_item_class_period_filter_uses_naive_market_bounds_for_all_supported_periods():
+    data_dir = Path(__file__).parents[1] / "streamlit_opensea_sales" / "data_opensea_sales"
+    payload = build_from_directory(data_dir)["sales_by_item_class"]
+    unfiltered_daily, unfiltered_monthly, classes = payload_to_frames(payload)
+    market_daily = pd.DataFrame({"date": unfiltered_daily["date"]})
+
+    for period in ("3m", "6m", "12m"):
+        start_date, end_date, is_all_time = _get_market_period_bounds(market_daily, period)
+        daily, monthly, filtered_classes = _filter_item_class_series(
+            {"sales_by_item_class": payload}, start_date, end_date, is_all_time
+        )
+        assert daily is not None and monthly is not None
+        assert filtered_classes == classes
+        assert daily["date"].min() >= start_date
+        assert daily["date"].max() <= end_date
+        assert (monthly["month_end"] >= start_date).all()
+        assert (monthly["month_start"] <= end_date).all()
+        assert build_daily_item_class_chart(daily, classes) is not None
+        assert build_monthly_item_class_chart(monthly, classes) is not None
+
+    start_date, end_date, is_all_time = _get_market_period_bounds(market_daily, "all")
+    daily, monthly, _ = _filter_item_class_series(
+        {"sales_by_item_class": payload}, start_date, end_date, is_all_time
+    )
+    assert len(daily) == len(unfiltered_daily)
+    assert len(monthly) == len(unfiltered_monthly)
 
 
 def test_payload_validator_rejects_bad_counts_and_snapshot_identity():
