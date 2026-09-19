@@ -104,8 +104,8 @@ def _page_css() -> str:
 .st-key-ecosystem_page .ecosystem-section{margin-top:20px}
 .st-key-ecosystem_page .ecosystem-section-heading{display:grid;grid-template-columns:48px max-content minmax(0,1fr);grid-template-rows:48px;align-items:center;column-gap:10px;margin:0 0 10px;color:#F4F5F6;font-size:12px;letter-spacing:1.25px;line-height:1.2;text-transform:uppercase}
 .st-key-ecosystem_page .ecosystem-section-heading .ecosystem-section-icon{display:block;grid-column:1;grid-row:1;width:48px;height:48px;object-fit:contain;object-position:center}
-.st-key-ecosystem_page .ecosystem-section-heading>span{grid-column:2;grid-row:1;white-space:nowrap}
-.st-key-ecosystem_page .ecosystem-section-heading::after{content:"";grid-column:3;grid-row:1;width:100%;height:1px;background:#26292D}
+.st-key-ecosystem_page .ecosystem-section-heading .ecosystem-section-title{grid-column:2;grid-row:1;white-space:nowrap}
+.st-key-ecosystem_page .ecosystem-section-heading .ecosystem-section-divider{display:block;grid-column:3;grid-row:1;width:100%;height:1px;background:#26292D}
 .st-key-ecosystem_page .ecosystem-section-count{color:#777D85;font-size:9px;letter-spacing:.8px}
 .st-key-ecosystem_page .ecosystem-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .st-key-ecosystem_page .ecosystem-grid-marketplaces{grid-template-columns:minmax(0,250px);justify-content:start}
@@ -154,9 +154,14 @@ def render_ecosystem_page() -> None:
         for project_type, title in SECTION_ORDER:
             section_projects = [project for project in projects if project["type"] == project_type]
             cards = "".join(_card_markup(project) for project in section_projects)
+            section_title_id = f"ecosystem-{project_type}-title"
             st.markdown(
-                f'<section class="ecosystem-section" aria-labelledby="ecosystem-{project_type}">'
-                f'<h2 id="ecosystem-{project_type}" class="ecosystem-section-heading">{_section_icon_markup(project_type)}<span>{title}</span></h2>'
+                f'<section class="ecosystem-section" aria-labelledby="{section_title_id}">'
+                f'<div class="ecosystem-section-heading" role="heading" aria-level="2">'
+                f'{_section_icon_markup(project_type)}'
+                f'<span id="{section_title_id}" class="ecosystem-section-title">{title}</span>'
+                f'<span class="ecosystem-section-divider" aria-hidden="true"></span>'
+                f'</div>'
                 f'<div class="ecosystem-grid{" ecosystem-grid-marketplaces" if project_type == "external_officially_linked" else ""}">{cards}</div></section>',
                 unsafe_allow_html=True,
             )

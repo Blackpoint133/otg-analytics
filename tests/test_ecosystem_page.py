@@ -140,12 +140,27 @@ def test_ecosystem_section_icons_are_48px_left_aligned_heading_row_assets():
     assert "align-items:center" in heading_rule
     assert "display:flex" not in heading_rule
     assert ".ecosystem-section-heading .ecosystem-section-icon{display:block;grid-column:1;grid-row:1;width:48px;height:48px;object-fit:contain" in source
-    assert ".ecosystem-section-heading>span{grid-column:2;grid-row:1;white-space:nowrap}" in source
-    assert ".ecosystem-section-heading::after{content:\"\";grid-column:3;grid-row:1" in source
+    assert ".ecosystem-section-heading .ecosystem-section-title{grid-column:2;grid-row:1;white-space:nowrap}" in source
+    assert ".ecosystem-section-heading .ecosystem-section-divider{display:block;grid-column:3;grid-row:1;width:100%;height:1px" in source
+    assert ".ecosystem-section-heading::after" not in source
     assert "img/section_ecosystem/OFFICIAL_ECOSYSTEM.png" in source
     assert "img/section_ecosystem/MARKETPLACES.png" in source
     assert "img/section_ecosystem/COMMUNITY_ECOSYSTEM.png" in source
-    assert "<span>{title}</span>" in source
+    assert '<div class="ecosystem-section-heading" role="heading" aria-level="2">' in source
+    assert 'class="ecosystem-section-title"' in source
+    assert 'class="ecosystem-section-divider" aria-hidden="true"' in source
+    assert '<h2 id="ecosystem-' not in source
+
+
+def test_ecosystem_section_headings_use_custom_accessible_dom_without_streamlit_anchor_contract():
+    source = (APP / "ui" / "ecosystem.py").read_text(encoding="utf-8")
+    assert 'role="heading" aria-level="2"' in source
+    assert 'aria-labelledby="{section_title_id}"' in source
+    assert 'id="{section_title_id}" class="ecosystem-section-title"' in source
+    assert 'class="ecosystem-section-divider" aria-hidden="true"' in source
+    assert "<h1" not in source[source.index("for project_type, title in SECTION_ORDER:"):]
+    assert "<h2" not in source[source.index("for project_type, title in SECTION_ORDER:"):]
+    assert "aria-label=\"Link to heading\"" not in source
 
 
 def test_ecosystem_feedback_is_display_and_back_navigation_safe_without_db_migration():
