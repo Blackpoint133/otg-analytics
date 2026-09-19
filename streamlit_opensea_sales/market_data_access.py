@@ -26,6 +26,7 @@ import streamlit as st
 
 from config import get_data_dir, USE_ENRICHED_MARKET_OVERVIEW
 from market_price_ranges import validate_sales_by_price_range_payload
+from market_item_classes import snapshot_identity, validate_sales_by_item_class_payload
 
 
 def get_market_overview_dir() -> Path:
@@ -92,6 +93,10 @@ def _get_market_period_summaries_path() -> Path:
 
 def _get_market_expansion_metrics_path() -> Path:
     return get_market_overview_dir() / "market_expansion_metrics.json"
+
+
+def _get_item_class_snapshot_path() -> Path:
+    return get_data_dir() / "item_class_snapshot.json"
 
 
 def get_market_expansion_metrics_file_version() -> str:
@@ -324,6 +329,22 @@ def load_market_expansion_metrics(cache_buster: str = None, file_version: str = 
             expected_source_latest_date=payload.get('source_latest_date', ''),
         ):
             return None
+        item_classes = payload.get('sales_by_item_class')
+        if item_classes is not None:
+            # Item Class is independently optional so a stale/malformed class
+            # section cannot take down the already-valid Unique Wallet and
+            # Price Range consumers.  The section is removed fail-soft.
+            expected_identity = None
+            try:
+                expected_identity = snapshot_identity(_get_item_class_snapshot_path())
+            except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                pass
+            if not validate_sales_by_item_class_payload(
+                item_classes,
+                expected_source_latest_date=payload.get('source_latest_date', ''),
+                expected_snapshot_identity=expected_identity,
+            ):
+                payload.pop('sales_by_item_class', None)
         return payload
     except (OSError, ValueError, TypeError):
         return None

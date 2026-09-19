@@ -38,6 +38,10 @@ def _snapshot(tmp_path, *, raw_date="2026-09-15T20:55:03Z", daily_date="2026-09-
     (overview / "market_overview_enriched_manifest.json").write_text(
         json.dumps({"created_at_utc": build_id}), encoding="utf-8"
     )
+    (data / "item_class_snapshot.json").write_text(
+        json.dumps({"schema_version": 1, "source": "test", "generated_at": "2026-09-15T00:00:00Z", "items": {"Item": {"class": "Weapon"}}}),
+        encoding="utf-8",
+    )
     return data
 
 

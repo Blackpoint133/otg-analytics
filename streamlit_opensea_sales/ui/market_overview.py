@@ -30,8 +30,11 @@ from charts_market import (
     build_token_split_chart,
     build_daily_price_range_chart,
     build_monthly_price_range_chart,
+    build_daily_item_class_chart,
+    build_monthly_item_class_chart,
 )
 from market_price_ranges import payload_to_frames
+from market_item_classes import payload_to_frames as item_class_payload_to_frames
 from ui.viewport import get_viewport_info
 
 
@@ -217,11 +220,27 @@ def _filter_price_range_series(expansion: Optional[dict], start_date, end_date, 
     return daily, monthly
 
 
+def _filter_item_class_series(expansion: Optional[dict], start_date, end_date, is_all_time):
+    """Return prepared Item Class frames and metadata using Market period bounds."""
+    if not expansion or not expansion.get('sales_by_item_class'):
+        return None, None, None
+    try:
+        daily, monthly, classes = item_class_payload_to_frames(expansion['sales_by_item_class'])
+    except (TypeError, ValueError, KeyError):
+        return None, None, None
+    if not is_all_time and start_date is not None and end_date is not None:
+        if not daily.empty:
+            daily = daily[(daily['date'] >= start_date) & (daily['date'] <= end_date)]
+        if not monthly.empty:
+            monthly = monthly[(monthly['month_end'] >= start_date) & (monthly['month_start'] <= end_date)]
+    return daily, monthly, classes
+
+
 def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.03, show_token_price: bool = False, show_unique_wallets: bool = False, guide_open: bool = False):
     """technical documentation technical documentation technical documentation Market Overview technical documentation."""
     if guide_open:
         from ui.section_guide import render_section_guide_panel
-        render_section_guide_panel("""<p><b>MARKET ANALYTICS</b> A market-wide view of observed OpenSea trading activity across all tracked items.</p><p><b>PERIOD</b> Select ALL TIME, 12 MONTH, 6 MONTH or 3 MONTH. The selected period applies to the summary metrics and market charts and is measured back from the latest available market data.</p><p><b>MARKET SUMMARY</b> TOTAL TRANSACTIONS is the number of observed marketplace transactions. TOTAL VOLUME is their combined traded value. UNIQUE WALLETS counts distinct buyers and sellers. ITEMS TRADED counts distinct items with observed activity during the selected period.</p><p><b>LIQUIDITY</b> DAILY MARKET LIQUIDITY and MONTHLY MARKET LIQUIDITY show how many completed sales occurred over time. In OTG Analytics, Liquidity means completed trading activity, not the number or depth of active listings or offers. Enable UNIQUE WALLETS to overlay the number of distinct wallets active in those sales.</p><p><b>VOLUME</b> DAILY MARKET VOLUME and MONTHLY MARKET VOLUME show the total traded value over time. Enable USD PRICE to display volume in USD, using historical transaction pricing where available. Enable TOKEN PRICE to overlay the GUN/USD price on the volume charts.</p><p><b>SALES BY PRICE RANGE</b> Groups observed sales using the historical USD value at the time of each sale. The Y-axis is a sales count, and the fixed USD-at-sale ranges remain unchanged by the USD PRICE toggle. Daily and Monthly views aggregate the same buckets.</p><p><b>CHARTS</b> Hover over chart points or bars to inspect the underlying date or month and its market values.</p><p class="trader-guide-note">All market metrics are derived from observed marketplace activity within the selected data period.</p>""", trusted_html=True)
+        render_section_guide_panel("""<p><b>MARKET ANALYTICS</b> A market-wide view of observed OpenSea trading activity across all tracked items.</p><p><b>PERIOD</b> Select ALL TIME, 12 MONTH, 6 MONTH or 3 MONTH. The selected period applies to the summary metrics and market charts and is measured back from the latest available market data.</p><p><b>MARKET SUMMARY</b> TOTAL TRANSACTIONS is the number of observed marketplace transactions. TOTAL VOLUME is their combined traded value. UNIQUE WALLETS counts distinct buyers and sellers. ITEMS TRADED counts distinct items with observed activity during the selected period.</p><p><b>LIQUIDITY</b> DAILY MARKET LIQUIDITY and MONTHLY MARKET LIQUIDITY show how many completed sales occurred over time. In OTG Analytics, Liquidity means completed trading activity, not the number or depth of active listings or offers. Enable UNIQUE WALLETS to overlay the number of distinct wallets active in those sales.</p><p><b>VOLUME</b> DAILY MARKET VOLUME and MONTHLY MARKET VOLUME show the total traded value over time. Enable USD PRICE to display volume in USD, using historical transaction pricing where available. Enable TOKEN PRICE to overlay the GUN/USD price on the volume charts.</p><p><b>SALES BY PRICE RANGE</b> Groups observed sales using the historical USD value at the time of each sale. The Y-axis is a sales count, and the fixed USD-at-sale ranges remain unchanged by the USD PRICE toggle. Daily and Monthly views aggregate the same buckets.</p><p><b>SALES BY ITEM CLASS</b> Shows the number of observed sales grouped by the current tracked OTG item classification. Daily is grouped by UTC day and Monthly by UTC month. This is a sales count, not monetary volume; USD PRICE and TOKEN PRICE do not change the classification.</p><p><b>CHARTS</b> Hover over chart points or bars to inspect the underlying date or month and its market values.</p><p class="trader-guide-note">All market metrics are derived from observed marketplace activity within the selected data period.</p>""", trusted_html=True)
     
     # technical implementation note technical implementation note data
     status = mda.get_market_data_status()
@@ -315,6 +334,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
     )
     expansion_daily, expansion_monthly = _filter_expansion_series(expansion, start_date, end_date, is_all_time)
     price_range_daily, price_range_monthly = _filter_price_range_series(expansion, start_date, end_date, is_all_time)
+    item_class_daily, item_class_monthly, item_class_classes = _filter_item_class_series(expansion, start_date, end_date, is_all_time)
     kpi_summary = _resolve_period_kpi_summary(
         prepared_periods,
         market_time_range,
@@ -417,6 +437,14 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
                 config={'displayModeBar': False},
                 key='monthly_price_range'
             )
+
+        daily_item_class_fig = build_daily_item_class_chart(item_class_daily, item_class_classes or [], mobile_layout=True)
+        if daily_item_class_fig:
+            st.plotly_chart(daily_item_class_fig, use_container_width=True, config={'displayModeBar': False}, key='daily_item_class')
+
+        monthly_item_class_fig = build_monthly_item_class_chart(item_class_monthly, item_class_classes or [], mobile_layout=True)
+        if monthly_item_class_fig:
+            st.plotly_chart(monthly_item_class_fig, use_container_width=True, config={'displayModeBar': False}, key='monthly_item_class')
     else:
         col1, col2 = st.columns(2)
         
@@ -496,8 +524,22 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
                     key='monthly_price_range'
                 )
 
+        col7, col8 = st.columns(2)
+
+        with col7:
+            daily_item_class_fig = build_daily_item_class_chart(item_class_daily, item_class_classes or [])
+            if daily_item_class_fig:
+                st.plotly_chart(daily_item_class_fig, use_container_width=True, config={'displayModeBar': False}, key='daily_item_class')
+
+        with col8:
+            monthly_item_class_fig = build_monthly_item_class_chart(item_class_monthly, item_class_classes or [])
+            if monthly_item_class_fig:
+                st.plotly_chart(monthly_item_class_fig, use_container_width=True, config={'displayModeBar': False}, key='monthly_item_class')
+
     if price_range_daily is None or price_range_monthly is None:
         st.caption('Sales by price range is temporarily unavailable for this market snapshot.')
+    if item_class_daily is None or item_class_monthly is None:
+        st.caption('Sales by item class is temporarily unavailable for this market snapshot.')
     
     st.markdown("---")
     

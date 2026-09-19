@@ -62,6 +62,7 @@ def validate(repo_root: Path, data_dir: Path, env_path: Path | None) -> dict[str
     import item_class_data
     import gunzscope_supply
     import market_data_access
+    from market_item_classes import read_item_class_snapshot, validate_sales_by_item_class_payload
     import opensea_account_profiles
     import trader_analytics
 
@@ -88,6 +89,13 @@ def validate(repo_root: Path, data_dir: Path, env_path: Path | None) -> dict[str
         raise ValueError("market build identity mismatch")
     if period.get("source_latest_date") != expected_latest or expansion.get("source_latest_date") != expected_latest:
         raise ValueError("market latest date mismatch")
+    snapshot_payload, _, snapshot_identity = read_item_class_snapshot(data_dir / "item_class_snapshot.json")
+    if not validate_sales_by_item_class_payload(
+        expansion.get("sales_by_item_class"),
+        expected_source_latest_date=expected_latest,
+        expected_snapshot_identity=snapshot_identity,
+    ):
+        raise ValueError("item class expansion reader rejected artifact")
 
     trader_path = data_dir / "trader_analytics_snapshot.json"
     trader_payload = trader_analytics.load_current_snapshot(trader_path)

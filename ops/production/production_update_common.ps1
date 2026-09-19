@@ -580,6 +580,46 @@ function Invoke-RefreshAdapter([object]$Context,[string]$Name,[string]$Python,[s
  }
 function Invoke-DerivedRefreshCore {param([object]$Context,[switch]$Execute);Assert-Context $Context;if(-not$Execute){Write-KV 'MODE' 'DRY_RUN';Write-KV 'DERIVED_REFRESH_PLAN' 'PASS';return};Set-Phase $Context 'DERIVED_REFRESH';Add-Mutation $Context 'DERIVED_REFRESH';$python=Get-RefreshPython $Context;$definitions=Get-DynamicArtifactDefinitions $Context;if($Context.Mode -eq 'SIMULATION'){Write-SimulationArtifacts $Context @(0,1,2)}else{$scripts=Join-Path $Context.RepoRoot 'scripts';Invoke-RefreshAdapter $Context 'market_period' $python @((Join-Path $scripts 'build_market_period_summaries.py'),'--data-dir',$Context.DataRoot) $Context.RepoRoot;Invoke-RefreshAdapter $Context 'market_expansion' $python @((Join-Path $scripts 'build_market_expansion_metrics.py')) $Context.RepoRoot;Invoke-RefreshAdapter $Context 'trader_analytics' $python @((Join-Path $scripts 'build_trader_analytics.py'),'--data-dir',$Context.DataRoot,'--output',$definitions[2].Path) $Context.RepoRoot};foreach($index in 0..2){if(-not(Test-Path $definitions[$index].Path -PathType Leaf) -or (Get-Item $definitions[$index].Path).Length -le 0){throw 'DERIVED_OUTPUT_MISSING'}};Write-KV 'DERIVED_MARKET_PERIOD' 'PASS';Write-KV 'DERIVED_MARKET_EXPANSION' 'PASS';Write-KV 'DERIVED_TRADER_ANALYTICS' 'PASS';Write-KV 'DERIVED_REFRESH' 'PASS'}
 function Invoke-MetadataRefreshCore {param([object]$Context,[switch]$Execute);Assert-Context $Context;if(-not$Execute){Write-KV 'MODE' 'DRY_RUN';Write-KV 'METADATA_REFRESH_PLAN' 'PASS';return};Set-Phase $Context 'METADATA_REFRESH';Add-Mutation $Context 'METADATA_REFRESH';$python=Get-RefreshPython $Context;$definitions=Get-DynamicArtifactDefinitions $Context;$profileResult=$null;if($Context.Mode -eq 'SIMULATION'){Write-SimulationArtifacts $Context @(3,4,5);$syncDefinition=Get-ProfileSyncStateDefinition $Context;Write-AtomicJson $syncDefinition.Path ([ordered]@{schema_version=1;source='opensea';updated_at=(Get-Date).ToUniversalTime().ToString('o');wallets=@{};last_run=[ordered]@{started_at=(Get-Date).ToUniversalTime().ToString('o');completed_at=(Get-Date).ToUniversalTime().ToString('o');candidate_count=1;selected_count=1;attempted=1;successful=1;not_found=0;errors=0;rate_limited=0;remaining_targets=0;stopped_for_rate_limit=$false;stopped_for_reserve=$false;snapshot_write_executed=$true;profile_key_source='OPENSEA_PROFILE_API_KEY'}});Add-Content (Join-Path $Context.Root 'refresh.commands.log') 'item_class';Add-Content (Join-Path $Context.Root 'refresh.commands.log') 'gunzscope_v3';Add-Content (Join-Path $Context.Root 'refresh.commands.log') 'profile_sync';$profileResult=[pscustomobject]@{ExitCode=0;StdOut=(Get-Content $syncDefinition.Path -Raw);StdErr=''}}else{$scripts=Join-Path $Context.RepoRoot 'scripts';Invoke-RefreshAdapter $Context 'item_class' $python @((Join-Path $scripts 'refresh_item_class_snapshot.py')) $Context.RepoRoot|Out-Null;Invoke-RefreshAdapter $Context 'gunzscope_v3' $python @((Join-Path $scripts 'refresh_gunzscope_supply_v3_provider.py')) $Context.RepoRoot|Out-Null;$profileResult=Invoke-RefreshAdapter $Context 'profile_sync' $python @((Join-Path $scripts 'run_trader_profile_sync.py')) $Context.RepoRoot};foreach($index in 3..5){if(-not(Test-Path $definitions[$index].Path -PathType Leaf) -or (Get-Item $definitions[$index].Path).Length -le 0){throw 'METADATA_OUTPUT_MISSING'}};Set-ProfileSyncReceiptState $Context $profileResult;Write-KV 'PROFILE_KEY_SOURCE' $Context.ProfileKeySource;Write-KV 'PROFILE_SYNC_ATTEMPTED' $Context.ProfileSyncAttempted;Write-KV 'PROFILE_SYNC_SUCCESSFUL' $Context.ProfileSyncSuccessful;Write-KV 'PROFILE_SYNC_NOT_FOUND' $Context.ProfileSyncNotFound;Write-KV 'PROFILE_SYNC_ERRORS' $Context.ProfileSyncErrors;Write-KV 'PROFILE_SYNC_RATE_LIMITED' $Context.ProfileSyncRateLimited;Write-KV 'PROFILE_SYNC_HEALTH' $Context.ProfileSyncHealth;Write-KV 'METADATA_ITEM_CLASS' 'PASS';Write-KV 'METADATA_GUNZSCOPE_V3' 'PASS';Write-KV 'METADATA_PROFILE_SYNC' 'PASS';Write-KV 'METADATA_REFRESH' 'PASS'}
+function Invoke-DerivedRefreshCore {
+    param([object]$Context,[switch]$Execute)
+    Assert-Context $Context
+    if(-not $Execute){Write-KV 'MODE' 'DRY_RUN';Write-KV 'DERIVED_REFRESH_PLAN' 'PASS';return}
+    Set-Phase $Context 'DERIVED_REFRESH';Add-Mutation $Context 'DERIVED_REFRESH'
+    $python=Get-RefreshPython $Context;$definitions=Get-DynamicArtifactDefinitions $Context
+    if($Context.Mode -eq 'SIMULATION'){
+        Write-SimulationArtifacts $Context @(0,1,2,3)
+    }else{
+        $scripts=Join-Path $Context.RepoRoot 'scripts'
+        Invoke-RefreshAdapter $Context 'item_class' $python @((Join-Path $scripts 'refresh_item_class_snapshot.py')) $Context.RepoRoot|Out-Null
+        Invoke-RefreshAdapter $Context 'market_period' $python @((Join-Path $scripts 'build_market_period_summaries.py'),'--data-dir',$Context.DataRoot) $Context.RepoRoot|Out-Null
+        Invoke-RefreshAdapter $Context 'market_expansion' $python @((Join-Path $scripts 'build_market_expansion_metrics.py')) $Context.RepoRoot|Out-Null
+        Invoke-RefreshAdapter $Context 'trader_analytics' $python @((Join-Path $scripts 'build_trader_analytics.py'),'--data-dir',$Context.DataRoot,'--output',$definitions[2].Path) $Context.RepoRoot|Out-Null
+    }
+    foreach($index in 0..3){if(-not(Test-Path $definitions[$index].Path -PathType Leaf) -or (Get-Item $definitions[$index].Path).Length -le 0){throw 'DERIVED_OUTPUT_MISSING'}}
+    Write-KV 'DERIVED_ITEM_CLASS' 'PASS';Write-KV 'DERIVED_MARKET_PERIOD' 'PASS';Write-KV 'DERIVED_MARKET_EXPANSION' 'PASS';Write-KV 'DERIVED_TRADER_ANALYTICS' 'PASS';Write-KV 'DERIVED_REFRESH' 'PASS'
+}
+function Invoke-MetadataRefreshCore {
+    param([object]$Context,[switch]$Execute)
+    Assert-Context $Context
+    if(-not $Execute){Write-KV 'MODE' 'DRY_RUN';Write-KV 'METADATA_REFRESH_PLAN' 'PASS';return}
+    Set-Phase $Context 'METADATA_REFRESH';Add-Mutation $Context 'METADATA_REFRESH'
+    $python=Get-RefreshPython $Context;$definitions=Get-DynamicArtifactDefinitions $Context;$profileResult=$null
+    if($Context.Mode -eq 'SIMULATION'){
+        Write-SimulationArtifacts $Context @(4,5)
+        $syncDefinition=Get-ProfileSyncStateDefinition $Context
+        Write-AtomicJson $syncDefinition.Path ([ordered]@{schema_version=1;source='opensea';updated_at=(Get-Date).ToUniversalTime().ToString('o');wallets=@{};last_run=[ordered]@{started_at=(Get-Date).ToUniversalTime().ToString('o');completed_at=(Get-Date).ToUniversalTime().ToString('o');candidate_count=1;selected_count=1;attempted=1;successful=1;not_found=0;errors=0;rate_limited=0;remaining_targets=0;stopped_for_rate_limit=$false;stopped_for_reserve=$false;snapshot_write_executed=$true;profile_key_source='OPENSEA_PROFILE_API_KEY'}})
+        Add-Content (Join-Path $Context.Root 'refresh.commands.log') 'gunzscope_v3';Add-Content (Join-Path $Context.Root 'refresh.commands.log') 'profile_sync'
+        $profileResult=[pscustomobject]@{ExitCode=0;StdOut=(Get-Content $syncDefinition.Path -Raw);StdErr=''}
+    }else{
+        $scripts=Join-Path $Context.RepoRoot 'scripts'
+        Invoke-RefreshAdapter $Context 'gunzscope_v3' $python @((Join-Path $scripts 'refresh_gunzscope_supply_v3_provider.py')) $Context.RepoRoot|Out-Null
+        $profileResult=Invoke-RefreshAdapter $Context 'profile_sync' $python @((Join-Path $scripts 'run_trader_profile_sync.py')) $Context.RepoRoot
+    }
+    foreach($index in 4..5){if(-not(Test-Path $definitions[$index].Path -PathType Leaf) -or (Get-Item $definitions[$index].Path).Length -le 0){throw 'METADATA_OUTPUT_MISSING'}}
+    Set-ProfileSyncReceiptState $Context $profileResult
+    Write-KV 'PROFILE_KEY_SOURCE' $Context.ProfileKeySource;Write-KV 'PROFILE_SYNC_ATTEMPTED' $Context.ProfileSyncAttempted;Write-KV 'PROFILE_SYNC_SUCCESSFUL' $Context.ProfileSyncSuccessful;Write-KV 'PROFILE_SYNC_NOT_FOUND' $Context.ProfileSyncNotFound;Write-KV 'PROFILE_SYNC_ERRORS' $Context.ProfileSyncErrors;Write-KV 'PROFILE_SYNC_RATE_LIMITED' $Context.ProfileSyncRateLimited;Write-KV 'PROFILE_SYNC_HEALTH' $Context.ProfileSyncHealth
+    Write-KV 'METADATA_GUNZSCOPE_V3' 'PASS';Write-KV 'METADATA_PROFILE_SYNC' 'PASS';Write-KV 'METADATA_REFRESH' 'PASS'
+}
 function Get-DesiredTaskDefinition([object]$Context,[string]$Name) {
     if($Name -notin $script:ManagedTasks){throw ('TASK_NAME_NOT_MANAGED:'+ $Name)}
     $derived=$Name -eq $script:ManagedTasks[0];$minutes=if($derived){15}else{60};$scriptName=if($derived){'refresh_production_derived.ps1'}else{'refresh_production_metadata.ps1'};$approval=if($derived){'REFRESH_OTG_DERIVED_8502'}else{'REFRESH_OTG_METADATA_8502'};$path=Join-Path $Context.Root ('ops\production\'+$scriptName);$arguments='-NoProfile -ExecutionPolicy Bypass -File "'+$path+'" -Execute -ApprovalPhrase '+$approval;if($Context.Mode -eq 'SIMULATION' -or $Context.ReleasePython){$arguments+=' -ReleasePython "'+$Context.ReleasePython+'"'}

@@ -66,6 +66,7 @@ def _dirs(tmp_path, source_date="2026-09-12T18:42:37Z", target_date=None):
     else:
         (target / "sales_enriched" / "one.csv").write_text(f"sale_date\n{source_date}\n", encoding="utf-8")
     for root in (source, target):
+        (root / "item_class_snapshot.json").write_text(json.dumps({"schema_version": 1, "items": {"Example": {"class": "Weapon"}}}), encoding="utf-8")
         overview = root / "market_overview_enriched"
         overview.mkdir()
         day = source_date[:10]

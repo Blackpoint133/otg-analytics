@@ -126,13 +126,13 @@ def test_daily_and_monthly_charts_have_same_fixed_series_contract():
 def test_current_snapshot_reconciles_expected_counts():
     data_dir = Path(__file__).parents[1] / "streamlit_opensea_sales" / "data_opensea_sales"
     payload = build_from_directory(data_dir)["sales_by_price_range"]
-    assert payload["coverage"]["valid_sales"] == 22286
+    assert payload["coverage"]["valid_sales"] == 22297
     assert payload["coverage"]["invalid_or_missing_sales"] == 0
     totals = {
         bucket_id: sum(row[bucket_id] for row in payload["daily"])
         for bucket_id in PRICE_RANGE_BUCKET_IDS
     }
-    assert [totals[bucket_id] for bucket_id in PRICE_RANGE_BUCKET_IDS] == [4850, 5931, 5599, 1543, 1557, 1932, 874]
+    assert [totals[bucket_id] for bucket_id in PRICE_RANGE_BUCKET_IDS] == [4852, 5931, 5608, 1543, 1557, 1932, 874]
     assert validate_sales_by_price_range_payload(payload)
 
 

@@ -146,6 +146,67 @@ def build_monthly_price_range_chart(price_range_df: pd.DataFrame, mobile_layout:
         return None
 
 
+def _add_item_class_total_hover_trace(fig: go.Figure, x_values, total_values) -> None:
+    fig.add_trace(go.Scatter(
+        x=x_values, y=pd.to_numeric(total_values, errors='coerce').fillna(0),
+        mode='markers', name='Total sales',
+        marker=dict(size=8, color='rgba(0,0,0,0)', opacity=0),
+        hovertemplate='Total sales: %{y:,.0f}<extra></extra>', showlegend=False,
+    ))
+
+
+def build_daily_item_class_chart(item_class_df: pd.DataFrame, classes: list[dict], mobile_layout: bool = False) -> Optional[go.Figure]:
+    if item_class_df is None or item_class_df.empty or not classes:
+        return None
+    ids = [entry['id'] for entry in classes]
+    if not {'date', 'total_sales', *ids}.issubset(item_class_df.columns):
+        return None
+    try:
+        df = item_class_df.copy()
+        df['date'] = pd.to_datetime(df['date'], errors='coerce', utc=True)
+        if df['date'].isna().any():
+            return None
+        fig = go.Figure()
+        for entry in classes:
+            fig.add_trace(go.Scatter(
+                x=df['date'], y=pd.to_numeric(df[entry['id']], errors='coerce').fillna(0),
+                mode='lines', name=entry['name'], stackgroup='item_classes',
+                line=dict(color=entry['color'], width=1.2),
+                hovertemplate=f"{entry['name']}: %{{y:,.0f}} sales<extra></extra>",
+            ))
+        _add_item_class_total_hover_trace(fig, df['date'], df['total_sales'])
+        fig.update_layout(**_price_range_layout('DAILY SALES BY ITEM CLASS', mobile_layout))
+        fig.update_xaxes(title=None)
+        return fig
+    except Exception as exc:
+        print(f'Error building daily item class chart: {exc}')
+        return None
+
+
+def build_monthly_item_class_chart(item_class_df: pd.DataFrame, classes: list[dict], mobile_layout: bool = False) -> Optional[go.Figure]:
+    if item_class_df is None or item_class_df.empty or not classes:
+        return None
+    ids = [entry['id'] for entry in classes]
+    if not {'month', 'total_sales', *ids}.issubset(item_class_df.columns):
+        return None
+    try:
+        df = item_class_df.copy()
+        fig = go.Figure()
+        for entry in classes:
+            fig.add_trace(go.Bar(
+                x=df['month'], y=pd.to_numeric(df[entry['id']], errors='coerce').fillna(0),
+                name=entry['name'], marker=dict(color=entry['color']),
+                hovertemplate=f"{entry['name']}: %{{y:,.0f}} sales<extra></extra>",
+            ))
+        _add_item_class_total_hover_trace(fig, df['month'], df['total_sales'])
+        fig.update_layout(**_price_range_layout('MONTHLY SALES BY ITEM CLASS', mobile_layout, barmode='stack'))
+        fig.update_xaxes(title=None)
+        return fig
+    except Exception as exc:
+        print(f'Error building monthly item class chart: {exc}')
+        return None
+
+
 def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = False, unique_wallets_df: Optional[pd.DataFrame] = None, show_unique_wallets: bool = False) -> Optional[go.Figure]:
     """
     technical diagnostic text Daily Liquidity line chart.

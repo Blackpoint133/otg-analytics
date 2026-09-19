@@ -32,10 +32,13 @@ def test_refresh_cores_invoke_all_steps_in_order():
     common = (OPS / "production_update_common.ps1").read_text(encoding="utf-8")
     for marker in ("market_period", "market_expansion", "trader_analytics", "item_class", "gunzscope_v3", "profile_sync"):
         assert marker in common
-    derived = common[common.index("function Invoke-DerivedRefreshCore") : common.index("function Invoke-MetadataRefreshCore")]
-    metadata = common[common.index("function Invoke-MetadataRefreshCore") : common.index("function Get-DesiredTaskDefinition")]
-    assert derived.index("market_period") < derived.index("market_expansion") < derived.index("trader_analytics")
-    assert metadata.index("item_class") < metadata.index("gunzscope_v3") < metadata.index("profile_sync")
+    derived = common[common.rindex("function Invoke-DerivedRefreshCore") : common.rindex("function Invoke-MetadataRefreshCore")]
+    metadata = common[common.rindex("function Invoke-MetadataRefreshCore") : common.rindex("function Get-DesiredTaskDefinition")]
+    assert derived.index("item_class") < derived.index("market_period") < derived.index("market_expansion") < derived.index("trader_analytics")
+    assert "item_class" not in metadata
+    assert metadata.index("gunzscope_v3") < metadata.index("profile_sync")
+    assert "Write-SimulationArtifacts $Context @(0,1,2,3)" in derived
+    assert "Write-SimulationArtifacts $Context @(4,5)" in metadata
 
 
 def test_reader_helper_is_tracked_and_read_only():

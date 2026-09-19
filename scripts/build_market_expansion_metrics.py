@@ -12,6 +12,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parents[1] / 'streamlit_opensea_sales'))
 from market_data_access import get_market_build_id_from_manifest  # noqa: E402
 from market_price_ranges import build_sales_by_price_range  # noqa: E402
+from market_item_classes import build_sales_by_item_class, read_item_class_snapshot  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from market_snapshot_contract import inspect_market_snapshot  # noqa: E402
 
@@ -21,7 +22,14 @@ def _wallets(frame):
     return len(values)
 
 
-def build_payload(sales_df: pd.DataFrame, daily_df: pd.DataFrame, monthly_df: pd.DataFrame, build_id: str) -> dict:
+def build_payload(
+    sales_df: pd.DataFrame,
+    daily_df: pd.DataFrame,
+    monthly_df: pd.DataFrame,
+    build_id: str,
+    *,
+    item_class_snapshot: tuple[dict, dict, dict] | None = None,
+) -> dict:
     sales = sales_df.copy()
     sales['sale_date'] = pd.to_datetime(sales['sale_date'], errors='coerce', utc=True)
     raw_dates = sales['sale_date'].dropna()
@@ -54,10 +62,16 @@ def build_payload(sales_df: pd.DataFrame, daily_df: pd.DataFrame, monthly_df: pd
                              'unique_wallets': _wallets(frame)})
     latest = daily_axis['date'].max().strftime('%Y-%m-%d')
     sales_by_price_range = build_sales_by_price_range(sales, daily_df, monthly_df)
-    return {'schema_version': 1, 'built_at_utc': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+    payload = {'schema_version': 1, 'built_at_utc': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             'source_market_build_id': build_id, 'source_latest_date': latest,
             'unique_wallets': {'daily': daily_rows, 'monthly': monthly_rows},
             'sales_by_price_range': sales_by_price_range}
+    if item_class_snapshot is not None:
+        snapshot_payload, _, snapshot_identity = item_class_snapshot
+        payload['sales_by_item_class'] = build_sales_by_item_class(
+            sales, daily_df, monthly_df, snapshot_payload, snapshot_identity
+        )
+    return payload
 
 
 def build_from_directory(data_dir: Path):
@@ -72,7 +86,8 @@ def build_from_directory(data_dir: Path):
     build_id = get_market_build_id_from_manifest(manifest)
     if not build_id or build_id != contract['market_build_id']:
         raise RuntimeError('MARKET_BUILD_ID_MISSING')
-    return build_payload(sales, daily, monthly, build_id)
+    item_class_snapshot = read_item_class_snapshot(data_dir / 'item_class_snapshot.json')
+    return build_payload(sales, daily, monthly, build_id, item_class_snapshot=item_class_snapshot)
 
 
 def publish_atomic(payload, output: Path):

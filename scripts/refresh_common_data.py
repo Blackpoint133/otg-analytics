@@ -70,6 +70,15 @@ def sync_market_base(source: Path, target: Path) -> int:
     return changed
 
 
+def sync_item_class_snapshot(source: Path, target: Path) -> int:
+    """Publish the class snapshot before any class-aware derived builders run."""
+    source_file = source / "item_class_snapshot.json"
+    target_file = target / "item_class_snapshot.json"
+    if not source_file.is_file():
+        raise FileNotFoundError(source_file)
+    return publish_file(source_file, target_file)
+
+
 def get_sales_date_max(data_dir: Path):
     """Return the maximum valid, timezone-aware sale_date in enriched sales."""
     values = []
@@ -136,6 +145,8 @@ def run(source: Path, target: Path) -> int:
             raise ValueError("MARKET_BASE_SNAPSHOT_STALE")
         if target_market["raw_latest_date"] != source_market["raw_latest_date"]:
             raise ValueError("MARKET_BASE_SNAPSHOT_SOURCE_TARGET_MISMATCH")
+        stage = "item_class_snapshot"
+        changed += sync_item_class_snapshot(source, target)
         py = sys.executable
         stages = [
             ("market_period", "build_market_period_summaries.py"),
