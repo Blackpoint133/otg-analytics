@@ -131,8 +131,17 @@ def test_ecosystem_v2_is_compact_directory_layout_and_other_routes_keep_sidebar(
 
 def test_ecosystem_section_icons_are_48px_left_aligned_heading_row_assets():
     source = (APP / "ui" / "ecosystem.py").read_text(encoding="utf-8")
-    assert ".ecosystem-section-heading{display:flex;align-items:center" in source
-    assert ".ecosystem-section-icon{display:block;width:48px;height:48px;flex:0 0 48px;object-fit:contain" in source
+    heading_start = source.index(".ecosystem-section-heading{")
+    heading_end = source.index(".ecosystem-section-heading .ecosystem-section-icon", heading_start)
+    heading_rule = source[heading_start:heading_end]
+    assert "display:grid" in heading_rule
+    assert "grid-template-columns:48px max-content minmax(0,1fr)" in heading_rule
+    assert "grid-template-rows:48px" in heading_rule
+    assert "align-items:center" in heading_rule
+    assert "display:flex" not in heading_rule
+    assert ".ecosystem-section-heading .ecosystem-section-icon{display:block;grid-column:1;grid-row:1;width:48px;height:48px;object-fit:contain" in source
+    assert ".ecosystem-section-heading>span{grid-column:2;grid-row:1;white-space:nowrap}" in source
+    assert ".ecosystem-section-heading::after{content:\"\";grid-column:3;grid-row:1" in source
     assert "img/section_ecosystem/OFFICIAL_ECOSYSTEM.png" in source
     assert "img/section_ecosystem/MARKETPLACES.png" in source
     assert "img/section_ecosystem/COMMUNITY_ECOSYSTEM.png" in source

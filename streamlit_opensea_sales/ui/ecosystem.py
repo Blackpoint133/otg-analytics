@@ -102,9 +102,10 @@ def _page_css() -> str:
 .st-key-ecosystem_page .ecosystem-intro{max-width:760px;margin:0;color:#9FA5AD;font-size:13px;line-height:1.55}
 .st-key-ecosystem_page .ecosystem-disclaimer{max-width:760px;margin:8px 0 0;color:#6D737B;font-size:10px;line-height:1.45}
 .st-key-ecosystem_page .ecosystem-section{margin-top:20px}
-.st-key-ecosystem_page .ecosystem-section-heading{display:flex;align-items:center;gap:10px;margin:0 0 10px;color:#F4F5F6;font-size:12px;letter-spacing:1.25px;line-height:1.2;text-transform:uppercase}
-.st-key-ecosystem_page .ecosystem-section-icon{display:block;width:48px;height:48px;flex:0 0 48px;object-fit:contain;object-position:center}
-.st-key-ecosystem_page .ecosystem-section-heading::after{content:"";height:1px;flex:1;background:#26292D}
+.st-key-ecosystem_page .ecosystem-section-heading{display:grid;grid-template-columns:48px max-content minmax(0,1fr);grid-template-rows:48px;align-items:center;column-gap:10px;margin:0 0 10px;color:#F4F5F6;font-size:12px;letter-spacing:1.25px;line-height:1.2;text-transform:uppercase}
+.st-key-ecosystem_page .ecosystem-section-heading .ecosystem-section-icon{display:block;grid-column:1;grid-row:1;width:48px;height:48px;object-fit:contain;object-position:center}
+.st-key-ecosystem_page .ecosystem-section-heading>span{grid-column:2;grid-row:1;white-space:nowrap}
+.st-key-ecosystem_page .ecosystem-section-heading::after{content:"";grid-column:3;grid-row:1;width:100%;height:1px;background:#26292D}
 .st-key-ecosystem_page .ecosystem-section-count{color:#777D85;font-size:9px;letter-spacing:.8px}
 .st-key-ecosystem_page .ecosystem-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .st-key-ecosystem_page .ecosystem-grid-marketplaces{grid-template-columns:minmax(0,250px);justify-content:start}
