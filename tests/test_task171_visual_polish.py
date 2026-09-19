@@ -56,7 +56,7 @@ def test_item_pager_matches_approved_top_items_geometry_and_button_style():
         'st.columns([1, 2, 1], gap="small")',
     )
     for contract in contracts:
-        assert contract in item_pager
+        assert contract in ITEM
         assert contract in top_pager
     assert 'key="item_table_pagination"' in item_pager
 
@@ -78,6 +78,17 @@ def test_old_item_pager_divider_and_generic_wrapper_button_styles_are_removed():
     assert "#11141C" not in ITEM
     assert "#181D27" not in ITEM
     assert "_render_item_table_pager(current_page, total_pages)" in table
+
+
+def test_item_pager_style_is_not_a_separate_streamlit_element_and_direct_stack_gap_is_scoped():
+    pager = _function(ITEM, "_render_item_table_pager", "_render_item_sales_table")
+    before_container = pager[:pager.index('with st.container(key="item_table_pagination")')]
+    assert "st.markdown" not in before_container
+    assert '<style>' not in pager
+    assert ".st-key-item_sales_table_wrapper {" in ITEM
+    assert "gap: 7.333px !important" in ITEM
+    assert ".st-key-item_table_pagination {" in ITEM
+    assert "padding-top: 15px !important" in ITEM
 
 
 def test_top_items_pager_and_task170_status_content_remain_approved():

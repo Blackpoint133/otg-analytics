@@ -710,18 +710,6 @@ def _render_item_chart(
 def _render_item_table_pager(current_page: int, total_pages: int) -> None:
     if total_pages <= 1:
         return
-    st.markdown("""
-        <style>
-        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] { display:grid!important; grid-template-columns:110px minmax(0,1fr) 110px!important; column-gap:0!important; width:100%!important; align-items:start!important; }
-        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { width:100%!important; min-width:0!important; max-width:none!important; padding:0!important; flex:none!important; }
-        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child { display:flex!important; justify-content:flex-start!important; }
-        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child { display:flex!important; justify-content:flex-end!important; }
-        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) { display:flex!important; justify-content:center!important; }
-        .st-key-item_table_pagination button { width:110px!important; background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; }
-        .st-key-item_table_pagination button:hover:not(:disabled) { background:#FF003A!important; color:#000!important; }
-        .st-key-item_table_pagination button:disabled { opacity:.35!important; }
-        </style>
-    """, unsafe_allow_html=True)
     with st.container(key="item_table_pagination"):
         left, center, right = st.columns([1, 2, 1], gap="small")
         with left:
@@ -915,6 +903,20 @@ def render_item_overview(
         .st-key-item_sales_table_wrapper .sales-table {
             margin-bottom: 8px !important;
         }
+        .st-key-item_sales_table_wrapper {
+            gap: 7.333px !important;
+        }
+        .st-key-item_table_pagination {
+            padding-top: 15px !important;
+        }
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] { display:grid!important; grid-template-columns:110px minmax(0,1fr) 110px!important; column-gap:0!important; width:100%!important; align-items:start!important; }
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { width:100%!important; min-width:0!important; max-width:none!important; padding:0!important; flex:none!important; }
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:first-child { display:flex!important; justify-content:flex-start!important; }
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child { display:flex!important; justify-content:flex-end!important; }
+        .st-key-item_table_pagination [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) { display:flex!important; justify-content:center!important; }
+        .st-key-item_table_pagination button { width:110px!important; background:#000!important; color:#FFF!important; border:1px solid #FF003A!important; border-radius:0!important; }
+        .st-key-item_table_pagination button:hover:not(:disabled) { background:#FF003A!important; color:#000!important; }
+        .st-key-item_table_pagination button:disabled { opacity:.35!important; }
         </style>
         <div class="item-overview-header">
             <h3>ITEM ANALYTICS</h3>
