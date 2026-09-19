@@ -32,6 +32,12 @@ SIDEBAR_LOG_PATH = Path(__file__).resolve().parents[2] / "logs" / "site_analytic
 SIDEBAR_LOGGER = get_module_logger("sidebar", log_file=SIDEBAR_LOG_PATH, module_tag="sidebar")
 
 TRADER_VISIBLE_SORT_OPTIONS = ("EARNED", "INVESTED", "SOLD", "TRADES")
+MARKET_VIEW_VALUES = ("daily", "monthly")
+
+
+def normalize_market_view(value: Any) -> str:
+    """Return the only supported Market temporal view, defaulting to daily."""
+    return value if value in MARKET_VIEW_VALUES else "daily"
 
 
 def _record_product_event_safe(*args, **kwargs) -> bool:
@@ -562,6 +568,90 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
         args=("market", "unique_wallets", "market_show_unique_wallets")
     )
 
+    if 'market_view' not in st.session_state:
+        st.session_state.market_view = 'daily'
+    current_view = normalize_market_view(st.session_state.get('market_view'))
+    st.session_state.market_view = current_view
+
+    _render_sidebar_section_start("VIEW")
+    st.sidebar.html("""
+        <style>
+        .st-key-market_view_controls {
+            padding: 0;
+        }
+
+        .st-key-market_view_controls button {
+            width: 100% !important;
+            min-height: 28px !important;
+            height: 28px !important;
+            padding: 4px 10px !important;
+            margin-bottom: 3px !important;
+            font-family: 'PP Supply Sans', 'Space Mono', monospace, sans-serif !important;
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            border-radius: 1px !important;
+            cursor: pointer !important;
+            transition: all 0.12s linear !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .st-key-market_view_controls button[data-testid="stBaseButton-secondary"] {
+            background-color: #0a0a0a !important;
+            border: 1px solid #333 !important;
+            color: #666 !important;
+        }
+
+        .st-key-market_view_controls button[data-testid="stBaseButton-secondary"]:hover {
+            background-color: #0f0f0f !important;
+            border-color: #444 !important;
+            color: #888 !important;
+        }
+
+        .st-key-market_view_controls button[data-testid="stBaseButton-primary"] {
+            background-color: #FF003A !important;
+            border: 1px solid #FF003A !important;
+            color: #FFFFFF !important;
+            font-weight: 800 !important;
+        }
+
+        .st-key-market_view_controls button[data-testid="stBaseButton-primary"]:hover {
+            background-color: #E60033 !important;
+            border-color: #FF003A !important;
+            color: #FFFFFF !important;
+        }
+        </style>
+    """)
+
+    with st.sidebar.container(key="market_view_controls"):
+        if st.button(
+            "DAILY",
+            key="market_view_daily",
+            use_container_width=True,
+            type="primary" if current_view == 'daily' else "secondary"
+        ):
+            if current_view != 'daily':
+                _record_product_event_safe("market", "view_change", control_key="view", value_key="daily")
+                st.session_state.market_view = 'daily'
+                st.rerun()
+
+        if st.button(
+            "MONTHLY",
+            key="market_view_monthly",
+            use_container_width=True,
+            type="primary" if current_view == 'monthly' else "secondary"
+        ):
+            if current_view != 'monthly':
+                _record_product_event_safe("market", "view_change", control_key="view", value_key="monthly")
+                st.session_state.market_view = 'monthly'
+                st.rerun()
+
     if 'market_time_range' not in st.session_state:
         st.session_state.market_time_range = '12m'
 
@@ -673,12 +763,12 @@ def render_market_sidebar_controls() -> Dict[str, Any]:
     from ui.section_guide import render_section_guide_button
     _render_sidebar_section_start("GUIDE")
     guide_open = render_section_guide_button("market")
-    info(f"Market sidebar: show_usd={show_usd}, show_token_price={show_token_price}, show_unique_wallets={show_unique_wallets}, time_range={current_period}")
+    info(f"Market sidebar: show_usd={show_usd}, show_token_price={show_token_price}, show_unique_wallets={show_unique_wallets}, view={current_view}, time_range={current_period}")
     
     return {
         'show_usd': show_usd,
         'show_token_price': show_token_price
-        , 'show_unique_wallets': show_unique_wallets, 'guide_open': guide_open
+        , 'show_unique_wallets': show_unique_wallets, 'view': current_view, 'guide_open': guide_open
     }
 
 

@@ -38,6 +38,23 @@ from market_item_classes import payload_to_frames as item_class_payload_to_frame
 from ui.viewport import get_viewport_info
 
 
+MARKET_VIEW_VALUES = ("daily", "monthly")
+MARKET_VIEW_CHART_PLAN = {
+    "daily": ("daily_liquidity", "daily_volume", "daily_price_range", "daily_item_class"),
+    "monthly": ("monthly_liquidity", "monthly_volume", "monthly_price_range", "monthly_item_class"),
+}
+
+
+def normalize_market_view(view_mode: str) -> str:
+    """Normalize an explicit Market view selection to a supported value."""
+    return view_mode if view_mode in MARKET_VIEW_VALUES else "daily"
+
+
+def get_market_view_chart_plan(view_mode: str) -> tuple[str, ...]:
+    """Return the exact four chart slots rendered for the selected view."""
+    return MARKET_VIEW_CHART_PLAN[normalize_market_view(view_mode)]
+
+
 def _is_mobile_viewport(viewport_info: Optional[dict]) -> bool:
     """Return True only when the viewport component provides a mobile width."""
     if not isinstance(viewport_info, dict):
@@ -236,11 +253,12 @@ def _filter_item_class_series(expansion: Optional[dict], start_date, end_date, i
     return daily, monthly, classes
 
 
-def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.03, show_token_price: bool = False, show_unique_wallets: bool = False, guide_open: bool = False):
+def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.03, show_token_price: bool = False, show_unique_wallets: bool = False, guide_open: bool = False, view_mode: str = "daily"):
     """technical documentation technical documentation technical documentation Market Overview technical documentation."""
+    view_mode = normalize_market_view(view_mode)
     if guide_open:
         from ui.section_guide import render_section_guide_panel
-        render_section_guide_panel("""<p><b>MARKET ANALYTICS</b> A market-wide view of observed OpenSea trading activity across all tracked items.</p><p><b>PERIOD</b> Select ALL TIME, 12 MONTH, 6 MONTH or 3 MONTH. The selected period applies to the summary metrics and market charts and is measured back from the latest available market data.</p><p><b>MARKET SUMMARY</b> TOTAL TRANSACTIONS is the number of observed marketplace transactions. TOTAL VOLUME is their combined traded value. UNIQUE WALLETS counts distinct buyers and sellers. ITEMS TRADED counts distinct items with observed activity during the selected period.</p><p><b>LIQUIDITY</b> DAILY MARKET LIQUIDITY and MONTHLY MARKET LIQUIDITY show how many completed sales occurred over time. In OTG Analytics, Liquidity means completed trading activity, not the number or depth of active listings or offers. Enable UNIQUE WALLETS to overlay the number of distinct wallets active in those sales.</p><p><b>VOLUME</b> DAILY MARKET VOLUME and MONTHLY MARKET VOLUME show the total traded value over time. Enable USD PRICE to display volume in USD, using historical transaction pricing where available. Enable TOKEN PRICE to overlay the GUN/USD price on the volume charts.</p><p><b>SALES BY PRICE RANGE</b> Groups observed sales using the historical USD value at the time of each sale. The Y-axis is a sales count, and the fixed USD-at-sale ranges remain unchanged by the USD PRICE toggle. Daily and Monthly views aggregate the same buckets.</p><p><b>SALES BY ITEM CLASS</b> Shows the number of observed sales grouped by the current tracked OTG item classification. Daily is grouped by UTC day and Monthly by UTC month. This is a sales count, not monetary volume; USD PRICE and TOKEN PRICE do not change the classification.</p><p><b>CHARTS</b> Hover over chart points or bars to inspect the underlying date or month and its market values.</p><p class="trader-guide-note">All market metrics are derived from observed marketplace activity within the selected data period.</p>""", trusted_html=True)
+        render_section_guide_panel("""<p><b>MARKET ANALYTICS</b> A market-wide view of observed OpenSea trading activity across all tracked items.</p><p><b>PERIOD</b> Select ALL TIME, 12 MONTH, 6 MONTH or 3 MONTH. The selected period applies to the summary metrics and market charts and is measured back from the latest available market data.</p><p><b>VIEW</b> DAILY shows the daily versions of all four Market charts. MONTHLY shows the monthly versions. Changing VIEW does not change the selected PERIOD.</p><p><b>MARKET SUMMARY</b> TOTAL TRANSACTIONS is the number of observed marketplace transactions. TOTAL VOLUME is their combined traded value. UNIQUE WALLETS counts distinct buyers and sellers. ITEMS TRADED counts distinct items with observed activity during the selected period.</p><p><b>LIQUIDITY</b> DAILY MARKET LIQUIDITY and MONTHLY MARKET LIQUIDITY show how many completed sales occurred over time. In OTG Analytics, Liquidity means completed trading activity, not the number or depth of active listings or offers. Enable UNIQUE WALLETS to overlay the number of distinct wallets active in those sales.</p><p><b>VOLUME</b> DAILY MARKET VOLUME and MONTHLY MARKET VOLUME show the total traded value over time. Enable USD PRICE to display volume in USD, using historical transaction pricing where available. Enable TOKEN PRICE to overlay the GUN/USD price on the volume charts.</p><p><b>SALES BY PRICE RANGE</b> Groups observed sales using the historical USD value at the time of each sale. The Y-axis is a sales count, and the fixed USD-at-sale ranges remain unchanged by the USD PRICE toggle. Daily and Monthly views aggregate the same buckets.</p><p><b>SALES BY ITEM CLASS</b> Shows the number of observed sales grouped by the current tracked OTG item classification. Daily is grouped by UTC day and Monthly by UTC month. This is a sales count, not monetary volume; USD PRICE and TOKEN PRICE do not change the classification.</p><p><b>CHARTS</b> Hover over chart points or bars to inspect the underlying date or month and its market values.</p><p class="trader-guide-note">All market metrics are derived from observed marketplace activity within the selected data period.</p>""", trusted_html=True)
     
     # technical implementation note technical implementation note data
     status = mda.get_market_data_status()
@@ -369,176 +387,94 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
     
     is_mobile_market_chart = _resolve_market_mobile_state()
 
-    if is_mobile_market_chart:
-        daily_liq_fig = build_daily_liquidity_chart(chart_daily_df, mobile_layout=True, unique_wallets_df=expansion_daily, show_unique_wallets=show_unique_wallets)
-        if daily_liq_fig:
-            st.plotly_chart(
-                daily_liq_fig,
-                use_container_width=True,
-                config={'displayModeBar': False},
-                key='daily_liquidity'
-            )
-
-        daily_vol_fig = build_daily_volume_chart(
-            chart_daily_df,
-            show_usd=show_usd,
-            current_gun_price=current_gun_price,
-            show_token_price=show_token_price,
-            mobile_layout=True
-        )
-        if daily_vol_fig:
-            st.plotly_chart(
-                daily_vol_fig,
-                use_container_width=True,
-                config={'displayModeBar': False},
-                key='daily_volume'
-            )
-
-        if chart_monthly_df is not None:
-            monthly_liq_fig = build_monthly_liquidity_chart(chart_monthly_df, mobile_layout=True, unique_wallets_df=expansion_monthly, show_unique_wallets=show_unique_wallets)
-            if monthly_liq_fig:
-                st.plotly_chart(
-                    monthly_liq_fig,
-                    use_container_width=True,
-                    config={'displayModeBar': False},
-                    key='monthly_liquidity'
-                )
-
-        if chart_monthly_df is not None:
-            monthly_vol_fig = build_monthly_volume_chart(
-                chart_monthly_df,
-                show_usd=show_usd,
-                current_gun_price=current_gun_price,
-                show_token_price=show_token_price,
-                mobile_layout=True
-            )
-            if monthly_vol_fig:
-                st.plotly_chart(
-                    monthly_vol_fig,
-                    use_container_width=True,
-                    config={'displayModeBar': False},
-                    key='monthly_volume'
-                )
-
-        daily_price_range_fig = build_daily_price_range_chart(price_range_daily, mobile_layout=True)
-        if daily_price_range_fig:
-            st.plotly_chart(
-                daily_price_range_fig,
-                use_container_width=True,
-                config={'displayModeBar': False},
-                key='daily_price_range'
-            )
-
-        monthly_price_range_fig = build_monthly_price_range_chart(price_range_monthly, mobile_layout=True)
-        if monthly_price_range_fig:
-            st.plotly_chart(
-                monthly_price_range_fig,
-                use_container_width=True,
-                config={'displayModeBar': False},
-                key='monthly_price_range'
-            )
-
-        daily_item_class_fig = build_daily_item_class_chart(item_class_daily, item_class_classes or [], mobile_layout=True)
-        if daily_item_class_fig:
-            st.plotly_chart(daily_item_class_fig, use_container_width=True, config={'displayModeBar': False}, key='daily_item_class')
-
-        monthly_item_class_fig = build_monthly_item_class_chart(item_class_monthly, item_class_classes or [], mobile_layout=True)
-        if monthly_item_class_fig:
-            st.plotly_chart(monthly_item_class_fig, use_container_width=True, config={'displayModeBar': False}, key='monthly_item_class')
+    if view_mode == "daily":
+        selected_figures = [
+            (
+                "daily_liquidity",
+                build_daily_liquidity_chart(
+                    chart_daily_df,
+                    mobile_layout=is_mobile_market_chart,
+                    unique_wallets_df=expansion_daily,
+                    show_unique_wallets=show_unique_wallets,
+                ),
+            ),
+            (
+                "daily_volume",
+                build_daily_volume_chart(
+                    chart_daily_df,
+                    show_usd=show_usd,
+                    current_gun_price=current_gun_price,
+                    show_token_price=show_token_price,
+                    mobile_layout=is_mobile_market_chart,
+                ),
+            ),
+            (
+                "daily_price_range",
+                build_daily_price_range_chart(price_range_daily, mobile_layout=is_mobile_market_chart),
+            ),
+            (
+                "daily_item_class",
+                build_daily_item_class_chart(item_class_daily, item_class_classes or [], mobile_layout=is_mobile_market_chart),
+            ),
+        ]
+        selected_price_range = price_range_daily
+        selected_item_class = item_class_daily
     else:
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            daily_liq_fig = build_daily_liquidity_chart(chart_daily_df, unique_wallets_df=expansion_daily, show_unique_wallets=show_unique_wallets)
-            if daily_liq_fig:
-                st.plotly_chart(
-                    daily_liq_fig,
-                    use_container_width=True,
-                    config={'displayModeBar': False},
-                    key='daily_liquidity'
-                )
-        
-        with col2:
-            daily_vol_fig = build_daily_volume_chart(
-                chart_daily_df,
-                show_usd=show_usd,
-                current_gun_price=current_gun_price,
-                show_token_price=show_token_price
-            )
-            if daily_vol_fig:
-                st.plotly_chart(
-                    daily_vol_fig,
-                    use_container_width=True,
-                    config={'displayModeBar': False},
-                    key='daily_volume'
-                )
-        
-        col3, col4 = st.columns(2)
-        
-        with col3:
-            if chart_monthly_df is not None:
-                monthly_liq_fig = build_monthly_liquidity_chart(chart_monthly_df, unique_wallets_df=expansion_monthly, show_unique_wallets=show_unique_wallets)
-                if monthly_liq_fig:
-                    st.plotly_chart(
-                        monthly_liq_fig,
-                        use_container_width=True,
-                        config={'displayModeBar': False},
-                        key='monthly_liquidity'
-                    )
-        
-        with col4:
-            if chart_monthly_df is not None:
-                monthly_vol_fig = build_monthly_volume_chart(
+        selected_figures = [
+            (
+                "monthly_liquidity",
+                build_monthly_liquidity_chart(
+                    chart_monthly_df,
+                    mobile_layout=is_mobile_market_chart,
+                    unique_wallets_df=expansion_monthly,
+                    show_unique_wallets=show_unique_wallets,
+                ),
+            ),
+            (
+                "monthly_volume",
+                build_monthly_volume_chart(
                     chart_monthly_df,
                     show_usd=show_usd,
                     current_gun_price=current_gun_price,
-                    show_token_price=show_token_price
-                )
-                if monthly_vol_fig:
-                    st.plotly_chart(
-                        monthly_vol_fig,
-                        use_container_width=True,
-                        config={'displayModeBar': False},
-                        key='monthly_volume'
-                    )
+                    show_token_price=show_token_price,
+                    mobile_layout=is_mobile_market_chart,
+                ),
+            ),
+            (
+                "monthly_price_range",
+                build_monthly_price_range_chart(price_range_monthly, mobile_layout=is_mobile_market_chart),
+            ),
+            (
+                "monthly_item_class",
+                build_monthly_item_class_chart(item_class_monthly, item_class_classes or [], mobile_layout=is_mobile_market_chart),
+            ),
+        ]
+        selected_price_range = price_range_monthly
+        selected_item_class = item_class_monthly
 
-        col5, col6 = st.columns(2)
+    def _render_chart(chart_key: str, figure) -> None:
+        if figure:
+            st.plotly_chart(
+                figure,
+                use_container_width=True,
+                config={'displayModeBar': False},
+                key=chart_key,
+            )
 
-        with col5:
-            daily_price_range_fig = build_daily_price_range_chart(price_range_daily)
-            if daily_price_range_fig:
-                st.plotly_chart(
-                    daily_price_range_fig,
-                    use_container_width=True,
-                    config={'displayModeBar': False},
-                    key='daily_price_range'
-                )
+    if is_mobile_market_chart:
+        for chart_key, figure in selected_figures:
+            _render_chart(chart_key, figure)
+    else:
+        for row in (selected_figures[:2], selected_figures[2:]):
+            col1, col2 = st.columns(2)
+            with col1:
+                _render_chart(*row[0])
+            with col2:
+                _render_chart(*row[1])
 
-        with col6:
-            monthly_price_range_fig = build_monthly_price_range_chart(price_range_monthly)
-            if monthly_price_range_fig:
-                st.plotly_chart(
-                    monthly_price_range_fig,
-                    use_container_width=True,
-                    config={'displayModeBar': False},
-                    key='monthly_price_range'
-                )
-
-        col7, col8 = st.columns(2)
-
-        with col7:
-            daily_item_class_fig = build_daily_item_class_chart(item_class_daily, item_class_classes or [])
-            if daily_item_class_fig:
-                st.plotly_chart(daily_item_class_fig, use_container_width=True, config={'displayModeBar': False}, key='daily_item_class')
-
-        with col8:
-            monthly_item_class_fig = build_monthly_item_class_chart(item_class_monthly, item_class_classes or [])
-            if monthly_item_class_fig:
-                st.plotly_chart(monthly_item_class_fig, use_container_width=True, config={'displayModeBar': False}, key='monthly_item_class')
-
-    if price_range_daily is None or price_range_monthly is None:
+    if selected_price_range is None:
         st.caption('Sales by price range is temporarily unavailable for this market snapshot.')
-    if item_class_daily is None or item_class_monthly is None:
+    if selected_item_class is None:
         st.caption('Sales by item class is temporarily unavailable for this market snapshot.')
     
     st.markdown("---")
