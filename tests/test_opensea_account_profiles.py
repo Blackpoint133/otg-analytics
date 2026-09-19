@@ -10,7 +10,7 @@ SPEC = importlib.util.spec_from_file_location("profile_refresh", ROOT / "scripts
 refresh = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(refresh)
 
-from opensea_account_profiles import allocate_fallback_names, avatar_style_attribute, fallback_avatar_filename, fallback_name, is_canonical_wallet_label, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
+from opensea_account_profiles import allocate_fallback_names, avatar_style_attribute, fallback_avatar_filename, fallback_avatar_path, fallback_name, is_canonical_wallet_label, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
 
 
 def test_dedicated_profile_key_wins_over_general_key(monkeypatch, tmp_path):
@@ -100,6 +100,18 @@ def test_fallback_avatar_set_is_fixed_and_legacy_reference_is_gone():
     source = (ROOT / "streamlit_opensea_sales" / "opensea_account_profiles.py").read_text(encoding="utf-8")
     assert "profile_" + "avatar_1.png" not in source
     assert "random(" not in source
+
+
+def test_prepared_avatar_overrides_keep_trader_display_contract(monkeypatch):
+    import opensea_account_profiles as profiles
+
+    monkeypatch.setattr(profiles, "fallback_avatar_filename", lambda wallet: "avatar_088.png")
+    assert fallback_avatar_path("wallet-88").name == "88.png"
+    assert fallback_avatar_path("wallet-88").parent.name == "profile_avatar_single"
+    monkeypatch.setattr(profiles, "fallback_avatar_filename", lambda wallet: "avatar_070.png")
+    assert fallback_avatar_path("wallet-70").name == "70.png"
+    assert fallback_avatar_path("wallet-70").parent.name == "profile_avatar_single"
+    assert ".trader-avatar-small{{width:48px;height:48px}}" in (ROOT / "streamlit_opensea_sales" / "ui" / "trader_overview.py").read_text(encoding="utf-8")
 
 
 def test_avatar_style_attribute_escapes_complete_style_value():

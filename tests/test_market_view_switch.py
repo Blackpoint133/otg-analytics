@@ -153,7 +153,9 @@ def test_roadmap_transitions_market_expansion_to_live_and_stage_two_to_developme
     stage_two = source[source.index('<section class="stage s2"'):source.index('<section class="stage s3"')]
     assert 'status-icon-development' in stage_two
     assert 'status-label status-development">In Development' in stage_two
-    assert 'card-status completed' not in stage_two
+    assert 'Ecosystem Projects <span class="card-status completed">Completed</span>' in stage_two
+    stage_two_remaining = stage_two.replace('Ecosystem Projects <span class="card-status completed">Completed</span>', 'Ecosystem Projects')
+    assert 'card-status completed' not in stage_two_remaining
     assert 'class="stage s3"' in source and 'class="stage s4"' in source
     assert 'class="stage infra"' in source
     assert '.s1{--stage-color:#afff01}' in source

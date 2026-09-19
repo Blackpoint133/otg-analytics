@@ -1,33 +1,25 @@
 {
   "schema_version": 1,
-  "retrieved_at": "2026-09-18",
+  "retrieved_at": "2026-09-19",
   "assets": [
-    {
-      "project_id": "off_the_grid",
-      "local_asset_path": "img/Off_The_Grid_Logo.png",
-      "source_page": "https://gameoffthegrid.com/",
-      "asset_origin": "existing repository asset",
-      "retrieval_date": "2026-09-18"
-    },
-    {
-      "project_id": "gunzscope",
-      "local_asset_path": "img/gunz_scope/logo_1.png",
-      "source_page": "https://gunzscope.xyz/",
-      "asset_origin": "existing tracked repository asset",
-      "retrieval_date": "2026-09-18"
-    }
+    {"project_id": "gunz", "local_asset_path": "img/logo_projects/1_1_GUNZ.png", "source_page": "https://gunbygunz.com/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "off_the_grid", "local_asset_path": "img/logo_projects/1_2_OFF_THE_GRID.png", "source_page": "https://gameoffthegrid.com/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "technocore", "local_asset_path": "img/logo_projects/1_3_TECHNOCORE.png", "source_page": "https://gunbygunz.com/technocore/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "otg_companion", "local_asset_path": "img/logo_projects/1_4_OFF_THE_GRID_COMPANION.png", "source_page": "https://play.google.com/store/apps/details?id=com.gunzillagames.otg", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "gunz_wallet", "local_asset_path": "img/logo_projects/1_5_GUNZ_WALLET.png", "source_page": "https://play.google.com/store/apps/details?id=com.gunzillagames.walletapp", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "gunzscan", "local_asset_path": "img/logo_projects/1_6_GUNZ_SCAN.png", "source_page": "https://gunzscan.io/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "gunz_bridge", "local_asset_path": "img/logo_projects/1_7_GUNZ_BRIDGE.png", "source_page": "https://bridge.gunzchain.io/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "gunz_developers", "local_asset_path": "img/logo_projects/1_8_GUNZ_DEVELOPERS.png", "source_page": "https://gunbygunz.com/develop/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "opensea_otg", "local_asset_path": "img/logo_projects/2_1_OFF_THE_GRID_ON_OPENSEA.png", "source_page": "https://opensea.io/collection/off-the-grid/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "gunzscope", "local_asset_path": "img/logo_projects/3_1_GUNZSCOPE.png", "source_page": "https://gunzscope.xyz/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "otgstats", "local_asset_path": "img/logo_projects/3_2_OTG_STATS.png", "source_page": "https://www.otgstats.com/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"project_id": "walletzero", "local_asset_path": "img/logo_projects/3_3_WALLETZERO.png", "source_page": "https://walletzero.io/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"}
   ],
-  "fallback_projects": [
-    "gunz",
-    "technocore",
-    "otg_companion",
-    "gunz_wallet",
-    "gunzscan",
-    "gunz_bridge",
-    "gunz_developers",
-    "opensea_otg",
-    "otgstats",
-    "walletzero"
+  "section_icons": [
+    {"section": "official", "local_asset_path": "img/section_ecosystem/OFFICIAL_ECOSYSTEM.png", "source_page": "https://gunbygunz.com/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"section": "external_officially_linked", "local_asset_path": "img/section_ecosystem/MARKETPLACES.png", "source_page": "https://opensea.io/collection/off-the-grid/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"},
+    {"section": "community", "local_asset_path": "img/section_ecosystem/COMMUNITY_ECOSYSTEM.png", "source_page": "https://gunzscope.xyz/", "asset_origin": "prepared standardized DEV asset", "retrieval_date": "2026-09-19"}
   ],
-  "notes": "No runtime-hotlinked logos were added. img/gunz_scope/logo_2.png was intentionally not touched."
+  "fallback_projects": [],
+  "notes": "All V1 project and section assets are local prepared files. No runtime-hotlinked logos were added. img/gunz_scope/logo_2.png was intentionally not touched."
 }

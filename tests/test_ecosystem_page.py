@@ -146,7 +146,21 @@ def test_ecosystem_asset_provenance_is_local_or_explicit_fallback_only():
     provenance_path = APP / "config" / "ecosystem_asset_sources.json"
     provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
     assert provenance["schema_version"] == 1
-    assert {asset["project_id"] for asset in provenance["assets"]} == {"off_the_grid", "gunzscope"}
+    projects = load_ecosystem_catalog()
+    assert {asset["project_id"] for asset in provenance["assets"]} == {project["id"] for project in projects}
     assert all(not str(asset["local_asset_path"]).startswith("http") for asset in provenance["assets"])
-    assert len(provenance["fallback_projects"]) == 10
+    assert provenance["fallback_projects"] == []
+    assert {icon["section"] for icon in provenance["section_icons"]} == {"official", "external_officially_linked", "community"}
     assert "img/gunz_scope/logo_2.png" in provenance["notes"]
+
+
+def test_ecosystem_uses_prepared_project_and_section_assets():
+    projects = load_ecosystem_catalog()
+    assert all(project["logo_asset"].startswith("img/logo_projects/") for project in projects)
+    assert all((ROOT / project["logo_asset"]).is_file() for project in projects)
+    source = (APP / "ui" / "ecosystem.py").read_text(encoding="utf-8")
+    assert "SECTION_ICONS" in source
+    assert "img/section_ecosystem/OFFICIAL_ECOSYSTEM.png" in source
+    assert "img/section_ecosystem/MARKETPLACES.png" in source
+    assert "img/section_ecosystem/COMMUNITY_ECOSYSTEM.png" in source
+    assert "ecosystem-section-icon" in source
