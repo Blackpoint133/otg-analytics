@@ -121,6 +121,45 @@ def _snapshot(target, date_max="2026-09-12T18:42:37Z"):
     (target / "trader_analytics_snapshot.json").write_text(json.dumps({"date_max": date_max}), encoding="utf-8")
 
 
+def _coherent_expansion(target):
+    """Write the smallest valid expansion pair used by refresh-contract tests."""
+    identity = MODULE.snapshot_identity(target / "item_class_snapshot.json")
+    latest = MODULE.inspect_market_snapshot(target)["daily_latest_date"]
+    month = latest[:7]
+    payload = {
+        "schema_version": 1,
+        "source_market_build_id": "build-1",
+        "source_latest_date": latest,
+        "unique_wallets": {"daily": [], "monthly": []},
+        "sales_by_item_class": {
+            "contract_version": 1,
+            "class_source": MODULE.ITEM_CLASS_SOURCE,
+            "item_class_snapshot_identity": identity,
+            "classes": [{"id": "weapon", "name": "Weapon", "order": 0, "color": "#FF8A65"}],
+            "coverage": {
+                "total_sales": 1,
+                "classified_sales": 1,
+                "unclassified_sales": 0,
+                "mapping_coverage_percent": 100.0,
+            },
+            "daily": [{
+                "date": latest,
+                "total_sales": 1,
+                "counts": [{"class_id": "weapon", "sales": 1}],
+            }],
+            "monthly": [{
+                "month": month,
+                "month_start": f"{month}-01",
+                "month_end": f"{month}-30",
+                "total_sales": 1,
+                "counts": [{"class_id": "weapon", "sales": 1}],
+            }],
+        },
+    }
+    path = target / "market_overview_enriched" / "market_expansion_metrics.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def test_identical_file_is_not_rewritten(tmp_path):
     source, target = _dirs(tmp_path); content = (source / "sales_enriched" / "one.csv").read_text()
     (target / "sales_enriched" / "one.csv").write_text(content)
@@ -159,6 +198,7 @@ def test_builders_run_in_exact_order(tmp_path, monkeypatch):
     source, target = _dirs(tmp_path); calls = []
     def fake(command, **kwargs):
         calls.append(Path(command[1]).name)
+        if command[1].endswith("build_market_expansion_metrics.py"): _coherent_expansion(target)
         if command[1].endswith("build_trader_analytics.py"): _snapshot(target)
     monkeypatch.setattr(MODULE.subprocess, "run", fake); monkeypatch.setattr(MODULE, "write_log", lambda **k: None)
     MODULE.run(source, target)
@@ -170,6 +210,7 @@ def _run_failure(tmp_path, monkeypatch, fail_index):
     def fake(command, **kwargs):
         calls.append(Path(command[1]).name)
         if len(calls) - 1 == fail_index: raise subprocess.CalledProcessError(1, command)
+        if command[1].endswith("build_market_expansion_metrics.py"): _coherent_expansion(target)
         if command[1].endswith("build_trader_analytics.py"): _snapshot(target)
     logs = []; monkeypatch.setattr(MODULE.subprocess, "run", fake); monkeypatch.setattr(MODULE, "write_log", lambda **k: logs.append(k))
     try: MODULE.run(source, target)
@@ -194,14 +235,22 @@ def test_trader_builder_failure_fails_pipeline(tmp_path, monkeypatch):
 
 
 def test_missing_snapshot_fails_validation(tmp_path, monkeypatch):
-    source, target = _dirs(tmp_path); monkeypatch.setattr(MODULE.subprocess, "run", lambda *a, **k: None); monkeypatch.setattr(MODULE, "write_log", lambda **k: None)
+    source, target = _dirs(tmp_path)
+    monkeypatch.setattr(MODULE.subprocess, "run", lambda command, **k: _coherent_expansion(target) if command[1].endswith("build_market_expansion_metrics.py") else None)
+    monkeypatch.setattr(MODULE, "write_log", lambda **k: None)
     try: MODULE.run(source, target)
     except FileNotFoundError: pass
     else: raise AssertionError("missing snapshot must fail")
 
 
 def test_invalid_snapshot_fails_validation(tmp_path, monkeypatch):
-    source, target = _dirs(tmp_path); monkeypatch.setattr(MODULE.subprocess, "run", lambda *a, **k: (target / "trader_analytics_snapshot.json").write_text("{", encoding="utf-8")); monkeypatch.setattr(MODULE, "write_log", lambda **k: None)
+    source, target = _dirs(tmp_path)
+    def fake(command, **kwargs):
+        if command[1].endswith("build_market_expansion_metrics.py"):
+            _coherent_expansion(target)
+        else:
+            (target / "trader_analytics_snapshot.json").write_text("{", encoding="utf-8")
+    monkeypatch.setattr(MODULE.subprocess, "run", fake); monkeypatch.setattr(MODULE, "write_log", lambda **k: None)
     try: MODULE.run(source, target)
     except json.JSONDecodeError: pass
     else: raise AssertionError("invalid snapshot must fail")
@@ -220,7 +269,7 @@ def test_fresh_snapshot_passes_validation(tmp_path):
 
 
 def test_success_log_emitted_after_validation(tmp_path, monkeypatch):
-    source, target = _dirs(tmp_path); _snapshot(target); logs = []
+    source, target = _dirs(tmp_path); _snapshot(target); _coherent_expansion(target); logs = []
     monkeypatch.setattr(MODULE.subprocess, "run", lambda *a, **k: None); monkeypatch.setattr(MODULE, "write_log", lambda **k: logs.append(k))
     MODULE.run(source, target)
     assert len(logs) == 1 and logs[0]["status"] == "success"
@@ -246,7 +295,7 @@ def test_target_failure_logs_target_stage(tmp_path, monkeypatch):
 
 
 def test_snapshot_failure_logs_snapshot_stage(tmp_path, monkeypatch):
-    source, target = _dirs(tmp_path); logs=[]; monkeypatch.setattr(MODULE.subprocess, "run", lambda *a, **k: None); monkeypatch.setattr(MODULE, "write_log", lambda **k: logs.append(k))
+    source, target = _dirs(tmp_path); _coherent_expansion(target); logs=[]; monkeypatch.setattr(MODULE.subprocess, "run", lambda *a, **k: None); monkeypatch.setattr(MODULE, "write_log", lambda **k: logs.append(k))
     try: MODULE.run(source, target)
     except FileNotFoundError: pass
     assert logs[0]["stage"] == "snapshot_validation"
@@ -255,3 +304,26 @@ def test_snapshot_failure_logs_snapshot_stage(tmp_path, monkeypatch):
 def test_no_canonical_production_path_is_hardcoded():
     text = (Path(__file__).parents[1] / "scripts" / "refresh_common_data.py").read_text(encoding="utf-8")
     assert "data_streamlit" not in text and "--source" in text and "--target" in text
+
+
+def test_item_class_coherence_validator_accepts_matching_snapshot(tmp_path):
+    _, target = _dirs(tmp_path)
+    _coherent_expansion(target)
+    latest = MODULE.inspect_market_snapshot(target)["daily_latest_date"]
+    MODULE.validate_item_class_expansion_coherence(target, latest)
+
+
+def test_item_class_coherence_validator_rejects_snapshot_sha_mismatch(tmp_path):
+    _, target = _dirs(tmp_path)
+    _coherent_expansion(target)
+    expansion_path = target / "market_overview_enriched" / "market_expansion_metrics.json"
+    payload = json.loads(expansion_path.read_text(encoding="utf-8"))
+    payload["sales_by_item_class"]["item_class_snapshot_identity"]["sha256"] = "0" * 64
+    expansion_path.write_text(json.dumps(payload), encoding="utf-8")
+    latest = MODULE.inspect_market_snapshot(target)["daily_latest_date"]
+    try:
+        MODULE.validate_item_class_expansion_coherence(target, latest)
+    except ValueError as exc:
+        assert str(exc) == "ITEM_CLASS_EXPANSION_INCOHERENT"
+    else:
+        raise AssertionError("snapshot identity mismatch must fail closed")

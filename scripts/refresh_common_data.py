@@ -13,12 +13,14 @@ from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from market_snapshot_contract import inspect_market_snapshot, market_base_files
-
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "streamlit_opensea_sales"
 LOG = ROOT.parent.parent / "DEV" / "staging_runtime" / "common_data_sync.log"
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from market_snapshot_contract import inspect_market_snapshot, market_base_files
+sys.path.insert(0, str(APP))
+from market_item_classes import ITEM_CLASS_SOURCE, snapshot_identity, validate_sales_by_item_class_payload
 
 
 def publish_file(source: Path, target: Path) -> bool:
@@ -113,6 +115,34 @@ def validate_snapshot(target: Path, target_date) -> None:
         raise ValueError("trader snapshot is older than refreshed sales")
 
 
+def validate_item_class_expansion_coherence(
+    target: Path,
+    expected_source_latest_date: str,
+    expected_source_market_build_id: str = "",
+) -> None:
+    """Require the published expansion to reference the exact live class snapshot."""
+    snapshot_path = target / "item_class_snapshot.json"
+    expansion_path = target / "market_overview_enriched" / "market_expansion_metrics.json"
+    if not snapshot_path.is_file():
+        raise FileNotFoundError(snapshot_path)
+    if not expansion_path.is_file():
+        raise FileNotFoundError(expansion_path)
+    identity = snapshot_identity(snapshot_path)
+    with expansion_path.open(encoding="utf-8") as handle:
+        expansion = json.load(handle)
+    if expected_source_market_build_id and expansion.get("source_market_build_id") != expected_source_market_build_id:
+        raise ValueError("ITEM_CLASS_EXPANSION_MARKET_BUILD_MISMATCH")
+    if expansion.get("source_latest_date") != expected_source_latest_date:
+        raise ValueError("ITEM_CLASS_EXPANSION_LATEST_DATE_MISMATCH")
+    item_class_payload = expansion.get("sales_by_item_class")
+    if not validate_sales_by_item_class_payload(
+        item_class_payload,
+        expected_source_latest_date=expected_source_latest_date,
+        expected_snapshot_identity=identity,
+    ):
+        raise ValueError("ITEM_CLASS_EXPANSION_INCOHERENT")
+
+
 def write_log(*, status: str, duration: float, source_date=None, target_date=None,
               changed=None, stage=None, error_type=None) -> None:
     LOG.parent.mkdir(parents=True, exist_ok=True)
@@ -168,6 +198,13 @@ def run(source: Path, target: Path) -> int:
             subprocess.run([py, str(ROOT / "scripts" / builder), "--data-dir", str(target)], cwd=ROOT, check=True)
         stage = "snapshot_validation"
         validate_snapshot(target, target_date)
+        stage = "item_class_coherence"
+        target_market_after = inspect_market_snapshot(target)
+        validate_item_class_expansion_coherence(
+            target,
+            target_market_after["daily_latest_date"],
+            target_market_after["market_build_id"],
+        )
         write_log(status="success", source_date=source_date, target_date=target_date,
                   changed=changed, duration=time.monotonic() - started)
         return changed

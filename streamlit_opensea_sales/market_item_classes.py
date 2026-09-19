@@ -315,10 +315,10 @@ def payload_to_frames(payload: dict[str, Any]) -> tuple[pd.DataFrame, pd.DataFra
             records.append(record)
         result = pd.DataFrame(records)
         if monthly:
-            result["month_start"] = pd.to_datetime(result["month_start"], errors="coerce", utc=True).dt.tz_localize(None)
-            result["month_end"] = pd.to_datetime(result["month_end"], errors="coerce", utc=True).dt.tz_localize(None)
+            result["month_start"] = pd.to_datetime(result["month_start"], errors="coerce", utc=True).dt.tz_localize(None).astype("datetime64[ns]")
+            result["month_end"] = pd.to_datetime(result["month_end"], errors="coerce", utc=True).dt.tz_localize(None).astype("datetime64[ns]")
         else:
-            result["date"] = pd.to_datetime(result["date"], errors="coerce", utc=True).dt.tz_localize(None)
+            result["date"] = pd.to_datetime(result["date"], errors="coerce", utc=True).dt.tz_localize(None).astype("datetime64[ns]")
         for class_id in ids:
             if class_id not in result:
                 result[class_id] = 0

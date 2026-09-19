@@ -57,6 +57,45 @@ def _frames(data):
     return sales, daily, monthly
 
 
+def _write_coherent_item_class_expansion(data, refresh):
+    latest = inspect_market_snapshot(data)["daily_latest_date"]
+    month = latest[:7]
+    identity = refresh.snapshot_identity(data / "item_class_snapshot.json")
+    payload = {
+        "schema_version": 1,
+        "source_market_build_id": "build-1",
+        "source_latest_date": latest,
+        "unique_wallets": {"daily": [], "monthly": []},
+        "sales_by_item_class": {
+            "contract_version": 1,
+            "class_source": refresh.ITEM_CLASS_SOURCE,
+            "item_class_snapshot_identity": identity,
+            "classes": [{"id": "weapon", "name": "Weapon", "order": 0, "color": "#FF8A65"}],
+            "coverage": {
+                "total_sales": 1,
+                "classified_sales": 1,
+                "unclassified_sales": 0,
+                "mapping_coverage_percent": 100.0,
+            },
+            "daily": [{
+                "date": latest,
+                "total_sales": 1,
+                "counts": [{"class_id": "weapon", "sales": 1}],
+            }],
+            "monthly": [{
+                "month": month,
+                "month_start": f"{month}-01",
+                "month_end": f"{month}-30",
+                "total_sales": 1,
+                "counts": [{"class_id": "weapon", "sales": 1}],
+            }],
+        },
+    }
+    (data / "market_overview_enriched" / "market_expansion_metrics.json").write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+
+
 def test_coherent_snapshot_contract_reports_dates_and_build_id(tmp_path):
     data = _snapshot(tmp_path)
     result = inspect_market_snapshot(data)
@@ -110,6 +149,8 @@ def test_refresh_publishes_fresh_base_before_builders(tmp_path, monkeypatch):
 
     def fake_builder(command, **kwargs):
         calls.append(Path(command[1]).name)
+        if command[1].endswith("build_market_expansion_metrics.py"):
+            _write_coherent_item_class_expansion(target, refresh)
         if command[1].endswith("build_trader_analytics.py"):
             (target / "trader_analytics_snapshot.json").write_text(
                 json.dumps({"date_max": "2026-09-15T20:55:03Z"}), encoding="utf-8"
