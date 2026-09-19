@@ -16,9 +16,11 @@ def _snapshot(tmp_path, *, raw_date="2026-09-15T20:55:03Z", daily_date="2026-09-
     raw_sales = data / "sales"
     sales = data / "sales_enriched"
     overview = data / "market_overview_enriched"
+    price_history = data / "price_history"
     raw_sales.mkdir(parents=True)
     sales.mkdir(parents=True)
     overview.mkdir(parents=True)
+    price_history.mkdir(parents=True)
     csv = (
         "sale_date,seller,buyer,price_gun,name,price_usd_at_sale\n"
         f"{raw_date},seller,buyer,1,Item,1\n"
@@ -41,6 +43,9 @@ def _snapshot(tmp_path, *, raw_date="2026-09-15T20:55:03Z", daily_date="2026-09-
     (data / "item_class_snapshot.json").write_text(
         json.dumps({"schema_version": 1, "source": "test", "generated_at": "2026-09-15T00:00:00Z", "items": {"Item": {"class": "Weapon"}}}),
         encoding="utf-8",
+    )
+    (price_history / "gun_usd_price_history.csv").write_text(
+        "date,price_usd\n2026-09-15,0.03\n", encoding="utf-8"
     )
     return data
 
