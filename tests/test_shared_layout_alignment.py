@@ -42,6 +42,11 @@ def test_mobile_navigation_has_separate_spacing_rule():
     source = (APP / "ui" / "mode_switch.py").read_text(encoding="utf-8")
     assert "@media(max-width:768px)" in source
     assert "min-height:32px" in source and "margin-bottom:8px" in source
+    assert ".otg-nav-analytics,.otg-nav-analytics>summary{{width:auto;flex:0 0 auto}}" in source
+    assert ".otg-top-nav{{justify-content:flex-end;gap:6px;min-height:32px;min-width:0;max-width:100%;margin-bottom:8px;overflow:visible}}" in source
+    assert ".otg-top-nav-control{{height:30px;flex:0 0 auto;min-width:0" in source
+    assert "@media(max-width:480px)" in source
+    assert "ANALYTICS" in source and "ECOSYSTEM" in source and "ROADMAP" in source and "FEEDBACK" in source and "LOG IN" in source
 
 
 def test_sidebar_section_gap_is_seven_pixels_and_label_gap_stays_ten():

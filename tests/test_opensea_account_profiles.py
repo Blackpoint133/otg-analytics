@@ -10,7 +10,7 @@ SPEC = importlib.util.spec_from_file_location("profile_refresh", ROOT / "scripts
 refresh = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(refresh)
 
-from opensea_account_profiles import allocate_fallback_names, avatar_style_attribute, fallback_avatar_filename, fallback_avatar_path, fallback_name, is_canonical_wallet_label, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
+from opensea_account_profiles import FALLBACK_AVATAR_COUNT, FALLBACK_AVATAR_DIR, allocate_fallback_names, avatar_style_attribute, fallback_avatar_data_uri, fallback_avatar_filename, fallback_name, is_canonical_wallet_label, load_profile_snapshot, profile_name, safe_avatar_css  # noqa: E402
 
 
 def test_dedicated_profile_key_wins_over_general_key(monkeypatch, tmp_path):
@@ -102,16 +102,32 @@ def test_fallback_avatar_set_is_fixed_and_legacy_reference_is_gone():
     assert "random(" not in source
 
 
-def test_prepared_avatar_overrides_keep_trader_display_contract(monkeypatch):
+def test_canonical_avatar_refresh_uses_the_normal_94_slot_namespace():
+    assert FALLBACK_AVATAR_COUNT == 94
+    assert (FALLBACK_AVATAR_DIR / "avatar_070.png").is_file()
+    assert (FALLBACK_AVATAR_DIR / "avatar_088.png").is_file()
+    assert len(list(FALLBACK_AVATAR_DIR.glob("avatar_*.png"))) == 94
+    assert not (ROOT / "img" / "profile_avatar_single").exists()
+    source = (ROOT / "streamlit_opensea_sales" / "opensea_account_profiles.py").read_text(encoding="utf-8")
+    assert "PREPARED_AVATAR" not in source
+    assert "fallback_avatar_path" not in source
+    assert fallback_avatar_data_uri("wallet-70").startswith("data:image/png;base64,")
+    assert fallback_avatar_data_uri("wallet-88").startswith("data:image/png;base64,")
+    assert ".trader-avatar-small{{width:48px;height:48px}}" in (ROOT / "streamlit_opensea_sales" / "ui" / "trader_overview.py").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("slot", [70, 88])
+def test_remote_profile_avatar_wins_over_any_fallback_slot(monkeypatch, slot):
     import opensea_account_profiles as profiles
 
-    monkeypatch.setattr(profiles, "fallback_avatar_filename", lambda wallet: "avatar_088.png")
-    assert fallback_avatar_path("wallet-88").name == "88.png"
-    assert fallback_avatar_path("wallet-88").parent.name == "profile_avatar_single"
-    monkeypatch.setattr(profiles, "fallback_avatar_filename", lambda wallet: "avatar_070.png")
-    assert fallback_avatar_path("wallet-70").name == "70.png"
-    assert fallback_avatar_path("wallet-70").parent.name == "profile_avatar_single"
-    assert ".trader-avatar-small{{width:48px;height:48px}}" in (ROOT / "streamlit_opensea_sales" / "ui" / "trader_overview.py").read_text(encoding="utf-8")
+    monkeypatch.setattr(profiles, "fallback_avatar_filename", lambda wallet: f"avatar_{slot:03d}.png")
+    rendered = avatar_style_attribute(
+        {"profile_image_url": "https://example.com/owner-avatar.png"},
+        f"wallet-{slot}",
+    )
+    assert "--trader-remote-avatar:url(&quot;https://example.com/owner-avatar.png&quot;);" in rendered
+    assert "--trader-fallback-avatar:none;" in rendered
+    assert "data:image/png;base64" not in rendered
 
 
 def test_avatar_style_attribute_escapes_complete_style_value():

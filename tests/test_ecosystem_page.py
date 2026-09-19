@@ -97,7 +97,8 @@ def test_ecosystem_route_is_top_level_and_bypasses_analytics_writers():
     assert "analytics_active = current_mode in ('item', 'market', 'top_items', 'trader')" in nav
     assert "min-height:36px" in nav
     assert "@media(max-width:768px)" in nav
-    assert "width:176px" in nav
+    assert ".otg-nav-analytics,.otg-nav-analytics>summary{{width:auto;flex:0 0 auto}}" in nav
+    assert ".otg-nav-dropdown{{width:176px;max-width:calc(100vw - 24px)}}" in nav
 
     branch = app.index('if requested_mode == "ecosystem":')
     sidebar_logo = app.index("render_sidebar_logo()")
@@ -126,6 +127,16 @@ def test_ecosystem_v2_is_compact_directory_layout_and_other_routes_keep_sidebar(
     assert "st.sidebar.markdown" in app
     assert "render_sidebar_logo()" in app
     assert "render_sidebar_footer()" in app
+
+
+def test_ecosystem_section_icons_are_48px_left_aligned_heading_row_assets():
+    source = (APP / "ui" / "ecosystem.py").read_text(encoding="utf-8")
+    assert ".ecosystem-section-heading{display:flex;align-items:center" in source
+    assert ".ecosystem-section-icon{display:block;width:48px;height:48px;flex:0 0 48px;object-fit:contain" in source
+    assert "img/section_ecosystem/OFFICIAL_ECOSYSTEM.png" in source
+    assert "img/section_ecosystem/MARKETPLACES.png" in source
+    assert "img/section_ecosystem/COMMUNITY_ECOSYSTEM.png" in source
+    assert "<span>{title}</span>" in source
 
 
 def test_ecosystem_feedback_is_display_and_back_navigation_safe_without_db_migration():

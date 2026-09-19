@@ -18,12 +18,7 @@ from trader_analytics import normalize_wallet
 
 SNAPSHOT_PATH = Path(__file__).parent / "data_opensea_sales" / "opensea_account_profiles_snapshot.json"
 FALLBACK_AVATAR_DIR = Path(__file__).parent.parent / "img" / "profile_avatar"
-PREPARED_AVATAR_DIR = Path(__file__).parent.parent / "img" / "profile_avatar_single"
 FALLBACK_AVATAR_COUNT = 94
-PREPARED_AVATAR_OVERRIDES = {
-    "avatar_070.png": "70.png",
-    "avatar_088.png": "88.png",
-}
 _CANONICAL_WALLET_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 
@@ -120,21 +115,10 @@ def fallback_avatar_filename(wallet: str) -> str:
     return f"avatar_{index:03d}.png"
 
 
-def fallback_avatar_path(wallet: str = "") -> Path:
-    """Return the stable local avatar path, including the two prepared refreshes."""
-    filename = fallback_avatar_filename(wallet)
-    prepared_name = PREPARED_AVATAR_OVERRIDES.get(filename)
-    if prepared_name:
-        prepared_path = PREPARED_AVATAR_DIR / prepared_name
-        if prepared_path.is_file():
-            return prepared_path
-    return FALLBACK_AVATAR_DIR / filename
-
-
 @lru_cache(maxsize=FALLBACK_AVATAR_COUNT + 1)
 def fallback_avatar_data_uri(wallet: str = "") -> str:
     try:
-        encoded = base64.b64encode(fallback_avatar_path(wallet).read_bytes()).decode("ascii")
+        encoded = base64.b64encode((FALLBACK_AVATAR_DIR / fallback_avatar_filename(wallet)).read_bytes()).decode("ascii")
         return f"data:image/png;base64,{encoded}"
     except OSError:
         return ""

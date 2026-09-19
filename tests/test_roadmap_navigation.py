@@ -48,6 +48,9 @@ def test_top_navigation_has_exact_disabled_controls_and_dropdown_contract():
     assert ".otg-nav-analytics:focus-within .otg-nav-dropdown" in source
     assert ".otg-nav-analytics[open] .otg-nav-dropdown" in source
     assert "@media(max-width:768px)" in source
-    assert "width:176px" in source
+    assert ".otg-nav-analytics,.otg-nav-analytics>summary{{width:auto;flex:0 0 auto}}" in source
+    assert ".otg-nav-dropdown{{width:176px;max-width:calc(100vw - 24px)}}" in source
+    assert "@media(max-width:480px)" in source
+    assert "min-width:0" in source
     assert "in-game" not in source
     assert "<script" not in source
