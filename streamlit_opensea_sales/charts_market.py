@@ -15,7 +15,7 @@ import pandas as pd
 from typing import Optional
 from formatters import format_number
 from price_history_access import enrich_daily_metrics_with_token_price, enrich_monthly_metrics_with_average_token_price
-from market_price_ranges import PRICE_RANGE_BUCKETS, PRICE_RANGE_BUCKET_IDS
+from market_price_ranges import get_price_range_buckets, PRICE_RANGE_BUCKET_IDS
 
 # OTG Color scheme
 COLOR_BACKGROUND = '#000000'  # Pure black
@@ -94,10 +94,11 @@ def _add_price_range_total_hover_trace(fig: go.Figure, x_values, total_values) -
     ))
 
 
-def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: bool = False) -> Optional[go.Figure]:
+def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: bool = False, mode: str = 'usd') -> Optional[go.Figure]:
     """Build the prepared daily stacked-area sales-by-price-range chart."""
     if price_range_df is None or price_range_df.empty:
         return None
+    buckets = get_price_range_buckets(mode)
     required = {'date', 'total_sales', *PRICE_RANGE_BUCKET_IDS}
     if not required.issubset(price_range_df.columns):
         return None
@@ -107,7 +108,7 @@ def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: b
         if df['date'].isna().any():
             return None
         fig = go.Figure()
-        for bucket in PRICE_RANGE_BUCKETS:
+        for bucket in buckets:
             bucket_id = bucket['id']
             fig.add_trace(go.Scatter(
                 x=df['date'],
@@ -119,7 +120,7 @@ def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: b
                 hovertemplate=f"{bucket['label']}: %{{y:,.0f}} sales<extra></extra>",
             ))
         _add_price_range_total_hover_trace(fig, df['date'], df['total_sales'])
-        fig.update_layout(**_price_range_layout('DAILY SALES BY PRICE RANGE — USD AT SALE', mobile_layout))
+        fig.update_layout(**_price_range_layout('DAILY SALES BY PRICE RANGE', mobile_layout))
         fig.update_xaxes(title=None, range=_padded_daily_range(df['date']))
         return fig
     except Exception as exc:
@@ -127,17 +128,18 @@ def build_daily_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: b
         return None
 
 
-def build_monthly_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: bool = False) -> Optional[go.Figure]:
+def build_monthly_price_range_chart(price_range_df: pd.DataFrame, mobile_layout: bool = False, mode: str = 'usd') -> Optional[go.Figure]:
     """Build the prepared monthly stacked-bar sales-by-price-range chart."""
     if price_range_df is None or price_range_df.empty:
         return None
+    buckets = get_price_range_buckets(mode)
     required = {'month', 'total_sales', *PRICE_RANGE_BUCKET_IDS}
     if not required.issubset(price_range_df.columns):
         return None
     try:
         df = price_range_df.copy()
         fig = go.Figure()
-        for bucket in PRICE_RANGE_BUCKETS:
+        for bucket in buckets:
             bucket_id = bucket['id']
             fig.add_trace(go.Bar(
                 x=df['month'],
@@ -147,7 +149,7 @@ def build_monthly_price_range_chart(price_range_df: pd.DataFrame, mobile_layout:
                 hovertemplate=f"{bucket['label']}: %{{y:,.0f}} sales<extra></extra>",
             ))
         _add_price_range_total_hover_trace(fig, df['month'], df['total_sales'])
-        fig.update_layout(**_price_range_layout('MONTHLY SALES BY PRICE RANGE — USD AT SALE', mobile_layout, barmode='stack'))
+        fig.update_layout(**_price_range_layout('MONTHLY SALES BY PRICE RANGE', mobile_layout, barmode='stack'))
         fig.update_xaxes(title=None)
         return fig
     except Exception as exc:
@@ -244,10 +246,9 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
         fig.add_trace(go.Scatter(
             x=df['date'],
             y=df['liquidity'],
-            mode='lines+markers',
+            mode='lines',
             name='Daily Liquidity',
-            line=dict(color=COLOR_LINE, width=2),
-            marker=dict(size=4, color=COLOR_MARKER),
+            line=dict(color=COLOR_LINE, width=1.2),
             hovertemplate='<b>%{x|%Y-%m-%d}</b><br>Liquidity: %{y:,.0f} transactions<extra></extra>',
             fill='tozeroy',
             fillcolor='rgba(255, 0, 58, 0.15)'
@@ -257,8 +258,8 @@ def build_daily_liquidity_chart(daily_df: pd.DataFrame, mobile_layout: bool = Fa
             wallet_df = unique_wallets_df.copy()
             fig.add_trace(go.Scatter(
                 x=wallet_df['date'], y=pd.to_numeric(wallet_df['unique_wallets'], errors='coerce'),
-                mode='lines+markers', name='Unique Wallets', yaxis='y2',
-                line=dict(color='#FFD400', width=2.5), marker=dict(size=4, color='#FFD400'),
+                mode='lines', name='Unique Wallets', yaxis='y2',
+                line=dict(color='#FFD400', width=1.2),
                 hovertemplate='<b>%{x|%Y-%m-%d}</b><br>Unique Wallets: %{y:,.0f}<extra></extra>',
             ))
         
@@ -408,10 +409,9 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
         fig.add_trace(go.Scatter(
             x=df['date'],
             y=y_values,
-            mode='lines+markers',
+            mode='lines',
             name=f'Daily Volume ({main_currency})',
-            line=dict(color=COLOR_LINE, width=2),
-            marker=dict(size=4, color=COLOR_MARKER),
+            line=dict(color=COLOR_LINE, width=1.2),
             customdata=list(zip(main_values, secondary_values, token_prices)),
             hovertemplate=hover_template,
             fill='tozeroy',
@@ -432,7 +432,7 @@ def build_daily_volume_chart(daily_df: pd.DataFrame, show_usd: bool = False, cur
                 y=token_price_plot['token_price_usd'],
                 mode='lines',
                 name='GUN/USD',
-                line=dict(color='#AFFF01', width=2.5),
+                line=dict(color='#AFFF01', width=1.2),
                 hovertemplate=token_hover,
                 yaxis='y2'
             ))

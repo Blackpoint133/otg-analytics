@@ -25,7 +25,7 @@ import pandas as pd
 import streamlit as st
 
 from config import get_data_dir, USE_ENRICHED_MARKET_OVERVIEW
-from market_price_ranges import validate_sales_by_price_range_payload
+from market_price_ranges import sanitize_sales_by_price_range_payload
 from market_item_classes import snapshot_identity, validate_sales_by_item_class_payload
 
 
@@ -324,11 +324,15 @@ def load_market_expansion_metrics(cache_buster: str = None, file_version: str = 
             if not isinstance(row, dict) or not row.get('month') or not row.get('month_start') or not row.get('month_end') or not isinstance(row.get('unique_wallets'), (int, float)) or row['unique_wallets'] < 0:
                 return None
         price_ranges = payload.get('sales_by_price_range')
-        if price_ranges is not None and not validate_sales_by_price_range_payload(
-            price_ranges,
-            expected_source_latest_date=payload.get('source_latest_date', ''),
-        ):
-            return None
+        if price_ranges is not None:
+            sanitized_price_ranges = sanitize_sales_by_price_range_payload(
+                price_ranges,
+                expected_source_latest_date=payload.get('source_latest_date', ''),
+            )
+            if sanitized_price_ranges is None:
+                payload.pop('sales_by_price_range', None)
+            else:
+                payload['sales_by_price_range'] = sanitized_price_ranges
         item_classes = payload.get('sales_by_item_class')
         if item_classes is not None:
             # Item Class is independently optional so a stale/malformed class

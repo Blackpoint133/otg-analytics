@@ -221,12 +221,13 @@ def _filter_expansion_series(expansion: Optional[dict], start_date, end_date, is
     return daily, monthly
 
 
-def _filter_price_range_series(expansion: Optional[dict], start_date, end_date, is_all_time):
+def _filter_price_range_series(expansion: Optional[dict], start_date, end_date, is_all_time, show_usd: bool = True):
     """Return prepared price-range frames using the existing Market period bounds."""
     if not expansion or not expansion.get('sales_by_price_range'):
         return None, None
     try:
-        daily, monthly = payload_to_frames(expansion['sales_by_price_range'])
+        mode = 'usd' if show_usd else 'gun'
+        daily, monthly = payload_to_frames(expansion['sales_by_price_range'], mode=mode)
     except (TypeError, ValueError, KeyError):
         return None, None
     if not is_all_time and start_date is not None and end_date is not None:
@@ -258,7 +259,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
     view_mode = normalize_market_view(view_mode)
     if guide_open:
         from ui.section_guide import render_section_guide_panel
-        render_section_guide_panel("""<p><b>MARKET ANALYTICS</b> A market-wide view of observed OpenSea trading activity across all tracked items.</p><p><b>PERIOD</b> Select ALL TIME, 12 MONTH, 6 MONTH or 3 MONTH. The selected period applies to the summary metrics and market charts and is measured back from the latest available market data.</p><p><b>VIEW</b> DAILY shows the daily versions of all four Market charts. MONTHLY shows the monthly versions. Changing VIEW does not change the selected PERIOD.</p><p><b>MARKET SUMMARY</b> TOTAL TRANSACTIONS is the number of observed marketplace transactions. TOTAL VOLUME is their combined traded value. UNIQUE WALLETS counts distinct buyers and sellers. ITEMS TRADED counts distinct items with observed activity during the selected period.</p><p><b>LIQUIDITY</b> DAILY MARKET LIQUIDITY and MONTHLY MARKET LIQUIDITY show how many completed sales occurred over time. In OTG Analytics, Liquidity means completed trading activity, not the number or depth of active listings or offers. Enable UNIQUE WALLETS to overlay the number of distinct wallets active in those sales.</p><p><b>VOLUME</b> DAILY MARKET VOLUME and MONTHLY MARKET VOLUME show the total traded value over time. Enable USD PRICE to display volume in USD, using historical transaction pricing where available. Enable TOKEN PRICE to overlay the GUN/USD price on the volume charts.</p><p><b>SALES BY PRICE RANGE</b> Groups observed sales using the historical USD value at the time of each sale. The Y-axis is a sales count, and the fixed USD-at-sale ranges remain unchanged by the USD PRICE toggle. Daily and Monthly views aggregate the same buckets.</p><p><b>SALES BY ITEM CLASS</b> Shows the number of observed sales grouped by the current tracked OTG item classification. Daily is grouped by UTC day and Monthly by UTC month. This is a sales count, not monetary volume; USD PRICE and TOKEN PRICE do not change the classification.</p><p><b>CHARTS</b> Hover over chart points or bars to inspect the underlying date or month and its market values.</p><p class="trader-guide-note">All market metrics are derived from observed marketplace activity within the selected data period.</p>""", trusted_html=True)
+        render_section_guide_panel("""<p><b>MARKET ANALYTICS</b> Market-wide view of observed OpenSea trading activity.</p><p><b>VALUE DISPLAY</b> <b>USD PRICE</b> displays monetary values in USD where applicable and selects historical USD-at-sale buckets for SALES BY PRICE RANGE. When it is off, monetary values use GUN where applicable and Price Range uses each sale's recorded GUN amount. These are historical values; current token price does not change bucket membership.</p><p><b>TOKEN PRICE</b> Adds historical GUN/USD context to Liquidity and Volume charts where supported. It does not change Price Range classification.</p><p><b>UNIQUE WALLETS</b> Adds the number of distinct wallets active in those sales to Liquidity.</p><p><b>VIEW</b> DAILY shows the four Daily charts. MONTHLY shows the four Monthly charts. Changing VIEW does not change the selected PERIOD.</p><p><b>PERIOD</b> ALL TIME, 12 MONTH, 6 MONTH and 3 MONTH control the data window for summary metrics and charts.</p><p><b>MARKET SUMMARY</b> TOTAL TRANSACTIONS counts observed sales. TOTAL VOLUME is traded value. UNIQUE WALLETS counts participating buyers and sellers. ITEMS TRADED counts distinct traded items.</p><p><b>LIQUIDITY</b> Liquidity means completed trading activity. Daily and Monthly Liquidity charts show how many completed sales occurred over time, not the number or depth of active listings or offers.</p><p><b>VOLUME</b> Shows total traded value over time.</p><p><b>SALES BY PRICE RANGE</b> Groups sales by historical transaction price. Its Y-axis is sales count. USD PRICE selects USD-at-sale buckets; GUN mode selects recorded GUN buckets. DAILY and MONTHLY aggregate the same fixed buckets.</p><p><b>SALES BY ITEM CLASS</b> Groups sales by the current tracked OTG item classification. DAILY uses UTC days and MONTHLY uses UTC months. Its Y-axis is sales count.</p><p><b>CHARTS</b> Hover for exact values.</p><p class="trader-guide-note">Metrics are derived from observed marketplace activity within the selected period.</p>""", trusted_html=True)
     
     # technical implementation note technical implementation note data
     status = mda.get_market_data_status()
@@ -351,7 +352,8 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
         is_all_time
     )
     expansion_daily, expansion_monthly = _filter_expansion_series(expansion, start_date, end_date, is_all_time)
-    price_range_daily, price_range_monthly = _filter_price_range_series(expansion, start_date, end_date, is_all_time)
+    price_range_mode = 'usd' if show_usd else 'gun'
+    price_range_daily, price_range_monthly = _filter_price_range_series(expansion, start_date, end_date, is_all_time, show_usd=show_usd)
     item_class_daily, item_class_monthly, item_class_classes = _filter_item_class_series(expansion, start_date, end_date, is_all_time)
     kpi_summary = _resolve_period_kpi_summary(
         prepared_periods,
@@ -410,7 +412,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
             ),
             (
                 "daily_price_range",
-                build_daily_price_range_chart(price_range_daily, mobile_layout=is_mobile_market_chart),
+                build_daily_price_range_chart(price_range_daily, mobile_layout=is_mobile_market_chart, mode=price_range_mode),
             ),
             (
                 "daily_item_class",
@@ -442,7 +444,7 @@ def render_market_overview(show_usd: bool = False, current_gun_price: float = 0.
             ),
             (
                 "monthly_price_range",
-                build_monthly_price_range_chart(price_range_monthly, mobile_layout=is_mobile_market_chart),
+                build_monthly_price_range_chart(price_range_monthly, mobile_layout=is_mobile_market_chart, mode=price_range_mode),
             ),
             (
                 "monthly_item_class",

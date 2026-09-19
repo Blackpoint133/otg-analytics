@@ -132,8 +132,8 @@ def test_market_renderer_constructs_only_selected_temporal_family():
 
 def test_market_guide_documents_view_without_changing_period():
     source = OVERVIEW.read_text(encoding="utf-8")
-    assert "<b>VIEW</b> DAILY shows the daily versions of all four Market charts." in source
-    assert "MONTHLY shows the monthly versions." in source
+    assert "<b>VIEW</b> DAILY shows the four Daily charts." in source
+    assert "MONTHLY shows the four Monthly charts." in source
     assert "Changing VIEW does not change the selected PERIOD." in source
 
 

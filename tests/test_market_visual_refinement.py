@@ -69,6 +69,35 @@ def test_daily_market_charts_use_visual_half_day_edge_padding():
         assert fig.layout.showlegend is False
 
 
+def test_daily_market_lines_are_thin_and_marker_free_for_all_overlays():
+    daily = _daily()
+    wallets = pd.DataFrame({"date": daily["date"], "unique_wallets": [2]})
+    liquidity = build_daily_liquidity_chart(daily, unique_wallets_df=wallets, show_unique_wallets=True)
+    volume = build_daily_volume_chart(daily, show_token_price=True)
+    assert liquidity.data[0].mode == "lines"
+    assert liquidity.data[0].line.width == 1.2
+    assert liquidity.data[0].marker is None or liquidity.data[0].marker.size is None
+    assert liquidity.data[1].mode == "lines"
+    assert liquidity.data[1].line.width == 1.2
+    assert liquidity.data[1].marker is None or liquidity.data[1].marker.size is None
+    assert volume.data[0].mode == "lines"
+    assert volume.data[0].line.width == 1.2
+    assert volume.data[0].marker is None or volume.data[0].marker.size is None
+    assert volume.data[1].mode == "lines"
+    assert volume.data[1].line.width == 1.2
+    assert volume.data[1].marker is None or volume.data[1].marker.size is None
+
+
+def test_market_guide_explains_dual_currency_price_range_and_final_controls():
+    source = (APP / "ui" / "market_overview.py").read_text(encoding="utf-8")
+    assert "historical USD-at-sale buckets" in source
+    assert "recorded GUN amount" in source
+    assert "fixed USD-at-sale ranges remain unchanged" not in source
+    assert "Changing VIEW does not change the selected PERIOD." in source
+    assert "TOKEN PRICE" in source
+    assert "UNIQUE WALLETS" in source
+
+
 def test_monthly_market_charts_hide_legends_with_token_overlay_states():
     monthly = _monthly()
     figures = [
